@@ -1,0 +1,9 @@
+- probar el hiding de las actions (what should be the impact?)
+- find a better way to compose automatas state
+- arbiter state should have access to the graph? (to be able to solve the set (w,v), aka "the set of nodes properly between the nodes  and w in this ordering pag 53")
+- tengo varias alternativas para componer estado
+  A. manteniendo los tipos y manteniendo la cantidad (aka tuples of states)
+  B. perdiendo los tipos
+  C. manteniendo los tipos, perdiendo la cantidad (aka list of states)
+
+  Dentro de mantener los tipos pero perder la cantidad, tengo dos alternativas

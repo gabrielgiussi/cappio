@@ -5,6 +5,11 @@ import oss.ggiussi.cappio.Transition.Transition
 
 trait Action // TODO empty trait?
 
+trait AutomatonState {
+  val id: Int
+
+}
+
 final case class ActionSignature(in: Set[Action], out: Set[Action], int: Set[Action]) {
   require(in intersect out intersect int isEmpty, "The sets in,out & int must be disjoint")
 
@@ -44,7 +49,6 @@ object Transition {
 
   def inputTransition[S](enabled: Action => Boolean, effect: (S, Action) => S): Transition[S] = transition(enabled, _ => true, effect)
 
-  // TODO precondition only for output || internal
   def transition[S](enabled: Action => Boolean, precondition: S => Boolean, effect: (S, Action) => S): Transition[S] = new Transition[S] {
     override def isDefinedAt(x: (S, Action)): Boolean = enabled(x._2) && precondition(x._1)
 
@@ -59,6 +63,7 @@ object Steps {
   def steps[S](transitions: Set[Transition[S]]): Steps[S] = {
     // 1. how to model input enabled? if I can't tell if input/output a property of the ActionSignature (not a action property itself)
     // 2. If a precondition doesn't hold (but the action matches), doesn't perform the action or fails (throw exception) ?
+    // 3. Si la action no cumple le precondition no deberia modificar la execution! es decir no tomaria un step.
     val a = transitions.toList match {
       case x :: xs => xs.foldLeft(x)(_ orElse _)
       case Nil => throw new RuntimeException("TODO") // TODO
@@ -72,6 +77,11 @@ object Steps {
 }
 
 trait Automaton[S] {
+
+  private final case class HideAutomaton[S](automaton: Automaton[S], actions: Set[Action]) extends Automaton[S]{
+    override val sig: ActionSignature = automaton.sig.hide(actions)
+    override val steps: Steps[S] = automaton.steps // TODO should impact in stepts to? (i think so)
+  }
 
   private final case class CompositeAutomaton[S,S1,S2](aut1: Automaton[S1], aut2: Automaton[S2], f: (S1, S2) => S)(implicit f1: S => S1, f2: S => S2) extends Automaton[S] {
     override val sig: ActionSignature = aut1.sig.compose(aut2.sig).get // TODO remove get
@@ -88,17 +98,47 @@ trait Automaton[S] {
     else None
   }
 
+  def composeTuple[S2](that: Automaton[S2]): Option[Automaton[(S,S2)]] = compose(that,(s1: S,s2: S2) => (s1,s2))(_._1,_._2)
 
-  def hide(actions: Set[Action]): Automaton[S] = ??? // TODO
+
+  def hide(actions: Set[Action]): Automaton[S] = HideAutomaton(this,actions)
 
 }
 
 // actions: no deberia poder recibir el parametro
 // deberia llevar la lista de estados
-case class Execution[S](automaton: Automaton[S], state: S, actions: List[Action] = List()){
 
-  def next(action: Action): Execution[S] = copy(state = automaton.steps.apply((state,action)), actions = actions :+ action)
+case class Step[S](a0: S, action: Action, a1: S)
+
+object Execution {
+
+  def execute[S](automaton:Automaton[S], initialState: S, action: Action): Execution[S] = {
+    val a1 = automaton.steps.apply((initialState,action))
+    new Execution(automaton,List(Step(initialState,action,a1)))
+  }
+
+}
+
+case class Execution[S](automaton: Automaton[S], steps: List[Step[S]]){
+
+  def next(action: Action): Execution[S] = {
+    val a0 = steps.last.a1
+    val a1 = automaton.steps.apply((a0,action))
+    copy(steps = steps :+ Step(a0,action,a1))
+  }
+
+  def sched(): List[Action] = steps.map(_.action)
+
+  // for debugging
+  def state(): S = steps.last.a1
+}
+
+/*
+case class Execution[S](automaton: Automaton[S], state: S, steps: List[Step[S]]){
+
+  def next(action: Action): Execution[S] = copy(state = automaton.steps.apply((state,action)), steps = steps :+ (steps))
 
   def sched(): List[Action] = actions
 }
+*/
 

@@ -15,27 +15,37 @@ case class SendGrant(a: Int, v: Int) extends Action
 
 object ArbiterState {
   // Hay una logica en la creacion del estado inicial (validar que el lastwordard apunte en la direccion del holder) TODO
-  def initial(holding: Boolean, lastforward: Int) = ArbiterState(requesting = Set.empty,lastforward = lastforward, holding = holding, requested = false)
+  def initial(holding: Boolean, lastforward: Int) = ArbiterState(requesting = Set.empty, lastforward = lastforward, holding = holding, requested = false)
 }
 
 case class ArbiterState(requesting: Set[Int], lastforward: Int, holding: Boolean, requested: Boolean)
 
 
-
-class Arbiter(a: Int, neighbors: Set[Int]) extends Automaton[ArbiterState] {
-
-  val steps: Steps[ArbiterState] = {
-    val transitions: Set[Transition[ArbiterState]] = Set(
-      Transition.inputTransition[ArbiterState](
-        {
-          case ReceiveRequest(_, `a`) => true
-          case _ => false
-        }, (s: ArbiterState, a: Action) => s.copy(s.requesting + a.asInstanceOf[ReceiveRequest].v)
+case class Arbiter(a: Int, neighbors: Set[Int]) extends Automaton[ArbiterState] {
+  /*
+    val steps: Steps[ArbiterState] = {
+      val transitions: Set[Transition[ArbiterState]] = Set(
+        Transition.inputTransition[ArbiterState](
+          {
+            case ReceiveRequest(_, `a`) => true
+            case _ => false
+          }, (s: ArbiterState, a: Action) => s.copy(s.requesting + a.asInstanceOf[ReceiveRequest].v)
+        )
       )
+      Steps.steps(transitions)
+    }
+  */
+  val steps: Steps[ArbiterState] = {
+    val transitions: Set[Transition[ArbiterState]] = Set({
+      case (state, ReceiveRequest(v, `a`)) => state.copy(state.requesting + v)
+      case (state@ArbiterState(_, lastforward, holding, _), ReceiveGrant(v, `a`)) => if (!holding && lastforward == v) state.copy(holding = true, requested = false) else state
+      case (state@ArbiterState(requesting, lastforward, holding, requested), SendRequest(`a`, v)) if !requesting.isEmpty && !requested && !holding && lastforward == v => state.copy(requested = true)
+      // TODO lastforward = w, y ∉ requesting for all y ∈ (w v) pag 64
+      case (state@ArbiterState(requesting, lastforward, holding, _), SendGrant(`a`, v)) if requesting.contains(v) && holding => state.copy(requesting - v, lastforward = v, holding = false)
+    }
     )
     Steps.steps(transitions)
   }
-
   // action signature depends on the neighbors (the graph G)
   override val sig: ActionSignature = {
     val in: Set[Action] = neighbors.flatMap(v => Set(ReceiveRequest(v, a), ReceiveGrant(v, a)))
@@ -45,6 +55,28 @@ class Arbiter(a: Int, neighbors: Set[Int]) extends Automaton[ArbiterState] {
 
 }
 
+
+case class Message(from: Int, to: Int, t: String)
+
+class MessageSystem(adjacencies: Set[(Int, Int)]) extends Automaton[Set[Message]] {
+  override val sig: ActionSignature = {
+    val in: Set[Action] = adjacencies.flatMap { case (a1, a2) => Set(SendRequest(a1, a2), SendRequest(a2, a1), SendGrant(a1, a2), SendGrant(a2, a1)) }
+    val out: Set[Action] = adjacencies.flatMap { case (a1, a2) => Set(ReceiveRequest(a1, a2), ReceiveRequest(a2, a1), ReceiveGrant(a1, a2), ReceiveGrant(a2, a1)) }
+    ActionSignature(in, out, Set())
+  }
+  override val steps: Steps[Set[Message]] = {
+    val transitions: Set[Transition[Set[Message]]] = Set({
+      case (state, SendRequest(a, _a)) => state + Message(a, _a, "request")
+      case (state, SendGrant(a, _a)) => state + Message(a, _a, "grant")
+      case (state, ReceiveRequest(a, _a)) if (state.contains(Message(a, _a, "request"))) => state - Message(a, _a, "request")
+      case (state, ReceiveGrant(a, _a)) if (state.contains(Message(a, _a, "grant"))) => state - Message(a, _a, "grant")
+      //case _ => throw new RuntimeException("error") TODO
+    })
+    Steps.steps(transitions)
+  }
+}
+
+/*
 object Prueba extends App {
 
   val arbiter = new Arbiter(0,Set(1))
@@ -53,11 +85,60 @@ object Prueba extends App {
   val arbiter1 = new Arbiter(1,Set(0))
   val initialState1 = ArbiterState.initial(false,0)
 
-  val c = arbiter.compose(arbiter1,(s1: ArbiterState, s2: ArbiterState) => (s1,s2))(s => s._1, s => s._2).get
-  val e = Execution(c, (initialState0,initialState1))
+  val c = arbiter.compose(arbiter1,(s1: ArbiterState, s2: ArbiterState) => (s1,s2))(_._1, _._2).get
+  val m = new MessageSystem(Set((0,1)))
+  val t = c.compose(m,(s1: (ArbiterState,ArbiterState), s2: Set[Message]) => (s1,s2))(_._1, _._2).get
+  val automaton = t.hide(t.sig.out -- Set())
+  val e = Execution(automaton, ((initialState0,initialState1),Set.empty[Message]))
 
   println(e.state)
-  println(e.next(ReceiveRequest(1,0)).next(ReceiveRequest(1,1)).state)
+  val e1 = e.next(SendRequest(0,1)) // I can't tell if this is correct or it should be SendRequest(0,1) to match ReceiveRequest(0,1) (In the MessageSystem i can control it, but in the arbiters?)
+  println(e1.state)
+  val e2 = e1.next(SendRequest(1,0))
+  println(e2.state)
+
+
+
+}
+*/
+
+object Prueba extends App {
+
+  /*
+             a0 -- a1  -- a2
+            /              \
+          u3                u4
+   */
+
+  val arbiter = new Arbiter(0, Set(1, 3))
+  val initialState0 = ArbiterState.initial(true, 1)
+
+  val arbiter1 = new Arbiter(1, Set(0, 2))
+  val initialState1 = ArbiterState.initial(holding = false, lastforward = 0)
+
+  val arbiter2 = new Arbiter(2, Set(1, 4))
+  val initialState2 = ArbiterState.initial(false, 1)
+
+  implicit def f[S1,S2](s1: S1,s2: S2): (S1,S2) = (s1,s2)
+
+  val m = new MessageSystem(Set(
+    (0, 1),
+    (1, 2)
+  ))
+
+  val t = {
+    val t0 = arbiter.compose(arbiter1, (s1: ArbiterState, s2: ArbiterState) => (s1, s2))(_._1, _._2).get
+    t0.composeTuple(arbiter2).get
+  }
+  val automaton: Automaton[(((ArbiterState, ArbiterState), ArbiterState), Set[Message])] = t.composeTuple(m).get.hide(t.sig.out -- Set(SendGrant(0, 3), SendGrant(2, 4)))
+  val initialState = (((initialState0, initialState1),initialState2),Set.empty[Message])
+  val e = Execution.execute(automaton, initialState, SendRequest(0, 1))
+
+  println(e.state)
+  val e1 = e.next(SendRequest(0, 1)) // I can't tell if this is correct or it should be SendRequest(0,1) to match ReceiveRequest(0,1) (In the MessageSystem i can control it, but in the arbiters?)
+  println(e1.state)
+  val e2 = e1.next(SendRequest(1, 0))
+  println(e2.state)
 
 
 }
