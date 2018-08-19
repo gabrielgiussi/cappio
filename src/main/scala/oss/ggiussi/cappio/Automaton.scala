@@ -10,6 +10,20 @@ trait AutomatonState {
 
 }
 
+case object UnsatisfiedPreconditionException extends RuntimeException
+case object UnknownActionException extends RuntimeException
+
+object Effect {
+  // // or Try[S] TODO
+  // enrealidad precondition y f dependen del payload del action tmb, pero lo estoy capturando en un closure (es menos prolijo pero me deja escribir menos verbose)
+  def inputEnabled[S](f: S => S): Effect[S] = new Effect(_ => true,f)
+}
+
+case class Effect[S](precondition: S => Boolean, f: S => S) extends Function1[(S,Action),S]{
+  def apply(input: (S,Action)): S = if (precondition(input._1)) f(input._1) else throw UnsatisfiedPreconditionException
+
+}
+
 final case class ActionSignature(in: Set[Action], out: Set[Action], int: Set[Action]) {
   require(in intersect out intersect int isEmpty, "The sets in,out & int must be disjoint")
 
@@ -45,34 +59,55 @@ final case class ActionSignature(in: Set[Action], out: Set[Action], int: Set[Act
 
 
 object Transition {
-  type Transition[S] = PartialFunction[(S, Action), S]
-
-  def inputTransition[S](enabled: Action => Boolean, effect: (S, Action) => S): Transition[S] = transition(enabled, _ => true, effect)
-
-  def transition[S](enabled: Action => Boolean, precondition: S => Boolean, effect: (S, Action) => S): Transition[S] = new Transition[S] {
-    override def isDefinedAt(x: (S, Action)): Boolean = enabled(x._2) && precondition(x._1)
-
-    override def apply(v1: (S, Action)): S = effect(v1._1,v1._2)
-  }
-
+  type Transition[S] = PartialFunction[Action, Effect[S]]
 }
 
 object Steps {
-  type Steps[S] = Function1[(S, Action), S]
+  trait Steps[S] extends PartialFunction[(S, Action), S] {
 
-  def steps[S](transitions: Set[Transition[S]]): Steps[S] = {
+    def isEnabled(state: S, action: Action): Boolean
+
+  }
+
+  def steps[S](transition: Transition[S]): Steps[S] = new Steps[S] {
     // 1. how to model input enabled? if I can't tell if input/output a property of the ActionSignature (not a action property itself)
     // 2. If a precondition doesn't hold (but the action matches), doesn't perform the action or fails (throw exception) ?
     // 3. Si la action no cumple le precondition no deberia modificar la execution! es decir no tomaria un step.
-    val a = transitions.toList match {
-      case x :: xs => xs.foldLeft(x)(_ orElse _)
-      case Nil => throw new RuntimeException("TODO") // TODO
+    //(v1: (S, Action)) => a.applyOrElse(v1, (v: (S,Action)) => v._1)
+
+    override def isEnabled(state: S, action: Action): Boolean = isDefinedAt((state,action)) && transition.apply(action).precondition.apply(state) // TODO UGLY AS SHIT!
+
+    override def isDefinedAt(x: (S, Action)): Boolean = transition.isDefinedAt(x._2)
+
+    // TODO transition.apply puede dar un MatchInput error, usar un applyOrElse q tire exception
+    override def apply(v1: (S, Action)): S = v1 match {
+      case (state,action) if transition.isDefinedAt(action) => transition.apply(action).apply(state,action)
+      case _ => throw UnknownActionException
     }
-    (v1: (S, Action)) => a.applyOrElse(v1, (v: (S,Action)) => v._1)
   }
 
   def compose[S1, S2, S3](steps1: Steps[S1], steps2: Steps[S2], f: (S1, S2) => S3)(implicit f1: S3 => S1, f2: S3 => S2): Steps[S3] = new Steps[S3] {
-    override def apply(v1: (S3, Action)): S3 = f(steps1(v1._1,v1._2), steps2(v1._1,v1._2))
+    override def isEnabled(state: S3, action: Action): Boolean = {
+      val (s1,s2) = (f1(state),f2(state))
+      (isDefinedAt((state,action))) && (!steps1.isDefinedAt((s1,action)) || steps1.isEnabled(s1,action)) && (!steps2.isDefinedAt((s2,action)) || steps2.isEnabled(s2,action))
+    }
+
+    override def isDefinedAt(x: (S3, Action)): Boolean = x match {
+      case (state,action) =>
+        val (s1,s2) = (f1(state),f2(state))
+        (steps1.isDefinedAt(s1,action)) || (steps2.isDefinedAt(s2,action))
+    }
+
+    override def apply(v1: (S3, Action)): S3 = {
+      def aux[A]: ((A,Action)) => A = (s: (A,Action)) => s._1
+      v1 match {
+        case (state, action) if (isDefinedAt(v1)) =>
+          val (s1, s2) = (f1(state), f2(state))
+          val (n1,n2) = (steps1.applyOrElse((s1,action),aux),steps2.applyOrElse((s2,action),aux))
+          f(n1,n2)
+        case _ => throw UnknownActionException
+      }
+    }
   }
 }
 
@@ -131,6 +166,10 @@ case class Execution[S](automaton: Automaton[S], steps: List[Step[S]]){
 
   // for debugging
   def state(): S = steps.last.a1
+
+  def enabled(): Set[Action] = automaton.sig.acts().filter(act => automaton.steps.isEnabled(state(),act))
+
+  def isEnabled(act: Action): Boolean = automaton.steps.isEnabled(state(),act)
 }
 
 /*
