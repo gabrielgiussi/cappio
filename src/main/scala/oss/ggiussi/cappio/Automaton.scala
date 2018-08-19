@@ -140,8 +140,6 @@ trait Automaton[S] {
 
 }
 
-// actions: no deberia poder recibir el parametro
-// deberia llevar la lista de estados
 
 case class Step[S](a0: S, action: Action, a1: S)
 
@@ -151,6 +149,8 @@ object Execution {
     val a1 = automaton.steps.apply((initialState,action))
     new Execution(automaton,List(Step(initialState,action,a1)))
   }
+
+  def initiallyEnabled[S](automaton: Automaton[S], initialState: S): Set[Action] = automaton.sig.acts().filter(act => automaton.steps.isEnabled(initialState,act))
 
 }
 
@@ -171,13 +171,3 @@ case class Execution[S](automaton: Automaton[S], steps: List[Step[S]]){
 
   def isEnabled(act: Action): Boolean = automaton.steps.isEnabled(state(),act)
 }
-
-/*
-case class Execution[S](automaton: Automaton[S], state: S, steps: List[Step[S]]){
-
-  def next(action: Action): Execution[S] = copy(state = automaton.steps.apply((state,action)), steps = steps :+ (steps))
-
-  def sched(): List[Action] = actions
-}
-*/
-
