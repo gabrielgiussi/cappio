@@ -2,9 +2,9 @@ package oss.ggiussi.cappio.ui.n
 
 import japgolly.scalajs.react._
 import japgolly.scalajs.react.vdom.html_<^._
-import oss.ggiussi.cappio.core.Action
-import oss.ggiussi.cappio.core.Execution
-import oss.ggiussi.cappio.core.FLLProtocol.{Message, MessageID, Send}
+import oss.ggiussi.cappio.core.{Action, Execution}
+import oss.ggiussi.cappio.core.LinkProtocol.Send
+import oss.ggiussi.cappio.impl.links.{Message, MessageID}
 
 case class ExecutionProps(next: Action => Callback, exec: Execution[_], last: Boolean, currentStep: Int)
 
@@ -15,7 +15,6 @@ object ExecutionComponent {
   val ExecutionComponent =
     ScalaComponent.builder[ExecutionProps]("Execution")
       .render_P { case ExecutionProps(next, exec, last, currentStep) =>
-        //<.div(
           <.ul(
             exec.enabled().filterNot {
               case Send(_,_,Message(_,MessageID(_,_,_,step))) if step != currentStep => true
@@ -27,7 +26,6 @@ object ExecutionComponent {
                 ^.key := index
               )
             }
-         // )
         )
       }
       .build

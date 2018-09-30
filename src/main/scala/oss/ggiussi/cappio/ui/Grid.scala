@@ -1,8 +1,9 @@
 package oss.ggiussi.cappio.ui
 
 import japgolly.scalajs.react.{Callback, ScalaComponent}
-import oss.ggiussi.cappio.core.FLLProtocol.Message
-import oss.ggiussi.cappio.core.{Action, Execution, FLLProtocol}
+import oss.ggiussi.cappio.core.LinkProtocol._
+import oss.ggiussi.cappio.core.{Action, Execution}
+import oss.ggiussi.cappio.impl.links.Message
 import oss.ggiussi.cappio.ui.Constants._
 
 // https://www.sarasoueidan.com/blog/mimic-relative-positioning-in-svg/
@@ -75,8 +76,8 @@ object Grid {
 
       val actions = executions.zipWithIndex.foldLeft(List.empty[(Action, Int)]) { (acc, a) => acc ++ (a._1.sched().toSet -- acc.map(_._1).toSet).map(_ -> a._2) }
         .collect {
-          case (FLLProtocol.Deliver(f, to, msg), index) => GridDeliver(index, f, to, msg)
-          case (FLLProtocol.Send(f, to, msg), index) => GridSend(index, f, to, msg)
+          case (Deliver(f, to, msg), index) => GridDeliver(index, f, to, msg)
+          case (Send(f, to, msg), index) => GridSend(index, f, to, msg)
         }
 
       val arrows = actions.groupBy(_.msg.id).values.flatMap {

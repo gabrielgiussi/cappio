@@ -6,9 +6,10 @@ import japgolly.scalajs.react.extra.router.{BaseUrl, Redirect, Resolution, Route
 import japgolly.scalajs.react.vdom.html_<^._
 import org.scalajs.dom
 import org.scalajs.dom.document
-import oss.ggiussi.cappio.core.FLLProtocol.Deliver
 import oss.ggiussi.cappio.core.Level.Condition
+import oss.ggiussi.cappio.core.LinkProtocol.Deliver
 import oss.ggiussi.cappio.core.{Action, _}
+import oss.ggiussi.cappio.impl.links.{FLLState, FairLossLink}
 import oss.ggiussi.cappio.ui.n.LevelBackend
 
 
@@ -31,19 +32,19 @@ object App {
 
     import Composer._
 
-    type State = (STuple6[FairLossLinkStateN], STuple3[ProcessState])
+    type State = (STuple6[FLLState], STuple3[ProcessState])
 
     val processes: Option[Automaton[STuple3[ProcessState]]] = for {
       c1 <- ProcessN(0, Set(1,2)) composeTuple ProcessN(1, Set(0, 2)) // FIXME los neighbors los necesito para poder crear las input actions....
       c2 <- composeTuple2(c1, ProcessN(2, Set(1,0)))
     } yield c2
 
-    val links: Option[Automaton[STuple6[FairLossLinkStateN]]] = for {
-      c1 <- FairLossLinkN(0, 1) composeTuple FairLossLinkN(1, 0)
-      c2 <- composeTuple2(c1, FairLossLinkN(1, 2))
-      c3 <- composeTuple3(c2, FairLossLinkN(2, 1))
-      c4 <- composeTuple4(c3, FairLossLinkN(0, 2))
-      c5 <- composeTuple5(c4, FairLossLinkN(2, 0))
+    val links: Option[Automaton[STuple6[FLLState]]] = for {
+      c1 <- FairLossLink(0, 1) composeTuple FairLossLink(1, 0)
+      c2 <- composeTuple2(c1, FairLossLink(1, 2))
+      c3 <- composeTuple3(c2, FairLossLink(2, 1))
+      c4 <- composeTuple4(c3, FairLossLink(0, 2))
+      c5 <- composeTuple5(c4, FairLossLink(2, 0))
     } yield c5
 
     val automaton: Option[Automaton[State]] = for {
@@ -53,7 +54,7 @@ object App {
     } yield a
 
     val initalState: State = (
-      (FairLossLinkStateN.empty, FairLossLinkStateN.empty, FairLossLinkStateN.empty, FairLossLinkStateN.empty, FairLossLinkStateN.empty, FairLossLinkStateN.empty),
+      (FLLState.empty, FLLState.empty, FLLState.empty, FLLState.empty, FLLState.empty, FLLState.empty),
       (Up(0), Up(0), Up(0))
     )
 

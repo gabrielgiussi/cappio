@@ -1,9 +1,6 @@
 package oss.ggiussi.cappio.core
 
-import oss.ggiussi.cappio.core.FLLProtocol.Deliver
 import oss.ggiussi.cappio.core.Level.Condition
-import oss.ggiussi.cappio.core.ProcessProtocol.Crash
-import oss.ggiussi.cappio.impl.links.Protocol.ProcessID
 
 
 object Level {
@@ -13,45 +10,6 @@ object Level {
   def apply[S](conditions: List[Condition[S]], schedConditions: List[Condition[List[Action]]], automaton: Automaton[S], initialState: S): Level[S] = new Level(conditions, schedConditions, List(Execution(automaton, initialState)))
 }
 
-object ProcessProtocol {
-
-  case class Crash(id: ProcessID) extends Action
-
-}
-
-sealed trait ProcessState {
-
-  def deliver(msg: Any): ProcessState
-
-}
-
-case class Up(x: Int) extends ProcessState {
-
-  def deliver(msg: Any): ProcessState = copy(x = msg.toString.toInt) // UGHHH
-
-}
-
-case object Down extends ProcessState {
-  override def deliver(msg: Any): ProcessState = Down
-}
-
-case class ProcessN(id: ProcessID, neighbors: Set[ProcessID])(implicit payloads: Payloads) extends Automaton[ProcessState] {
-  override val sig: ActionSignature = {
-    val in: Set[Action] = {
-      val delivers: Set[Action] = neighbors.map(payloads.delivers(_, id)).flatten //neighbors.flatMap(n => payloads.map(Deliver(n, id, _)))
-      delivers + Crash(id)
-    }
-    val out: Set[Action] = Set.empty // FIXME send es una output action, porque esta en steps.
-    val int: Set[Action] = Set.empty
-    ActionSignature(in = in, out = out, int = int)
-  }
-  override val steps: Steps.Steps[ProcessState] = Steps.steps {
-    case FLLProtocol.Send(`id`, _, payload) if payloads.payloads contains payload => Effect.precondition(_.isInstanceOf[Up])
-    case FLLProtocol.Deliver(_, `id`, payload) if payloads.payloads contains payload => Effect(_.isInstanceOf[Up], _ deliver payload)
-    case Crash(`id`) => Effect(_.isInstanceOf[Up], _ => Down)
-  }
-
-}
 
 sealed trait LevelResult[S] {
   def level: Level[S]
@@ -87,7 +45,7 @@ case class Level[S](conditions: List[Condition[S]], schedConditions: List[Condit
 
   def nextStep(): Int = executions.size - 1
 }
-
+/*
 object Prueba extends App {
 
   implicit val payloads = Payloads(Set(1, 2), 10)
@@ -128,3 +86,4 @@ object Prueba extends App {
 
 
 }
+*/
