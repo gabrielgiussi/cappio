@@ -1,10 +1,7 @@
 package oss.ggiussi.cappio.ui
 
-import japgolly.scalajs.react.Callback
 import japgolly.scalajs.react.vdom.Implicits.vdomAttrVtJsAny
 import japgolly.scalajs.react.vdom.svg_<^._
-import japgolly.scalajs.react.vdom.{TagOf, html_<^ => html}
-import org.scalajs.dom.svg.RectElement
 
 object Constants {
   val arrowHeadSize = 6
