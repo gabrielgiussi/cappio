@@ -8,13 +8,13 @@ import oss.ggiussi.cappio.Transition.Transition
 object Arbiter {
 
   implicit class ArbiterProtocol(id: Int) {
-    def receivesReqFrom(from: Int) = ReceiveRequest(from, id)
+    def receivesReqFrom(from: Int) = Do(ReceiveRequest(from, id),None)
 
-    def sendsReqTo(to: Int) = SendRequest(id, to)
+    def sendsReqTo(to: Int) = Do(SendRequest(id, to),None)
 
-    def receivesGrantFrom(from: Int) = ReceiveGrant(from, id)
+    def receivesGrantFrom(from: Int) = Do(ReceiveGrant(from, id),None)
 
-    def sendsGrantTo(to: Int) = SendGrant(id, to)
+    def sendsGrantTo(to: Int) = Do(SendGrant(id, to),None)
   }
 
 }
@@ -106,6 +106,8 @@ object Prueba extends App {
   }
   val automaton: Automaton[(((ArbiterState, ArbiterState), ArbiterState), Set[Message])] = t.composeTuple(m).get.hide(t.sig.out -- Set(SendGrant(0, 3), SendGrant(2, 4)))
   val initialState = (((initialState0, initialState1), initialState2), Set.empty[Message])
+
+  println(Execution.execute(automaton, initialState, 2.receivesReqFrom(4)).isEnabled(1.receivesReqFrom(2)))
 
   val e = Execution.execute(automaton, initialState, 2.receivesReqFrom(4))
     .next(2.sendsReqTo(1))
