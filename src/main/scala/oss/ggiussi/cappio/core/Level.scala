@@ -1,17 +1,16 @@
-package oss.ggiussi.cappio.n
+package oss.ggiussi.cappio.core
 
-import oss.ggiussi.cappio.Action
-import oss.ggiussi.cappio.Level.Condition
-import oss.ggiussi.cappio.ProcessProtocol.Crash
-import oss.ggiussi.cappio.impl.links.Protocol.{FLLDeliver, ProcessID}
-import oss.ggiussi.cappio.n.FLLProtocol.{Deliver, Send}
+import oss.ggiussi.cappio.core.FLLProtocol.Deliver
+import oss.ggiussi.cappio.core.Level.Condition
+import oss.ggiussi.cappio.core.ProcessProtocol.Crash
+import oss.ggiussi.cappio.impl.links.Protocol.ProcessID
 
 
-object LevelN {
+object Level {
 
   type Condition[S] = S => Boolean
 
-  def apply[S](conditions: List[Condition[S]], schedConditions: List[Condition[List[Action]]], automaton: Automaton[S], initialState: S): LevelN[S] = new LevelN(conditions, schedConditions, List(Execution2(automaton, initialState)))
+  def apply[S](conditions: List[Condition[S]], schedConditions: List[Condition[List[Action]]], automaton: Automaton[S], initialState: S): Level[S] = new Level(conditions, schedConditions, List(Execution(automaton, initialState)))
 }
 
 object ProcessProtocol {
@@ -55,27 +54,27 @@ case class ProcessN(id: ProcessID, neighbors: Set[ProcessID])(implicit payloads:
 }
 
 sealed trait LevelResult[S] {
-  def level: LevelN[S]
+  def level: Level[S]
 
   def ended: Boolean
 }
 
-case class Success[S](level: LevelN[S]) extends LevelResult[S] {
+case class Success[S](level: Level[S]) extends LevelResult[S] {
   override def ended: Boolean = true
 }
 
-case class Pending[S](level: LevelN[S]) extends LevelResult[S] {
+case class Pending[S](level: Level[S]) extends LevelResult[S] {
   override def ended: Boolean = false
 }
 
-case class Failed[S](level: LevelN[S]) extends LevelResult[S] {
+case class Failed[S](level: Level[S]) extends LevelResult[S] {
   override def ended: Boolean = true
 }
 
 // un level es una execution + conditions
-case class LevelN[S](conditions: List[Condition[S]], schedConditions: List[Condition[List[Action]]], executions: List[Execution2[S]]) {
+case class Level[S](conditions: List[Condition[S]], schedConditions: List[Condition[List[Action]]], executions: List[Execution[S]]) {
 
-  protected def last(): Execution2[S] = executions.last
+  protected def last(): Execution[S] = executions.last
 
   def next(action: Action): LevelResult[S] = {
     val ex = last.next(action)
@@ -84,7 +83,7 @@ case class LevelN[S](conditions: List[Condition[S]], schedConditions: List[Condi
   }
 
   // TODO why pending?
-  def prev(): LevelN[S] = if (executions.size == 1) this else copy(executions = executions.reverse.tail.reverse)
+  def prev(): Level[S] = if (executions.size == 1) this else copy(executions = executions.reverse.tail.reverse)
 
   def nextStep(): Int = executions.size - 1
 }
@@ -115,7 +114,7 @@ object Prueba extends App {
   )
 
 
-  val level1 = LevelN(conditions, List.empty, automaton.get, initalState.get)
+  val level1 = Level(conditions, List.empty, automaton.get, initalState.get)
 
   /*
   println(level1.next(Send(0, 1, 1))

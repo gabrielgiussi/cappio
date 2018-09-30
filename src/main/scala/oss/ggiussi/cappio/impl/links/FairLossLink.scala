@@ -1,7 +1,12 @@
 package oss.ggiussi.cappio.impl.links
 
-import oss.ggiussi.cappio.Transition.Transition
-import oss.ggiussi.cappio._
+
+object Protocol {
+  type ProcessID = Int
+}
+/*
+import oss.ggiussi.cappio.core.Transition.Transition
+import oss.ggiussi.cappio.core._
 import oss.ggiussi.cappio.impl.links.Protocol.{FLLDeliver, Envelope, ProcessID, FLLSend}
 
 object Protocol {
@@ -80,8 +85,10 @@ object Probando extends App {
 
   val automaton: Automaton[(((FairLossLinkState, FairLossLinkState), Int), Int)] = link01.composeTuple(link10).get.composeTuple(process0).get.composeTuple(process1).get
 
-  println(Execution.execute(automaton,(((initialState01,initialState10),0),0),Do(FLLSend(0,1),Some(1)))
-      .next(Do(FLLDeliver(0,1),Some(1)))
+  /*
+  println(Execution(automaton,(((initialState01,initialState10),0),0)).next(FLLSend(0,1),Some(1)))
+      .next(FLLDeliver(0,1),Some(1))
     .state)
-
+*/
 }
+*/

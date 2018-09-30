@@ -1,20 +1,20 @@
 package oss.ggiussi.cappio.impl.arbiter
 
-import oss.ggiussi.cappio.Steps.Steps
-import oss.ggiussi.cappio._
-import oss.ggiussi.cappio.Transition.Transition
+import oss.ggiussi.cappio.core.Steps.Steps
+import oss.ggiussi.cappio.core._
+import oss.ggiussi.cappio.core.Transition.Transition
 
 
 object Arbiter {
 
   implicit class ArbiterProtocol(id: Int) {
-    def receivesReqFrom(from: Int) = Do(ReceiveRequest(from, id),None)
+    def receivesReqFrom(from: Int) = ReceiveRequest(from, id)
 
-    def sendsReqTo(to: Int) = Do(SendRequest(id, to),None)
+    def sendsReqTo(to: Int) = SendRequest(id, to)
 
-    def receivesGrantFrom(from: Int) = Do(ReceiveGrant(from, id),None)
+    def receivesGrantFrom(from: Int) = ReceiveGrant(from, id)
 
-    def sendsGrantTo(to: Int) = Do(SendGrant(id, to),None)
+    def sendsGrantTo(to: Int) = SendGrant(id, to)
   }
 
 }
@@ -37,8 +37,8 @@ case class ArbiterState(requesting: Set[Int], lastforward: Int, holding: Boolean
 case class Arbiter(a: Int, neighbors: Set[Int]) extends Automaton[ArbiterState] {
   val steps: Steps[ArbiterState] = {
     val transitions: Transition[ArbiterState] = {
-      case ReceiveRequest(v, `a`) => Effect.inputEnabled(state => state.copy(state.requesting + v))
-      case ReceiveGrant(v, `a`) => Effect.inputEnabled({ case state@ArbiterState(_, lastforward, holding, _) => if (!holding && lastforward == v) state.copy(holding = true, requested = false) else state })
+      case ReceiveRequest(v, `a`) => Effect(state => state.copy(state.requesting + v))
+      case ReceiveGrant(v, `a`) => Effect({ case state@ArbiterState(_, lastforward, holding, _) => if (!holding && lastforward == v) state.copy(holding = true, requested = false) else state })
       case SendRequest(`a`, v) => Effect({ case ArbiterState(requesting, lastforward, holding, requested) => !requesting.isEmpty && !requested && !holding && lastforward == v }, _.copy(requested = true))
       // TODO lastforward = w, y ∉ requesting for all y ∈ (w v) pag 64
       case SendGrant(`a`, v) => Effect({ case ArbiterState(requesting, lastforward, holding, _) => requesting.contains(v) && holding }, state => state.copy(state.requesting - v, lastforward = v, holding = false))
@@ -65,8 +65,8 @@ class MessageSystem(adjacencies: Set[(Int, Int)]) extends Automaton[Set[Message]
   }
   override val steps: Steps[Set[Message]] = {
     val transitions: Transition[Set[Message]] = {
-      case SendRequest(a, _a) if adjacencies contains(a, _a) => Effect.inputEnabled(_ + Message(a, _a, "request"))
-      case SendGrant(a, _a) if adjacencies contains(a, _a) => Effect.inputEnabled(_ + Message(a, _a, "grant"))
+      case SendRequest(a, _a) if adjacencies contains(a, _a) => Effect(_ + Message(a, _a, "request"))
+      case SendGrant(a, _a) if adjacencies contains(a, _a) => Effect(_ + Message(a, _a, "grant"))
       case ReceiveRequest(a, _a) if adjacencies contains(a, _a) => Effect(_ contains (Message(a, _a, "request")), _ - Message(a, _a, "request"))
       case ReceiveGrant(a, _a) if adjacencies contains(a, _a) => Effect(_ contains (Message(a, _a, "grant")), _ - Message(a, _a, "grant"))
     }
@@ -107,9 +107,9 @@ object Prueba extends App {
   val automaton: Automaton[(((ArbiterState, ArbiterState), ArbiterState), Set[Message])] = t.composeTuple(m).get.hide(t.sig.out -- Set(SendGrant(0, 3), SendGrant(2, 4)))
   val initialState = (((initialState0, initialState1), initialState2), Set.empty[Message])
 
-  println(Execution.execute(automaton, initialState, 2.receivesReqFrom(4)).isEnabled(1.receivesReqFrom(2)))
+  println(Execution(automaton, initialState).next(2.receivesReqFrom(4)).isEnabled(1.receivesReqFrom(2)))
 
-  val e = Execution.execute(automaton, initialState, 2.receivesReqFrom(4))
+  val e = Execution(automaton, initialState).next(2.receivesReqFrom(4))
     .next(2.sendsReqTo(1))
     .next(1.receivesReqFrom(2))
     .next(1.sendsReqTo(0))

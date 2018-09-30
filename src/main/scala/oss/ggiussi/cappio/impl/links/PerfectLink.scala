@@ -1,5 +1,5 @@
 package oss.ggiussi.cappio.impl.links
-
+/*
 import oss.ggiussi.cappio.impl.links.Protocol.{Envelope, FLLDeliver, FLLSend, ProcessID}
 import oss.ggiussi.cappio.impl.links.Protocol3.{PLDeliver, PLSend}
 import oss.ggiussi.cappio._
@@ -104,3 +104,4 @@ object PerfectLinkPrueba extends App {
   //println(e.next(Set(Do(PLDeliver(1, 0), Some(2)), Do(PLDeliver(0,1), Some(1)))).sched())
 
 }
+*/

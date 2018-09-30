@@ -2,11 +2,11 @@ package oss.ggiussi.cappio.ui.n
 
 import japgolly.scalajs.react._
 import japgolly.scalajs.react.vdom.html_<^._
-import oss.ggiussi.cappio.Action
-import oss.ggiussi.cappio.n.Execution2
-import oss.ggiussi.cappio.n.FLLProtocol.{Message, MessageID, Send}
+import oss.ggiussi.cappio.core.Action
+import oss.ggiussi.cappio.core.Execution
+import oss.ggiussi.cappio.core.FLLProtocol.{Message, MessageID, Send}
 
-case class ExecutionProps(next: Action => Callback, exec: Execution2[_], last: Boolean, currentStep: Int)
+case class ExecutionProps(next: Action => Callback, exec: Execution[_], last: Boolean, currentStep: Int)
 
 object ExecutionComponent {
 

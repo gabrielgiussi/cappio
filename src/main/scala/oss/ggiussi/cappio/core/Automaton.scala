@@ -1,16 +1,18 @@
-package oss.ggiussi.cappio.n
+package oss.ggiussi.cappio.core
 
-import oss.ggiussi.cappio.Action
+import oss.ggiussi.cappio.core.Transition.Transition
 import oss.ggiussi.cappio.impl.links.Protocol.ProcessID
-import oss.ggiussi.cappio.n.Execution.Triggers
-import oss.ggiussi.cappio.n.FLLProtocol.{Deliver, Message, Send}
-import oss.ggiussi.cappio.n.Steps.Steps
-import oss.ggiussi.cappio.n.Transition.Transition
+import oss.ggiussi.cappio.core.Execution.Triggers
+import oss.ggiussi.cappio.core.FLLProtocol.{Deliver, Message, Send}
+import oss.ggiussi.cappio.core.Steps.Steps
+import oss.ggiussi.cappio.core.Transition.Transition
 
 // TODO rename
 case object UnsatisfiedPreconditionException extends RuntimeException
 
 case object UnknownActionException extends RuntimeException
+
+trait Action
 
 object Effect {
   // // or Try[S] TODO
@@ -183,22 +185,22 @@ object Execution {
 }
 
 
-case class Execution2[S](automaton: Automaton[S], initialState: S, steps: List[Step[S]] = List.empty, triggers: Triggers = Execution.EmptyTriggers, round: Int = 0) {
+case class Execution[S](automaton: Automaton[S], initialState: S, steps: List[Step[S]] = List.empty, triggers: Triggers = Execution.EmptyTriggers, round: Int = 0) {
 
-  protected[Execution2] def _next(state: S, d: Action): Execution2[S] = {
+  protected[Execution] def _next(state: S, d: Action): Execution[S] = {
     val nextState = automaton.steps.apply((state, d))
     val step = Step(state, d, nextState)
     copy(steps = steps :+ step)
   }
 
-  def next(d: Action): Execution2[S] = {
+  def next(d: Action): Execution[S] = {
     val s = if (steps.isEmpty) _next(initialState, d) else _next(steps.last.a1, d)
     if (triggers.isDefinedAt(d)) triggers(d).foldLeft(s)(_ next _) // use PF orElse
     else s
   }
 
   // TODO esto no es propio de la teoria de IOAutomata
-  def next(dos: Set[Action]): Execution2[S] = {
+  def next(dos: Set[Action]): Execution[S] = {
     // el forall enabled deberia ser suficiente, sino podria ejecutar en todso los ordenes posibles y chequear q todos lleguen al mismo final state, sino throw exception
     if (dos.forall(isEnabled)) dos.foldLeft(this)(_ next _)
     else throw UnsatisfiedPreconditionException
@@ -281,5 +283,5 @@ object Probando extends App {
 
   val state = FairLossLinkStateN(Set.empty)
 
-  println(Execution2(automaton, state).enabled())
+  println(Execution(automaton, state).enabled())
 }

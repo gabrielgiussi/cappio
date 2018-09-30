@@ -1,9 +1,10 @@
 package oss.ggiussi.cappio.impl.links
-
+/*
 import oss.ggiussi.cappio._
 import oss.ggiussi.cappio.Transition.Transition
 import oss.ggiussi.cappio.impl.links.FLLProtocol.{Deliver, Send}
 import oss.ggiussi.cappio.impl.links.Protocol.ProcessID
+
 
 object FLLProtocol {
   trait Envelope extends Action
@@ -39,3 +40,4 @@ case class FairLossLink2(from: ProcessID, to: ProcessID) extends Automaton[FairL
     Steps.steps(transitions)
   }
 }
+*/

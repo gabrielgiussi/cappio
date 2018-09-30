@@ -1,15 +1,9 @@
 package oss.ggiussi.cappio.ui
 
-import japgolly.scalajs.react.vdom.VdomElement
-import japgolly.scalajs.react.vdom.{html_<^ => html}
-import japgolly.scalajs.react.{BackendScope, Callback, CallbackTo, ScalaComponent}
-import oss.ggiussi.cappio.{Action, Do, Execution}
-import oss.ggiussi.cappio.impl.links.Protocol3.{PLDeliver, PLSend}
-import Constants._
-import oss.ggiussi.cappio.n.FLLProtocol.Message
-import oss.ggiussi.cappio.n.{Execution2, FLLProtocol, FairLossLinkN}
-
-import scala.util.Random
+import japgolly.scalajs.react.{Callback, ScalaComponent}
+import oss.ggiussi.cappio.core.FLLProtocol.Message
+import oss.ggiussi.cappio.core.{Action, Execution, FLLProtocol}
+import oss.ggiussi.cappio.ui.Constants._
 
 // https://www.sarasoueidan.com/blog/mimic-relative-positioning-in-svg/
 // http://tutorials.jenkov.com/svg/svg-viewport-view-box.html
@@ -20,7 +14,7 @@ object Grid {
 
   case class ProcessTimelineProps(rounds: Int, processes: Int, proccessState: Int => Callback)
 
-  case class GridProps(processes: Int, executions: List[Execution2[_]])
+  case class GridProps(processes: Int, executions: List[Execution[_]])
 
   sealed trait MessageC {
     def msg: Message

@@ -6,11 +6,9 @@ import japgolly.scalajs.react.extra.router.{BaseUrl, Redirect, Resolution, Route
 import japgolly.scalajs.react.vdom.html_<^._
 import org.scalajs.dom
 import org.scalajs.dom.document
-import oss.ggiussi.cappio.{Action}
-import oss.ggiussi.cappio.Level.Condition
-import oss.ggiussi.cappio.n.Composer.STuple3
-import oss.ggiussi.cappio.n.FLLProtocol.{Deliver, Send}
-import oss.ggiussi.cappio.n._
+import oss.ggiussi.cappio.core.FLLProtocol.Deliver
+import oss.ggiussi.cappio.core.Level.Condition
+import oss.ggiussi.cappio.core.{Action, _}
 import oss.ggiussi.cappio.ui.n.LevelBackend
 
 
@@ -74,7 +72,7 @@ object App {
       }
     )
 
-    LevelN(conditions,schedConditions, automaton.get, initalState)
+    Level(conditions,schedConditions, automaton.get, initalState)
   }
 
   def main(args: Array[String]): Unit = {

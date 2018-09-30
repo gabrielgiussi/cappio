@@ -1,5 +1,5 @@
 package oss.ggiussi.cappio.impl.links
-
+/*
 import oss.ggiussi.cappio.impl.links.PLProtocol._
 import oss.ggiussi.cappio._
 import oss.ggiussi.cappio.impl.links.Protocol.{Envelope, ProcessID}
@@ -43,3 +43,4 @@ case class PerfectLink2(from: ProcessID, to: ProcessID) extends Automaton[Perfec
     case Deliver(`from`, `to`) => new Effect({ case (state, Some(message)) => state canDeliver message }, { case (state, Some(message)) => state deliver message })
   })
 }
+*/

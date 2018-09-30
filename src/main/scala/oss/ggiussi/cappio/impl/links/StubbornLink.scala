@@ -1,5 +1,5 @@
 package oss.ggiussi.cappio.impl.links
-
+/*
 import oss.ggiussi.cappio.Transition.Transition
 import oss.ggiussi.cappio._
 import oss.ggiussi.cappio.impl.links.Protocol.{Envelope, FLLDeliver, FLLSend, Message, ProcessID}
@@ -78,3 +78,4 @@ object PruebaLinks extends App {
     .state)
 
 }
+*/

@@ -3,8 +3,8 @@ package oss.ggiussi.cappio.ui.n
 import japgolly.scalajs.react.{Callback, ScalaComponent}
 import japgolly.scalajs.react.component.Scala.BackendScope
 import japgolly.scalajs.react.vdom.HtmlStyles
-import oss.ggiussi.cappio.Action
-import oss.ggiussi.cappio.n._
+import oss.ggiussi.cappio.core.Action
+import oss.ggiussi.cappio.core._
 import japgolly.scalajs.react.vdom.{svg_<^ => svg}
 import oss.ggiussi.cappio.ui.Grid
 import oss.ggiussi.cappio.ui.Grid.GridProps
@@ -23,7 +23,7 @@ object LevelBackend {
     def prev(): State[S] = State(Pending(result.level.prev()))
   }
 
-  def apply[S](level: LevelN[S]) = ScalaComponent.builder[Unit]("ReactRounds")
+  def apply[S](level: Level[S]) = ScalaComponent.builder[Unit]("ReactRounds")
     .initialState(State(Pending(level)))
     .renderBackend[LevelBackend[S]]
     .build
