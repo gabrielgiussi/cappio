@@ -1,5 +1,7 @@
 sudo: false
 language: scala
+install:
+  - npm install jsdom
 #before_deploy:
 #deploy:
 #  provider: pages
