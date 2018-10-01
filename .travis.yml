@@ -1,2 +1,12 @@
 sudo: false
 language: scala
+#before_deploy:
+#deploy:
+#  provider: pages
+#  skip-cleanup: true
+#  github-token: $GITHUB_TOKEN
+#  keep-history: true
+#  target-branch: gh-pages
+#  local-dir:
+#  on:
+#    branch: poc-cappio

@@ -35,8 +35,8 @@ object App {
     type State = (STuple6[FLLState], STuple3[ProcessState])
 
     val processes: Option[Automaton[STuple3[ProcessState]]] = for {
-      c1 <- ProcessN(0, Set(1,2)) composeTuple ProcessN(1, Set(0, 2)) // FIXME los neighbors los necesito para poder crear las input actions....
-      c2 <- composeTuple2(c1, ProcessN(2, Set(1,0)))
+      c1 <- Process(0, Set(1,2)) composeTuple Process(1, Set(0, 2)) // FIXME los neighbors los necesito para poder crear las input actions....
+      c2 <- composeTuple2(c1, Process(2, Set(1,0)))
     } yield c2
 
     val links: Option[Automaton[STuple6[FLLState]]] = for {

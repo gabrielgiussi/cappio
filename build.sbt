@@ -4,6 +4,8 @@ ThisBuild / organization := "oss.ggiussi"
 ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion := "2.12.6"
 
+lazy val root = project.in(file("."))
+  .aggregate(core, ui)
 
 lazy val core = (project in file("core"))
   .settings(
@@ -15,11 +17,13 @@ val react = "1.2.3" // TODO move inside ui
 lazy val ui = (project in file("ui"))
   .settings(
     scalaJSUseMainModuleInitializer := true,
+    scalaJSUseMainModuleInitializer in Test := false,
     mainClass in Compile := Some("oss.ggiussi.cappio.ui.App"),
     // other settings
     libraryDependencies ++= Seq(
       "com.github.japgolly.scalajs-react" %%% "core" % react,
-      "com.github.japgolly.scalajs-react" %%% "extra" % react
+      "com.github.japgolly.scalajs-react" %%% "extra" % react,
+      "com.github.japgolly.scalajs-react" %%% "test" % react % Test
     ),
     jsDependencies ++= Seq(
 
@@ -38,9 +42,21 @@ lazy val ui = (project in file("ui"))
         / "umd/react-dom-server.browser.development.js"
         minified "umd/react-dom-server.browser.production.min.js"
         dependsOn "umd/react-dom.development.js"
-        commonJSName "ReactDOMServer"),
+        commonJSName "ReactDOMServer",
 
-    dependencyOverrides += "org.webjars.npm" % "js-tokens" % "3.0.2"
+      "org.webjars.npm" % "react-dom" % "16.2.0" % Test
+        /         "umd/react-dom-test-utils.development.js"
+        minified  "umd/react-dom-test-utils.production.min.js"
+        dependsOn "umd/react-dom.development.js"
+        commonJSName "ReactTestUtils"
+
+    ),
+    //jsDependencies += RuntimeDOM % "test",
+    jsEnv := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv,
+    //skip in packageJSDependencies := false,
+
+    dependencyOverrides += "org.webjars.npm" % "js-tokens" % "3.0.2",
+
   )
   .enablePlugins(ScalaJSPlugin)
   .dependsOn(core)

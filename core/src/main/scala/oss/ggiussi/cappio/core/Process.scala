@@ -26,7 +26,7 @@ case object Down extends ProcessState {
   override def deliver(msg: Any): ProcessState = Down
 }
 
-case class ProcessN(id: ProcessID, neighbors: Set[ProcessID])(implicit payloads: Payloads) extends Automaton[ProcessState] {
+case class Process(id: ProcessID, neighbors: Set[ProcessID])(implicit payloads: Payloads) extends Automaton[ProcessState] {
   override val sig: ActionSignature = {
     val in: Set[Action] = {
       val delivers: Set[Action] = neighbors.map(payloads.delivers(_, id)).flatten //neighbors.flatMap(n => payloads.map(Deliver(n, id, _)))
@@ -37,8 +37,8 @@ case class ProcessN(id: ProcessID, neighbors: Set[ProcessID])(implicit payloads:
     ActionSignature(in = in, out = out, int = int)
   }
   override val steps: Steps.Steps[ProcessState] = Steps.steps {
-    case Send(`id`, _, payload) if payloads.payloads contains payload => Effect.precondition(_.isInstanceOf[Up])
-    case Deliver(_, `id`, payload) if payloads.payloads contains payload => Effect(_.isInstanceOf[Up], _ deliver payload)
+    case Send(`id`, _, payload) if payloads.payloads contains payload.payload => Effect.precondition(_.isInstanceOf[Up])
+    case Deliver(_, `id`, payload) if payloads.payloads contains payload.payload => Effect(_.isInstanceOf[Up], _ deliver payload.payload)
     case Crash(`id`) => Effect(_.isInstanceOf[Up], _ => Down)
   }
 
