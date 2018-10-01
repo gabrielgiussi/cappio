@@ -17,10 +17,10 @@ before_cache:
 
 script:
 - sbt ++$TRAVIS_SCALA_VERSION test
--
 
 after_success:
--
+- mkdir $HOME/deploy
+- cp ./ui/index.html $HOME/deploy
 before_deploy:
 deploy:
   provider: pages
@@ -28,6 +28,8 @@ deploy:
   github-token: $GITHUB_TOKEN
   keep-history: true
   target-branch: gh-pages
-  local-dir: ./ui/index.html
+  local-dir: $HOME/deploy
   on:
     branch: poc-cappio
+after_deploy:
+- rm -rf $HOME/deploy
