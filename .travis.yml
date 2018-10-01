@@ -21,8 +21,8 @@ script:
 after_success:
 - mkdir deploy
 - cp ./ui/index.html deploy
-- cp ./ui/target/scala-2.12/ui-opt.js
-- cp ./ui/target/scala-2.12/ui-jsdeps.js
+- cp ./ui/target/scala-2.12/ui-opt.js deploy
+- cp ./ui/target/scala-2.12/ui-jsdeps.js deploy
 before_deploy:
 deploy:
   provider: pages
