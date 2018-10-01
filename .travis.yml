@@ -1,18 +1,33 @@
+# https://www.scala-sbt.org/1.x/docs/Travis-CI-with-sbt.html
 sudo: false
 language: scala
+jdk: oraclejdk8
 install:
-  - npm install jsdom
+- npm install jsdom
 cache:
   directories:
   - $HOME/.ivy2/cache
-  - $HOME/.sbt/boot/
-#before_deploy:
-#deploy:
-#  provider: pages
-#  skip-cleanup: true
-#  github-token: $GITHUB_TOKEN
-#  keep-history: true
-#  target-branch: gh-pages
-#  local-dir:
-#  on:
-#    branch: poc-cappio
+  - $HOME/.sbt
+
+before_cache:
+# Cleanup the cached directories to avoid unnecessary cache updates
+- find $HOME/.ivy2/cache -name "ivydata-*.properties" -print -delete
+- find $HOME/.sbt        -name "*.lock"               -print -delete
+
+
+script:
+- sbt ++$TRAVIS_SCALA_VERSION test
+-
+
+after_success:
+-
+before_deploy:
+deploy:
+  provider: pages
+  skip-cleanup: true
+  github-token: $GITHUB_TOKEN
+  keep-history: true
+  target-branch: gh-pages
+  local-dir: ./ui/index.html
+  on:
+    branch: poc-cappio
