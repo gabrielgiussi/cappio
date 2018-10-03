@@ -29,7 +29,6 @@ deploy:
   provider: pages
   skip-cleanup: true
   github-token: $GITHUB_TOKEN
-  keep-history: true
   target-branch: gh-pages
   local-dir: deploy
   on:

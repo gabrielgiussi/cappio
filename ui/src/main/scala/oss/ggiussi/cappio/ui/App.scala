@@ -13,7 +13,7 @@ import oss.ggiussi.cappio.impl.links.{FLLState, FairLossLink}
 import oss.ggiussi.cappio.ui.n.LevelBackend
 
 
-object App {
+object  App {
 
   sealed trait MyPages
 
@@ -82,7 +82,7 @@ object App {
       if (dom.window.location.hostname == "localhost")
         BaseUrl.fromWindowUrl(s => s)
       else
-        BaseUrl.fromWindowOrigin / "scalajs-react/"
+        BaseUrl.fromWindowOrigin / "cappio/"
 
     val navMenu = ScalaComponent.builder[RouterCtl[MyPages]]("Menu")
       .render_P { ctl =>
