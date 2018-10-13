@@ -2,7 +2,7 @@ package oss.ggiussi.cappio.core
 
 import oss.ggiussi.cappio.core.Execution.Triggers
 
-case class Step[S](a0: S, d: Action, a1: S)
+case class Step[S](a0: S, action: Action, a1: S)
 
 object Execution {
 
@@ -11,7 +11,6 @@ object Execution {
   val EmptyTriggers: Triggers = PartialFunction.empty
 
 }
-
 
 case class Execution[S](automaton: Automaton[S], initialState: S, steps: List[Step[S]] = List.empty, triggers: Triggers = Execution.EmptyTriggers, round: Int = 0) {
 
@@ -34,7 +33,7 @@ case class Execution[S](automaton: Automaton[S], initialState: S, steps: List[St
     else throw UnsatisfiedPreconditionException
   }
 
-  def sched(): List[Action] = steps.map(_.d)
+  def sched(): List[Action] = steps.map(_.action)
 
   // for debugging
   def state: S = if (steps.isEmpty) initialState else steps.last.a1

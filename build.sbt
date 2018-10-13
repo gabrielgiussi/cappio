@@ -4,11 +4,17 @@ ThisBuild / organization := "oss.ggiussi"
 ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion := "2.12.6"
 
-lazy val root = project.in(file("."))
+lazy val commonSettings = Seq(
+  libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.5" % Test
+)
+
+
+lazy val cappio = project.in(file("."))
   .aggregate(core, ui)
 
 lazy val core = (project in file("core"))
   .settings(
+    commonSettings
     // other settings
   ) enablePlugins (ScalaJSPlugin)
 
@@ -18,7 +24,7 @@ lazy val ui = (project in file("ui"))
   .settings(
     scalaJSUseMainModuleInitializer := true,
     scalaJSUseMainModuleInitializer in Test := false,
-    mainClass in Compile := Some("oss.ggiussi.cappio.ui.App"),
+    mainClass in Compile := Some("oss.ggiussi.cappio.ui.app.App"),
     // other settings
     libraryDependencies ++= Seq(
       "com.github.japgolly.scalajs-react" %%% "core" % react,

@@ -1,14 +1,11 @@
-package oss.ggiussi.cappio.ui.n
+package oss.ggiussi.cappio.ui.app
 
-import japgolly.scalajs.react.{Callback, ScalaComponent}
 import japgolly.scalajs.react.component.Scala.BackendScope
 import japgolly.scalajs.react.vdom.HtmlStyles
-import oss.ggiussi.cappio.core.Action
-import oss.ggiussi.cappio.core._
-import japgolly.scalajs.react.vdom.{svg_<^ => svg}
-import oss.ggiussi.cappio.ui.Grid
-import oss.ggiussi.cappio.ui.Grid.GridProps
-import oss.ggiussi.cappio.ui.n.LevelBackend.State
+import japgolly.scalajs.react.{Callback, ScalaComponent}
+import oss.ggiussi.cappio.core.{Action, _}
+import oss.ggiussi.cappio.ui.app.Grid.GridProps
+import oss.ggiussi.cappio.ui.app.LevelBackend.State
 
 
 object LevelBackend {
@@ -59,6 +56,9 @@ class LevelBackend[S]($: BackendScope[Unit, State[S]]) {
           }
         ),
         <.button(
+          TagMod(
+            ^.cls := "waves-effect waves-light btn"
+          ),
           ^.disabled := (level.executions.size == 1),
           ^.onClick --> prev,
           "Previous"
@@ -67,6 +67,10 @@ class LevelBackend[S]($: BackendScope[Unit, State[S]]) {
     }
 
     <.div(
+      <.div(
+        ^.cls := "d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom",
+        <.h1("Level 1")
+      ),
       c1(),
       <.div(
         <.label(s.result.level.executions.last.sched().mkString(" , "))

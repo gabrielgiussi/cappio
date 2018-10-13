@@ -1,4 +1,5 @@
-package oss.ggiussi.cappio.ui
+package oss.ggiussi.cappio.ui.app
+
 
 import japgolly.scalajs.react.ScalaComponent
 import japgolly.scalajs.react.extra.Reusability
@@ -10,33 +11,34 @@ import oss.ggiussi.cappio.core.Level.Condition
 import oss.ggiussi.cappio.core.LinkProtocol.Deliver
 import oss.ggiussi.cappio.core.{Action, _}
 import oss.ggiussi.cappio.impl.links.{FLLState, FairLossLink}
-import oss.ggiussi.cappio.ui.n.LevelBackend
+import oss.ggiussi.cappio.ui
+import oss.ggiussi.cappio.ui.levels
+import oss.ggiussi.cappio.ui.levels.Level1
 
-
-object  App {
+object App {
 
   sealed trait MyPages
 
   case object Home extends MyPages
 
-  case object Level1 extends MyPages
-
   case object Hello extends MyPages
 
   case object GridPage extends MyPages
 
-  case object LevelPage extends MyPages
+  case object Level1Page extends MyPages
+
+  case class LevelPage(id: Int) extends MyPages
 
   def level() = {
-    implicit val payloads = Payloads(Set(1, 2),10)
+    implicit val payloads = Payloads(Set(1, 2), 10)
 
     import Composer._
 
     type State = (STuple6[FLLState], STuple3[ProcessState])
 
     val processes: Option[Automaton[STuple3[ProcessState]]] = for {
-      c1 <- Process(0, Set(1,2)) composeTuple Process(1, Set(0, 2)) // FIXME los neighbors los necesito para poder crear las input actions....
-      c2 <- composeTuple2(c1, Process(2, Set(1,0)))
+      c1 <- Process(0, Set(1, 2)) composeTuple Process(1, Set(0, 2)) // FIXME los neighbors los necesito para poder crear las input actions....
+      c2 <- composeTuple2(c1, Process(2, Set(1, 0)))
     } yield c2
 
     val links: Option[Automaton[STuple6[FLLState]]] = for {
@@ -73,7 +75,7 @@ object  App {
       }
     )
 
-    Level(conditions,schedConditions, automaton.get, initalState)
+    Level(conditions, schedConditions, automaton.get, initalState)
   }
 
   def main(args: Array[String]): Unit = {
@@ -88,36 +90,66 @@ object  App {
       .render_P { ctl =>
         def nav(name: String, target: MyPages) =
           <.li(
-            ^.cls := "navbar-brand active",
-            ctl setOnClick target,
-            name)
+            ^.cls := "nav-item",
+            <.a(
+              ^.cls := "nav-link",
+              ctl setOnClick target,
+              name
+            ),
+          )
 
-        <.div(
-          ^.cls := "navbar navbar-default",
-          <.ul(
-            ^.cls := "navbar-header",
-            nav("Home", Home),
-            nav("GridPage", GridPage),
-            nav("Level1", LevelPage)
-          ))
+        <.nav(
+          ^.cls := "col-md-2 d-none d-md-block bg-light sidebar",
+          <.div(
+            ^.cls := "sidebar-sticky",
+            <.ul(
+              ^.cls := "nav flex-column",
+              ui.levels.levels.toVdomArray { case (page,_) =>
+                nav(s"Level ${page.id}", page)
+              },
+
+            )
+          )
+        )
       }
       .configure(Reusability.shouldComponentUpdate)
       .build
 
+    def nav() =
+      <.nav(
+        ^.cls := "navbar navbar-dark fixed-top bg-dark flex-md-nowrap p-0 shadow",
+        <.a(
+          ^.cls := "navbar-brand col-sm-3 col-md-2 mr-0",
+          ^.href := "#",
+          "CappIO"
+        )
+      )
+
     def layout(c: RouterCtl[MyPages], r: Resolution[MyPages]) =
       <.div(
-        navMenu(c),
-        <.div(^.cls := "container", r.render()))
+        nav(),
+        <.div(
+          ^.cls := "container-fluid",
+          navMenu(c),
+          <.main(
+            ^.cls := "col-md-9 ml-sm-auto col-lg-10 px-4",
+            ^.role := "main",
+            r.render()
+          )
+        )
+      )
 
     val routerConfig = RouterConfigDsl[MyPages].buildConfig { dsl =>
       import dsl._
 
-      (emptyRule
-        | staticRoute(root, Home) ~> render(<.label("CappIO"))
-        | staticRoute("#level", LevelPage) ~> render(LevelBackend(level())())
-        | staticRedirect("#hey") ~> redirectToPage(Hello)(Redirect.Replace)
-        ).notFound(redirectToPage(Home)(Redirect.Replace))
-        .renderWith(layout)
+      val levelPages = ui.levels.levels.map { case (page,level) => staticRoute(s"#level${page.id}", page) ~> render(level()) }
+
+      val a = (emptyRule
+        | staticRoute(root, Home) ~> render(<.label("Welcome to CappIO")))
+
+      val b = levelPages.foldLeft(a)((acc, lp) => acc | lp)
+      val c = b | staticRedirect("#hey") ~> redirectToPage(Hello)(Redirect.Replace)
+      c.notFound(redirectToPage(Home)(Redirect.Replace)).renderWith(layout)
     }
 
     //val router = Router(BaseUrl.fromWindowOrigin / "my_page", routerConfig)

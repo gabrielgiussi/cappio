@@ -1,10 +1,10 @@
-package oss.ggiussi.cappio.ui
+package oss.ggiussi.cappio.ui.app
 
 import japgolly.scalajs.react.{Callback, ScalaComponent}
-import oss.ggiussi.cappio.core.LinkProtocol._
+import oss.ggiussi.cappio.core.LinkProtocol.{Deliver, Send}
 import oss.ggiussi.cappio.core.{Action, Execution}
 import oss.ggiussi.cappio.impl.links.Message
-import oss.ggiussi.cappio.ui.Constants._
+import Constants._
 
 // https://www.sarasoueidan.com/blog/mimic-relative-positioning-in-svg/
 // http://tutorials.jenkov.com/svg/svg-viewport-view-box.html

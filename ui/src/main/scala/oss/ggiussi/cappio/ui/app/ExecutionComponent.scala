@@ -1,4 +1,4 @@
-package oss.ggiussi.cappio.ui.n
+package oss.ggiussi.cappio.ui.app
 
 import japgolly.scalajs.react._
 import japgolly.scalajs.react.vdom.html_<^._
