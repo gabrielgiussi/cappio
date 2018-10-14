@@ -17,6 +17,9 @@ case class FLLState(messages: Set[Any]) {
   def remove(message: Any): FLLState = copy(messages = messages - message)
 
   def canDeliver(message: Any): Boolean = messages contains message
+
+
+  def empty(): Boolean = messages.isEmpty
 }
 
 case class FairLossLink(from: ProcessID, to: ProcessID)(implicit payloads: Payloads) extends Automaton[FLLState] {

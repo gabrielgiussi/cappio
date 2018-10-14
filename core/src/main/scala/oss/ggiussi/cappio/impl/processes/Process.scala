@@ -1,8 +1,9 @@
-package oss.ggiussi.cappio.core
+package oss.ggiussi.cappio.impl.processes
 
 import oss.ggiussi.cappio.ProcessID
+import oss.ggiussi.cappio.core._
 import oss.ggiussi.cappio.core.LinkProtocol._
-import oss.ggiussi.cappio.core.ProcessProtocol.Crash
+import oss.ggiussi.cappio.impl.processes.ProcessProtocol.Crash
 
 object ProcessProtocol {
 
@@ -29,7 +30,7 @@ case object Down extends ProcessState {
 case class Process(id: ProcessID, neighbors: Set[ProcessID])(implicit payloads: Payloads) extends Automaton[ProcessState] {
   override val sig: ActionSignature = {
     val in: Set[Action] = {
-      val delivers: Set[Action] = neighbors.map(payloads.delivers(_, id)).flatten //neighbors.flatMap(n => payloads.map(Deliver(n, id, _)))
+      val delivers: Set[Action] = neighbors.flatMap(payloads.delivers(_, id))
       delivers + Crash(id)
     }
     val out: Set[Action] = Set.empty // FIXME send es una output action, porque esta en steps.

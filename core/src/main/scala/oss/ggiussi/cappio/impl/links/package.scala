@@ -10,12 +10,17 @@ package object links {
 
   case class MessageID(from: ProcessID, to: ProcessID, payload: Any, step: Int)
 
+  object Message {
+
+    def apply(from: ProcessID, to: ProcessID, payload: Any, step: Int): Message = new Message(payload, MessageID(from, to, payload, step))
+
+  }
+
   case class Message(payload: Any, id: MessageID)
 
-  def send(from: ProcessID, to: ProcessID, payload: Any)(step: Int) = Send(from, to, Message(payload, MessageID(from, to, payload, step)))
+  def send(from: ProcessID, to: ProcessID, payload: Any)(step: Int) = Send(from, to, Message(from, to, payload, step))
 
-  def deliver(from: ProcessID, to: ProcessID, payload: Any)(step: Int) = Deliver(from, to, Message(payload, MessageID(from, to, payload, step)))
-
+  def deliver(from: ProcessID, to: ProcessID, payload: Any)(step: Int) = Deliver(from, to, Message(from, to, payload, step))
 
 
 }

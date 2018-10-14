@@ -75,6 +75,7 @@ class LevelBackend[S]($: BackendScope[Unit, State[S]]) {
       <.div(
         <.label(s.result.level.executions.last.sched().mkString(" , "))
       ),
+      s.result.level.state.map(st => ConditionsComponent(s.result.level.conditions.map(c => (c.description,c(st))))),
       Grid.Grid(GridProps(3, s.result.level.executions))
     )
   }

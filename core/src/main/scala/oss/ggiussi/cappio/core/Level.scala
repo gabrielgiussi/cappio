@@ -7,9 +7,16 @@ object Level {
 
   type Condition[S] = S => Boolean
 
-  def apply[S](conditions: List[Condition[S]], schedConditions: List[Condition[List[Action]]], automaton: Automaton[S], initialState: S): Level[S] = new Level(conditions, schedConditions, List(Execution(automaton, initialState)))
+  def apply[S](conditions: List[StateCondition[S]], schedConditions: List[Condition[List[Action]]], automaton: Automaton[S], initialState: S): Level[S] = new Level(conditions, schedConditions, List(Execution(automaton, initialState)))
 }
 
+object StateCondition {
+  def apply[S](f: S => Boolean): StateCondition[S] = new StateCondition("No description", f)
+}
+
+case class StateCondition[S](description: String, f: S => Boolean) extends (S => Boolean) {
+  override def apply(v1: S): Boolean = f(v1)
+}
 
 sealed trait LevelResult[S] {
   def level: Level[S]
@@ -30,7 +37,7 @@ case class Failed[S](level: Level[S]) extends LevelResult[S] {
 }
 
 // un level es una execution + conditions
-case class Level[S](conditions: List[Condition[S]], schedConditions: List[Condition[List[Action]]], executions: List[Execution[S]]) {
+case class Level[S](conditions: List[StateCondition[S]], schedConditions: List[Condition[List[Action]]], executions: List[Execution[S]]) {
 
   protected def last(): Execution[S] = executions.last
 
@@ -44,6 +51,8 @@ case class Level[S](conditions: List[Condition[S]], schedConditions: List[Condit
   def prev(): Level[S] = if (executions.size == 1) this else copy(executions = executions.reverse.tail.reverse)
 
   def nextStep(): Int = executions.size - 1
+
+  def state() = executions.lastOption.map(_.state)
 }
 /*
 object Prueba extends App {
