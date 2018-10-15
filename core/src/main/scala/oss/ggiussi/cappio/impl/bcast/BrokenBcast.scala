@@ -11,7 +11,9 @@ object BrokenBcastProtocol {
 
   // TODO tambien podria ser que BrkBcast ya tenga la lista de Message to deliver.
   // step here seems odd
-  case class BrkBcast(from: ProcessID, payload: Any, step: Int) extends Action
+  case class BrkBcast(from: ProcessID, payload: Any, step: Int) extends Action {
+    override def toString: String = s"$from Bcast $payload"
+  }
 
   case class BrkDeliver(from: ProcessID, to: ProcessID, message: Message) extends Action // <----- process now must understand BrkDeliver instead of Deliver!!!! (should create a parametrizable Process)?
 
@@ -27,12 +29,8 @@ case class BrokenBcastState(messages: Set[Message], delivered: Set[Message]) {
 
   def deliver(message: Message): BrokenBcastState = copy(delivered = delivered + message)
 
-  def canSend(message: Message): Boolean = {
-    if (messages contains message){
-      println(s"ok ${message}")
-    }
-    messages contains message
-  }
+
+  def canSend(message: Message): Boolean = messages contains message
 
   def canBDeliver(message: Message): Boolean = delivered contains message
 
@@ -44,7 +42,7 @@ case class BrokenBcastState(messages: Set[Message], delivered: Set[Message]) {
 // A BebBcast will look like the same, the only thing that changes is the implementation of the link
 case class BrokenBcast(id: ProcessID, neighbors: Set[ProcessID])(implicit payloads: Payloads) extends Automaton[BrokenBcastState] {
 
-  private val processes = neighbors // + id TODO Should always create a Link with from == to? for example for bcast that send messages to itself
+  private val processes = neighbors + id
 
   override val sig: ActionSignature = {
     val messages = processes.flatMap(p => payloads.messages(id, p))
@@ -62,13 +60,10 @@ case class BrokenBcast(id: ProcessID, neighbors: Set[ProcessID])(implicit payloa
     ActionSignature(in = in, out = out, int = int)
   }
 
-  override val steps: Steps.Steps[BrokenBcastState] = {
-    val transitions: Transition[BrokenBcastState] = {
-      case b@BrkBcast(`id`, payload, _) if payloads enabled payload => Effect(_.bcast(processes.map(to => Message(from = b.from, to = to, payload = b.payload, b.step))))
-      case BrkDeliver(`id`, to, msg) if (processes contains to) && (payloads enabled msg.payload) => Effect(_.canBDeliver(msg), _.bDeliver(msg))
-      case Send(`id`, to, msg) if processes contains to => Effect(_.canSend(msg), _.send(msg))
-      case Deliver(from, `id`, msg) if processes contains from => Effect(_.deliver(msg))
-    }
-    Steps.steps(transitions)
-  }
+  override val steps: Steps.Steps[BrokenBcastState] = Steps.steps[BrokenBcastState]({
+    case BrkBcast(`id`, payload, step) if payloads enabled payload => Effect(_.bcast(processes.map(to => Message(from = id, to = to, payload = payload, step))))
+    case BrkDeliver(`id`, to, msg) if (processes contains to) && (payloads enabled msg.payload) => Effect(_.canBDeliver(msg), _.bDeliver(msg))
+    case Send(`id`, to, msg) if processes contains to => Effect(_.canSend(msg), _.send(msg))
+    case Deliver(`id`, to, msg) if processes contains to => Effect(_.deliver(msg))
+  })
 }

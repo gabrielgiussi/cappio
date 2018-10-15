@@ -46,7 +46,12 @@ case class ActionSignature(in: Set[Action], out: Set[Action], int: Set[Action]) 
     // require that internal actions of each automaton in a composition be disjoint from the actions of the remaining automata
     val _in0 = int intersect that.acts
     val _in1 = that.int intersect acts
-    (_out isEmpty) && (_in0 isEmpty) && (_in1 isEmpty)
+    val r = (_out isEmpty) && (_in0 isEmpty) && (_in1 isEmpty)
+    if (!r) {
+      println(s"Action signatures are incompatibles because out = ${_out isEmpty} || in0 = ${_in0 isEmpty} || in1 ${_in1 isEmpty}")
+      println(s"intersects in ${out intersect that.out}")
+    }
+    r
   }
 
   def compose(that: ActionSignature): Option[ActionSignature] = if (compatible(that)) {
@@ -147,6 +152,10 @@ trait Automaton[S] {
 
   def hide(actions: Set[Action]): Automaton[S] = HideAutomaton(this, actions)
 
+  def inputAction(action: Action): Boolean = sig.in contains action
+
+  def outputAction(action: Action): Boolean = sig.out contains action
+
 }
 
 object Composer {
@@ -158,28 +167,12 @@ object Composer {
   type STuple6[S] = Tuple6[S, S, S, S, S, S]
   type STuple7[S] = Tuple7[S, S, S, S, S, S, S]
 
-  //def composeTuple2[S2](a1: Automaton[(S2, S2)], a2: Automaton[S2]): Option[Automaton[(S2, S2, S2)]] = a1.compose(a2, (s1: (S2, S2), s2: S2) => (s1._1, s1._2, s2))(s => (s._1, s._2), _._3)
   def composeTuple2[S1,S2,S3](a1: Automaton[(S1, S2)], a2: Automaton[S3]): Option[Automaton[(S1, S2, S3)]] = a1.compose(a2, (s1: (S1, S2), s2: S3) => (s1._1, s1._2, s2))(s => (s._1, s._2), _._3)
 
-  //def composeTuple3[S2](a1: Automaton[(S2, S2, S2)], a2: Automaton[S2]): Option[Automaton[(S2, S2, S2, S2)]] = a1.compose(a2, (s1: (S2, S2, S2), s2: S2) => (s1._1, s1._2, s1._3, s2))(s => (s._1, s._2, s._3), _._4)
   def composeTuple3[S1,S2,S3,S4](a1: Automaton[(S1, S2, S3)], a2: Automaton[S4]): Option[Automaton[(S1, S2, S3, S4)]] = a1.compose(a2, (s1: (S1, S2, S3), s2: S4) => (s1._1, s1._2, s1._3, s2))(s => (s._1, s._2, s._3), _._4)
 
-  //def composeTuple4[S2](a1: Automaton[(S2, S2, S2, S2)], a2: Automaton[S2]): Option[Automaton[(S2, S2, S2, S2, S2)]] = a1.compose(a2, (s1: (S2, S2, S2, S2), s2: S2) => (s1._1, s1._2, s1._3, s1._4, s2))(s => (s._1, s._2, s._3, s._4), _._5)
   def composeTuple4[S1,S2,S3,S4,S5](a1: Automaton[(S1,S2,S3,S4)], a2: Automaton[S5]): Option[Automaton[(S1,S2,S3,S4,S5)]] = a1.compose(a2, (s1: (S1,S2,S3,S4), s2: S5) => (s1._1, s1._2, s1._3, s1._4, s2))(s => (s._1, s._2, s._3, s._4), _._5)
 
-  //def composeTuple5[S2](a1: Automaton[(S2, S2, S2, S2, S2)], a2: Automaton[S2]): Option[Automaton[(S2, S2, S2, S2, S2, S2)]] = a1.compose(a2, (s1: (S2, S2, S2, S2, S2), s2: S2) => (s1._1, s1._2, s1._3, s1._4, s1._5, s2))(s => (s._1, s._2, s._3, s._4, s._5), _._6)
   def composeTuple5[S1,S2,S3,S4,S5,S6](a1: Automaton[(S1,S2,S3,S4,S5)], a2: Automaton[S6]): Option[Automaton[(S1,S2,S3,S4,S5,S6)]] = a1.compose(a2, (s1: (S1,S2,S3,S4,S5), s2: S6) => (s1._1, s1._2, s1._3, s1._4, s1._5, s2))(s => (s._1, s._2, s._3, s._4, s._5), _._6)
 
 }
-
-/*
-object Probando extends App {
-  implicit val payloads = Payloads(Set(1, 2, 3),10)
-
-  val automaton = FairLossLinkN(0, 1)
-
-  val state = FairLossLinkStateN(Set.empty)
-
-  println(Execution(automaton, state).enabled())
-}
-*/

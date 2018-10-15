@@ -1,9 +1,18 @@
-- probar el hiding de las actions (what should be the impact?)
-- find a better way to compose automatas state
-- arbiter state should have access to the graph? (to be able to solve the set (w,v), aka "the set of nodes properly between the nodes  and w in this ordering pag 53")
-- tengo varias alternativas para componer estado
-  A. manteniendo los tipos y manteniendo la cantidad (aka tuples of states)
-  B. perdiendo los tipos
-  C. manteniendo los tipos, perdiendo la cantidad (aka list of states)
-
-  Dentro de mantener los tipos pero perder la cantidad, tengo dos alternativas
+(1) probar el hiding de las actions (what should be the impact?)
+(2) Mostrar solo drops cuando no se hizo el deliver ni el drop, y se hizo el send correspondiente
+(3) Dibujar mejor las flechas a self
+(4) No crear drops cuando from == to (porque no hay red, asi que no se podrian perder)
+(5) [Triggers]: "Every event triggered by a component of the same process is eventually processed, if the process is correct.
+                Events from the same componet are processed in the order in which they were triggered. This FIFO order is
+                only enforced on events exchanged among local components in a given stack.
+                We assume that every process executes the code triggered by events in a mutually exclusive way. This means
+                that the same process doen not handle two events concurrently." (Pag 10)
+    Esto implica que no puedo hacer un bcast - send - (some other action) - send.
+    Sin embargo, a nivel teoria de IOAutomata no encontre nada similar a un trigger, asi que por el momento lo voy a implementar como una capa por sobre la teoria: instalacion
+    de tiggers en la execution).
+(6) Deberia manerar dos conceptos de step
+    - Sched index: unico por action.
+    - Logical step: compartido por un grupo de acciones, por ejemplo los send de un bcast, o acciones concurrentes en distintos procesos.
+                    Este seria util para mejorar los graficos.
+    Habria que ver cual es el impacto en los filtros que estoy usando para mostrar solo las acciones disponibles en ese step.
+(7)

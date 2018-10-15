@@ -1,9 +1,9 @@
 package oss.ggiussi.cappio.ui.app
 
 import japgolly.scalajs.react.{Callback, ScalaComponent}
-import oss.ggiussi.cappio.core.LinkProtocol.{Deliver, Send}
+import oss.ggiussi.cappio.core.LinkProtocol.{Deliver, Drop, Send}
 import oss.ggiussi.cappio.core.{Action, Execution}
-import oss.ggiussi.cappio.impl.links.Message
+import oss.ggiussi.cappio.impl.links.{Message, MessageID}
 import Constants._
 
 // https://www.sarasoueidan.com/blog/mimic-relative-positioning-in-svg/
@@ -18,35 +18,67 @@ object Grid {
   case class GridProps(processes: Int, executions: List[Execution[_]])
 
   sealed trait MessageC {
-    def msg: Message
+    def msgID: MessageID
 
     def to: Int
   }
 
-  case class GridSend(step: Int, from: Int, to: Int, msg: Message) extends MessageC
+  case class GridSend(step: Int, from: Int, to: Int, msg: Message) extends MessageC {
+    override def msgID: MessageID = msg.id
+  }
 
-  case class GridDeliver(step: Int, from: Int, to: Int, msg: Message) extends MessageC
+  case class GridDeliver(step: Int, from: Int, to: Int, msg: Message) extends MessageC {
+    override def msgID: MessageID = msg.id
+  }
 
-  case class Arrow(from: Int, to: Int, sent: Int, delivered: Int)
+  case class GridDrop(step: Int, from: Int, to: Int, msgID: MessageID) extends MessageC
 
-  val ArrowLine = ScalaComponent.builder[Arrow]("ArrowLine")
-    .render_P { case Arrow(from, to, sent, delivered) =>
+  case class Arrow(from: Int, to: Int, sent: Int, delivered: Int, ok: Boolean)
+
+  val SelfArrow = ScalaComponent.builder[Arrow]("SelfArrow")
+    .render_P { case Arrow(self, _, sent, delivered, ok) =>
+      val (x1, y1) = point(sent, self)
+      val (x2, y2) = point(delivered, self)
+      <.path(
+        ^.d := s"M$x1 $y1 C ${x1 + 10} ${y1 + 10}, ${x1 + 10} ${y1 + 10}, $x2 $y2",
+        ^.fill := "transparent",
+        ^.strokeWidth := "2",
+        ^.stroke := {
+          if (ok) "black" else "red"
+        },
+        ^.strokeDasharray := "5,5",
+        ^.markerEnd := "url(#arrowhead)"
+      )
+    }.build
+
+  val ArrowL = ScalaComponent.builder[Arrow]("ArrowLine")
+    .render_P { case Arrow(from, to, sent, delivered, ok) =>
       val (x1, y1) = point(sent, from)
       val (x2, y2) = point(delivered, to)
       <.line(
         ^.x1 := x1,
         ^.x2 := x2,
         ^.y1 := y1,
-        ^.y2 := (y2 + { if (y1 < y2) (arrowHeadSize * -1) else arrowHeadSize }),
+        ^.y2 := (y2 + {
+          if (y1 < y2) (arrowHeadSize * -1) else arrowHeadSize
+        }),
         ^.strokeWidth := "2",
-        ^.stroke := "black",
+        ^.stroke := {
+          if (ok) "black" else "red"
+        },
         ^.strokeDasharray := "5,5",
         ^.markerEnd := "url(#arrowhead)"
       )
     }.build
 
-  val ProcessTimeline = ScalaComponent.builder[(Int,Callback)]("Execution")
-    .render_P { case (rounds,c) =>
+  val ArrowLine = ScalaComponent.builder[Arrow]("Arrow")
+    .render_P {
+      case a@Arrow(from, to, _, _, _) if from == to => SelfArrow(a)
+      case a => ArrowL(a)
+    }.build
+
+  val ProcessTimeline = ScalaComponent.builder[(Int, Callback)]("Execution")
+    .render_P { case (rounds, c) =>
       <.svg(
         <.line(
           html.^.onClick --> c,
@@ -76,17 +108,19 @@ object Grid {
 
       val actions = executions.zipWithIndex.foldLeft(List.empty[(Action, Int)]) { (acc, a) => acc ++ (a._1.sched().toSet -- acc.map(_._1).toSet).map(_ -> a._2) }
         .collect {
-          case (Deliver(f, to, msg), index) => GridDeliver(index, f, to, msg)
-          case (Send(f, to, msg), index) => GridSend(index, f, to, msg)
+          case (Deliver(f, to, msg), index) => (2,GridDeliver(index, f, to, msg))
+          case (Send(f, to, msg), index) => (1,GridSend(index, f, to, msg))
+          case (Drop(id), index) => (2,GridDrop(index, id.from, id.to, id))
         }
 
-      val arrows = actions.groupBy(_.msg.id).values.flatMap {
-        case List(GridDeliver(delivered, from, to, _), GridSend(sent, _, _, _)) => Some(Arrow(from, to, sent, delivered))
-        case List(GridSend(sent, from, to, _), GridDeliver(delivered, _, _, _)) => Some(Arrow(from, to, sent, delivered))
+      val arrows = actions.groupBy(_._2.msgID).values.map(_.sortBy(_._1).map(_._2)).flatMap {
+        //case List(GridDeliver(delivered, from, to, _), GridSend(sent, _, _, _)) => Some(Arrow(from, to, sent, delivered, true))
+        case List(GridSend(sent, from, to, _), GridDeliver(delivered, _, _, _)) => Some(Arrow(from, to, sent, delivered, true))
+        case List(GridSend(sent, from, to, _), GridDrop(delivered, _, _, _)) => Some(Arrow(from, to, sent, delivered, false))
         case _ => None
       }
 
-      val as = arrows.zipWithIndex.toVdomArray { case (a,index) =>
+      val as = arrows.zipWithIndex.toVdomArray { case (a, index) =>
         <.svg(
           html.^.key := index,
           ArrowLine(a)
@@ -101,7 +135,7 @@ object Grid {
         ^.height := 10000,
         ^.x := 0,
         ^.y := 0,
-        Processes(ProcessTimelineProps(10, processes,(i: Int) => Callback {
+        Processes(ProcessTimelineProps(10, processes, (i: Int) => Callback {
           println(executions.last.state)
         })), // TODO rounds
         as

@@ -3,11 +3,11 @@ package oss.ggiussi.cappio.ui.levels
 import oss.ggiussi.cappio.core.Level.Condition
 import oss.ggiussi.cappio.core.LinkProtocol.Deliver
 import oss.ggiussi.cappio.core._
-import oss.ggiussi.cappio.impl.links.{FLLState, FairLossLink}
+import oss.ggiussi.cappio.impl.links.{FLLState, FairLossLink, FullFLLState}
 import oss.ggiussi.cappio.impl.processes.{Process, ProcessState, Up}
 
 object LevelX {//extends LevelT {
-
+/*
   def level(): Level[_] = {
     implicit val payloads = Payloads(Set(1, 2), 10)
 
@@ -20,7 +20,7 @@ object LevelX {//extends LevelT {
       c2 <- composeTuple2(c1, Process(2, Set(1, 0)))
     } yield c2
 
-    val links: Option[Automaton[STuple6[FLLState]]] = for {
+    val links: Option[Automaton[STuple6[FullFLLState]]] = for {
       c1 <- FairLossLink(0, 1) composeTuple FairLossLink(1, 0)
       c2 <- composeTuple2(c1, FairLossLink(1, 2))
       c3 <- composeTuple3(c2, FairLossLink(2, 1))
@@ -56,5 +56,5 @@ object LevelX {//extends LevelT {
 
     Level(conditions, schedConditions, automaton.get, initalState)
   }
-
+*/
 }

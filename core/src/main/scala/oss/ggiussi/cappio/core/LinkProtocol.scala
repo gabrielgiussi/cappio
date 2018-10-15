@@ -1,7 +1,7 @@
 package oss.ggiussi.cappio.core
 
 import oss.ggiussi.cappio.ProcessID
-import oss.ggiussi.cappio.impl.links.{Envelope, Message}
+import oss.ggiussi.cappio.impl.links.{Envelope, Message, MessageID}
 
 object LinkProtocol {
 
@@ -20,5 +20,7 @@ object LinkProtocol {
   case class Deliver(from: ProcessID, to: ProcessID, message: Message) extends Envelope {
     override def toString: String = s"Deliver(from: $from, to: $to, payload: ${message.payload}, step: ${message.id.step})"
   }
+
+  case class Drop(m: MessageID) extends Action
 
 }

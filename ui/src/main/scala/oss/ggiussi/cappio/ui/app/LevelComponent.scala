@@ -6,6 +6,7 @@ import japgolly.scalajs.react.{Callback, ScalaComponent}
 import oss.ggiussi.cappio.core.{Action, _}
 import oss.ggiussi.cappio.ui.app.Grid.GridProps
 import oss.ggiussi.cappio.ui.app.LevelBackend.State
+import oss.ggiussi.cappio.ui.levels.Level1
 
 
 object LevelBackend {
@@ -36,6 +37,7 @@ class LevelBackend[S]($: BackendScope[Unit, State[S]]) {
 
 
   def render(s: State[S]): VdomElement = {
+    println(s.result.level.state().get.asInstanceOf[Level1.State]._3)
     def c1() = {
       val level = s.result.level
       val r = s.result match {
