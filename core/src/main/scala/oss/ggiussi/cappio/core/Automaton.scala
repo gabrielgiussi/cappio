@@ -23,6 +23,8 @@ object Effect {
 
   def precondition[S](precondition: S => Boolean): Effect[S] = new Effect({ case (s, _) => precondition(s) }, { case (s, _) => s })
 
+  def noEffect[S](): Effect[S] = new Effect((_,_) => true, { case (s, _) => s })
+
 }
 
 // It will be hard to test effects if doesn't consider actions

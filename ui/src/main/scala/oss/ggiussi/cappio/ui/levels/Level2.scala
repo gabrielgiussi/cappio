@@ -4,21 +4,23 @@ import oss.ggiussi.cappio.core.Composer._
 import oss.ggiussi.cappio.core.Level.Condition
 import oss.ggiussi.cappio.core._
 import oss.ggiussi.cappio.impl.bcast.{BrokenBcast, BrokenBcastState}
-import oss.ggiussi.cappio.impl.links.{FLLState, FairLossLink, FullFLLState}
+import oss.ggiussi.cappio.impl.links._
 import oss.ggiussi.cappio.impl.processes.{ProcessBcast, ProcessState, Up}
-import oss.ggiussi.cappio.ui.app.Conditions
 
-object Level1 extends LevelT[(STuple6[FullFLLState], STuple3[ProcessState], STuple3[BrokenBcastState])] {
+object Level2 extends LevelT[((FullPLState,FullPLState,FullPLState,PLState,PLState,PLState), STuple3[ProcessState], STuple3[BrokenBcastState])] {
 
-  type State = (STuple6[FullFLLState], STuple3[ProcessState], STuple3[BrokenBcastState])
-  import Conditions._
+  type State = ((FullPLState,FullPLState,FullPLState,PLState,PLState,PLState), STuple3[ProcessState], STuple3[BrokenBcastState])
 
   val conditions = List(
-    Conditions.allProcessesUp[State](_._2),
+    StateCondition("All processes should be Up", (s: State) => s._2 match {
+      case (Up(_), Up(_), Up(_)) => true
+      case _ => false
+    }),
     StateCondition("Process 0 state should be x = 1", (s: State) => s._2._1 == Up(1)),
     StateCondition("Process 1 state should be x = 1", (s: State) => s._2._2 == Up(1)),
-    StateCondition("Process 2 state should be x = 0", (s: State) => s._2._3 == Up(0)),
-    StateCondition("There must not be remaining messages to deliver", (s: State) => List(s._1._1, s._1._2, s._1._3, s._1._4, s._1._5, s._1._6).forall(_.empty))
+    StateCondition("Process 2 state should be x = 1", (s: State) => s._2._3 == Up(1)),
+    StateCondition("There must not be remaining messages to deliver", (s: State) => List(s._1._4, s._1._5, s._1._6).forall(_.isEmpty)),
+    StateCondition("There must not be remaining messages to deliver", (s: State) => List(s._1._1, s._1._2, s._1._3).forall(_.isEmpty))
   )
 
   val schedConditions: List[(String, Condition[List[Action]])] = List()
@@ -39,11 +41,11 @@ object Level1 extends LevelT[(STuple6[FullFLLState], STuple3[ProcessState], STup
     } yield c2
 
     val links = for {
-      c1 <- FairLossLink(0, 1) composeTuple FairLossLink(0, 2)
-      c2 <- composeTuple2(c1, FairLossLink(1, 2))
-      c3 <- composeTuple3(c2, FairLossLink(0, 0))
-      c4 <- composeTuple4(c3, FairLossLink(1, 1))
-      c5 <- composeTuple5(c4, FairLossLink(2, 2))
+      c1 <- PerfectLink.fullDuplex(0, 1) composeTuple PerfectLink.fullDuplex(0, 2)
+      c2 <- composeTuple2(c1, PerfectLink.fullDuplex(1, 2))
+      c3 <- composeTuple3(c2, PerfectLink(0, 0))
+      c4 <- composeTuple4(c3, PerfectLink(1, 1))
+      c5 <- composeTuple5(c4, PerfectLink(2, 2))
     } yield c5
 
 
@@ -56,7 +58,7 @@ object Level1 extends LevelT[(STuple6[FullFLLState], STuple3[ProcessState], STup
     } yield a2
 
     val initalState: State = (
-      (FullFLLState.empty, FullFLLState.empty, FullFLLState.empty, FullFLLState.empty, FullFLLState.empty, FullFLLState.empty),
+      (FullPLState.empty, FullPLState.empty, FullPLState.empty, PLState.empty, PLState.empty, PLState.empty),
       (Up(0), Up(0), Up(0)),
       (BrokenBcastState.empty, BrokenBcastState.empty, BrokenBcastState.empty)
     )

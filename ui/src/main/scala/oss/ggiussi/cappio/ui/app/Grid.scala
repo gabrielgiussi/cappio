@@ -5,6 +5,8 @@ import oss.ggiussi.cappio.core.LinkProtocol.{Deliver, Drop, Send}
 import oss.ggiussi.cappio.core.{Action, Execution}
 import oss.ggiussi.cappio.impl.links.{Message, MessageID}
 import Constants._
+import oss.ggiussi.cappio.ProcessID
+import oss.ggiussi.cappio.impl.processes.ProcessProtocol.Crash
 
 // https://www.sarasoueidan.com/blog/mimic-relative-positioning-in-svg/
 // http://tutorials.jenkov.com/svg/svg-viewport-view-box.html
@@ -77,7 +79,7 @@ object Grid {
       case a => ArrowL(a)
     }.build
 
-  val ProcessTimeline = ScalaComponent.builder[(Int, Callback)]("Execution")
+  val ProcessTimeline = ScalaComponent.builder[(Int, Callback)]("ProcessTimeline")
     .render_P { case (rounds, c) =>
       <.svg(
         <.line(
@@ -91,6 +93,29 @@ object Grid {
         )
       )
     }.build
+
+  val CrashComponent = ScalaComponent.builder[(ProcessID, Int,Int)]("Crash")
+    .render_P { case (id,step,size) =>
+      val (x,y) = point(step,id)
+        <.svg(
+          <.line(
+            ^.x1 := x - size,
+            ^.y1 := y - size,
+            ^.x2 := x + size,
+            ^.y2 := y + size,
+            ^.strokeWidth := "2",
+            ^.stroke := "red",
+          ),
+          <.line(
+            ^.x1 := x - size,
+            ^.y1 := y + size,
+            ^.x2 := x + size,
+            ^.y2 := y - size,
+            ^.strokeWidth := "2",
+            ^.stroke := "red",
+          )
+        )
+  }.build
 
   val Processes = ScalaComponent.builder[ProcessTimelineProps]("Execution")
     .render_P { case ProcessTimelineProps(rounds, processes, callback) =>
@@ -107,17 +132,22 @@ object Grid {
     .render_P { case GridProps(processes, executions) =>
 
       val actions = executions.zipWithIndex.foldLeft(List.empty[(Action, Int)]) { (acc, a) => acc ++ (a._1.sched().toSet -- acc.map(_._1).toSet).map(_ -> a._2) }
-        .collect {
+
+       val messages = actions.collect {
           case (Deliver(f, to, msg), index) => (2,GridDeliver(index, f, to, msg))
           case (Send(f, to, msg), index) => (1,GridSend(index, f, to, msg))
           case (Drop(id), index) => (2,GridDrop(index, id.from, id.to, id))
         }
 
-      val arrows = actions.groupBy(_._2.msgID).values.map(_.sortBy(_._1).map(_._2)).flatMap {
+      val arrows = messages.groupBy(_._2.msgID).values.map(_.sortBy(_._1).map(_._2)).flatMap {
         //case List(GridDeliver(delivered, from, to, _), GridSend(sent, _, _, _)) => Some(Arrow(from, to, sent, delivered, true))
         case List(GridSend(sent, from, to, _), GridDeliver(delivered, _, _, _)) => Some(Arrow(from, to, sent, delivered, true))
         case List(GridSend(sent, from, to, _), GridDrop(delivered, _, _, _)) => Some(Arrow(from, to, sent, delivered, false))
         case _ => None
+      }
+
+      val crash = actions.collect {
+        case (Crash(id),step) => CrashComponent(id,step,5)
       }
 
       val as = arrows.zipWithIndex.toVdomArray { case (a, index) =>
@@ -138,7 +168,10 @@ object Grid {
         Processes(ProcessTimelineProps(10, processes, (i: Int) => Callback {
           println(executions.last.state)
         })), // TODO rounds
-        as
+        as,
+        <.svg(
+          crash.toVdomArray
+        )
       )
     }.build
 

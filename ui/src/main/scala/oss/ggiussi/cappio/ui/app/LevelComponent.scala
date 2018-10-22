@@ -37,7 +37,6 @@ class LevelBackend[S]($: BackendScope[Unit, State[S]]) {
 
 
   def render(s: State[S]): VdomElement = {
-    println(s.result.level.state().get.asInstanceOf[Level1.State]._3)
     def c1() = {
       val level = s.result.level
       val r = s.result match {

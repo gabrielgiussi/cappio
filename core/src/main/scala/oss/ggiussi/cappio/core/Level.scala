@@ -1,5 +1,6 @@
 package oss.ggiussi.cappio.core
 
+import oss.ggiussi.cappio.core.Execution.Triggers
 import oss.ggiussi.cappio.core.Level.Condition
 
 
@@ -7,7 +8,7 @@ object Level {
 
   type Condition[S] = S => Boolean
 
-  def apply[S](conditions: List[StateCondition[S]], schedConditions: List[Condition[List[Action]]], automaton: Automaton[S], initialState: S): Level[S] = new Level(conditions, schedConditions, List(Execution(automaton, initialState)))
+  def apply[S](conditions: List[StateCondition[S]], schedConditions: List[Condition[List[Action]]], automaton: Automaton[S], initialState: S, triggers: Option[Triggers] = None): Level[S] = new Level(conditions, schedConditions, List(Execution(automaton, initialState,triggers = triggers.getOrElse(Execution.EmptyTriggers))))
 }
 
 object StateCondition {
@@ -54,45 +55,3 @@ case class Level[S](conditions: List[StateCondition[S]], schedConditions: List[C
 
   def state() = executions.lastOption.map(_.state)
 }
-/*
-object Prueba extends App {
-
-  implicit val payloads = Payloads(Set(1, 2), 10)
-
-  type State = (((FairLossLinkStateN, FairLossLinkStateN), ProcessState), ProcessState)
-
-  val automaton: Option[Automaton[State]] = for {
-    c1 <- FairLossLinkN(0, 1).composeTuple(FairLossLinkN(1, 0))
-    c2 <- c1 composeTuple ProcessN(0, Set(1))
-    c3 <- c2 composeTuple ProcessN(1, Set(0))
-  } yield c3
-
-  val initalState: Option[State] = for {
-    c1 <- Some((FairLossLinkStateN(Set.empty), FairLossLinkStateN(Set.empty)))
-    c2 <- Some((c1, Up(0)))
-    c3 <- Some((c2, Up(0)))
-  } yield c3
-
-  val conditions: List[Condition[State]] = List(
-    (s: State) => s._2.isInstanceOf[Up] && s._2.asInstanceOf[Up].x == 1,
-    (s: State) => s._1._2.isInstanceOf[Up] && s._1._2.asInstanceOf[Up].x == 1,
-    (s: State) => s._1._1._1.messages.collect { case e: Deliver => e }.isEmpty,
-    (s: State) => s._1._1._2.messages.collect { case e: Deliver => e }.isEmpty
-  )
-
-
-  val level1 = Level(conditions, List.empty, automaton.get, initalState.get)
-
-  /*
-  println(level1.next(Send(0, 1, 1))
-    .level.next(Deliver(0, 1, 1))
-    .level.next(Crash(0))
-    .level.next(Send(1, 0, 1))
-    .level.next(Send(1, 0, 1))
-    .level.next(Deliver(1, 0, 1))
-  )
-  */
-
-
-}
-*/

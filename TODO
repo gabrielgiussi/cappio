@@ -15,4 +15,14 @@
     - Logical step: compartido por un grupo de acciones, por ejemplo los send de un bcast, o acciones concurrentes en distintos procesos.
                     Este seria util para mejorar los graficos.
     Habria que ver cual es el impacto en los filtros que estoy usando para mostrar solo las acciones disponibles en ese step.
-(7)
+(7) Revisar MessageID
+(8) Con la implementación actual no puedo insertar lamport timestamp o vector clocks a los mensajes porque el numero de combinaciones tiende a infinito.
+    Las acciones no solo van a depender de Sender + Receiver + Step + Payload, sino que dependen de la historia de mensajes enviados que es la que define el valor del vector clock.
+    Por ahi para lamport timestamp no es tan dificil porque es un unico numero, podria generar para un Msg, la combinacion los timestamp de 1 a 1000, pero los vector clocks son mucho mas complejos.
+    Alternativas
+    (a) No usar lamport timestamps ni vector clocks. (X) Descartada: estas son las cosas mas interesantes en sistemas distribuidos.
+    (b) No usar la teoria de IO. Me saca la base teorica.
+    (c) No usar el payload como parte de las action que forman la signature del automata.
+    (d) Agregar lamport timestamp como metadata de la action, de modo que no afecte la signature.
+(9) Es muy complicado (y propenso a errores) reconocer que state corresponde a cual automata (tal vez para los que son de procesos no porque por ahora tengo 1 automata por proceso,
+    por ejemplo 1 process y 1 bcast) pero si para los de links.
