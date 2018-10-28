@@ -3,6 +3,7 @@ package oss.ggiussi.cappio.ui.levels
 import oss.ggiussi.cappio.core.Composer._
 import oss.ggiussi.cappio.core.Level.Condition
 import oss.ggiussi.cappio.core._
+import oss.ggiussi.cappio.impl.Instances
 import oss.ggiussi.cappio.impl.bcast.{BrokenBcast, BrokenBcastState}
 import oss.ggiussi.cappio.impl.links._
 import oss.ggiussi.cappio.impl.processes.{ProcessBcast, ProcessState, Up}
@@ -35,18 +36,25 @@ object Level2 extends LevelT[((FullPLState,FullPLState,FullPLState,PLState,PLSta
       c2 <- composeTuple2(c1, ProcessBcast(2, Set(1, 0)))
     } yield c2
 
-    val bcast: Option[Automaton[STuple3[BrokenBcastState]]] = for {
-      c1 <- BrokenBcast(0, Set(1, 2)) composeTuple BrokenBcast(1, Set(0, 2))
-      c2 <- composeTuple2(c1, BrokenBcast(2, Set(1, 0)))
-    } yield c2
+    val bcast: Option[Automaton[STuple3[BrokenBcastState]]] = {
+      val _bcast = BrokenBcast(Instances.BCAST) _
+      for {
+        c1 <- _bcast(0, Set(1, 2)) composeTuple _bcast(1, Set(0, 2))
+        c2 <- composeTuple2(c1, _bcast(2, Set(1, 0)))
+      } yield c2
+    }
 
-    val links = for {
-      c1 <- PerfectLink.fullDuplex(0, 1) composeTuple PerfectLink.fullDuplex(0, 2)
-      c2 <- composeTuple2(c1, PerfectLink.fullDuplex(1, 2))
-      c3 <- composeTuple3(c2, PerfectLink(0, 0))
-      c4 <- composeTuple4(c3, PerfectLink(1, 1))
-      c5 <- composeTuple5(c4, PerfectLink(2, 2))
-    } yield c5
+    val links = {
+      val fd = PerfectLink.fullDuplex(Instances.BCAST_LINK) _
+      val pl = PerfectLink.apply(Instances.BCAST_LINK) _
+      for {
+        c1 <- fd(0, 1) composeTuple fd(0, 2)
+        c2 <- composeTuple2(c1, fd(1, 2))
+        c3 <- composeTuple3(c2, pl(0, 0))
+        c4 <- composeTuple4(c3, pl(1, 1))
+        c5 <- composeTuple5(c4, pl(2, 2))
+      } yield c5
+    }
 
 
     val automaton: Option[Automaton[State]] = for {

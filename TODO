@@ -1,7 +1,11 @@
 (1) probar el hiding de las actions (what should be the impact?)
+
 (2) Mostrar solo drops cuando no se hizo el deliver ni el drop, y se hizo el send correspondiente
+
 (3) Dibujar mejor las flechas a self
+
 (4) No crear drops cuando from == to (porque no hay red, asi que no se podrian perder)
+
 (5) [Triggers]: "Every event triggered by a component of the same process is eventually processed, if the process is correct.
                 Events from the same componet are processed in the order in which they were triggered. This FIFO order is
                 only enforced on events exchanged among local components in a given stack.
@@ -10,12 +14,15 @@
     Esto implica que no puedo hacer un bcast - send - (some other action) - send.
     Sin embargo, a nivel teoria de IOAutomata no encontre nada similar a un trigger, asi que por el momento lo voy a implementar como una capa por sobre la teoria: instalacion
     de tiggers en la execution).
+
 (6) Deberia manerar dos conceptos de step
     - Sched index: unico por action.
     - Logical step: compartido por un grupo de acciones, por ejemplo los send de un bcast, o acciones concurrentes en distintos procesos.
                     Este seria util para mejorar los graficos.
     Habria que ver cual es el impacto en los filtros que estoy usando para mostrar solo las acciones disponibles en ese step.
+
 (7) Revisar MessageID
+
 (8) Con la implementación actual no puedo insertar lamport timestamp o vector clocks a los mensajes porque el numero de combinaciones tiende a infinito.
     Las acciones no solo van a depender de Sender + Receiver + Step + Payload, sino que dependen de la historia de mensajes enviados que es la que define el valor del vector clock.
     Por ahi para lamport timestamp no es tan dificil porque es un unico numero, podria generar para un Msg, la combinacion los timestamp de 1 a 1000, pero los vector clocks son mucho mas complejos.
@@ -24,5 +31,42 @@
     (b) No usar la teoria de IO. Me saca la base teorica.
     (c) No usar el payload como parte de las action que forman la signature del automata.
     (d) Agregar lamport timestamp como metadata de la action, de modo que no afecte la signature.
+
 (9) Es muy complicado (y propenso a errores) reconocer que state corresponde a cual automata (tal vez para los que son de procesos no porque por ahora tengo 1 automata por proceso,
     por ejemplo 1 process y 1 bcast) pero si para los de links.
+
+(10) Tengo que implementar un caso (o al menos una parte) con mi herramienta.
+     Alternativas:
+     - Cassandra
+     - Kafka
+     - CRDTs (tal vez con llevar, esto que no esta implementado en el libro, alcanza)
+
+(11) Consultar a los autores del libro
+     (a) abstracciones de links
+          - UDP -> FairLossLink?
+          - TCP -> PerfectLink?
+     (b) cómo traducir los triggers?
+
+(12) Shared memory.
+     - Capacidad de dibujar writes and reads
+     - "Remember that these events occur at a single indivisible point in time, using a fictional notion of global time that only serves to reason about specifitacions and algorithms" (pag 141)
+       ¿Se refiere al par de ventos Read-ReadReturn y Write-WriteReturn?
+     - "An operation o is said to precede an operation o' if the completion event of o occurs BEFORE the invocation event of o'" (pag 141)
+       ¿Before según qué? ¿Puedo usar el orden de la action en la execution para definir before?, el problema es que no podría considerar actions concurrentes.
+       La otra opción sería la de usar el step en lugar del índice de la action en la execution, es decir el step lógico que usaría para seleccionar un conjunto de acciones (1 por process).
+       Funcionaría como un reloj lógico. Aunque también debería incorporar el uso de un reloj físico porque me va a permitr usar drift y skew (el lógico no).
+
+(13) "The instances are differentiated by their identifiers, and all messages exchanged using the underlying communication primitives
+      implicitly carry an instance identifier to match the same instance at all processes" (pag 145)
+
+(14) Deliver a un processo Down deberia estar habilitado, y que no haga nada.
+
+(15) Incorporar interfaces = Name + Requests (aka input actions) + Indications (aka output actions) + Properties
+     Las properties no van a tener un impacto directo (a menos que sepa traducirlas a condiciones sobre la execution, lo que estaria muy bueno)
+     Investigar cual seria el impacto concreto
+
+(16) Como dibujar stacks de componentes?
+     En la teoria de automatas no está, tal vez debería definirla paralelamente al automata (o implementar la lógica basada en las input y output actions, ejemplo
+     si un componente A tiene como output action la input action de un componente B, A esta en layer n y B en layer n + 1)
+
+(17) Reemplazar pattern matching del estilo `id` por el chequeo de si esta en la input action (que va a ser universal para todos los automatons)

@@ -134,9 +134,9 @@ object Grid {
       val actions = executions.zipWithIndex.foldLeft(List.empty[(Action, Int)]) { (acc, a) => acc ++ (a._1.sched().toSet -- acc.map(_._1).toSet).map(_ -> a._2) }
 
        val messages = actions.collect {
-          case (Deliver(f, to, msg), index) => (2,GridDeliver(index, f, to, msg))
-          case (Send(f, to, msg), index) => (1,GridSend(index, f, to, msg))
-          case (Drop(id), index) => (2,GridDrop(index, id.from, id.to, id))
+          case (Deliver(f, to, _,msg), index) => (2,GridDeliver(index, f, to, msg))
+          case (Send(f, to, _, msg), index) => (1,GridSend(index, f, to, msg))
+          case (Drop(id,_), index) => (2,GridDrop(index, id.from, id.to, id))
         }
 
       val arrows = messages.groupBy(_._2.msgID).values.map(_.sortBy(_._1).map(_._2)).flatMap {
@@ -147,7 +147,7 @@ object Grid {
       }
 
       val crash = actions.collect {
-        case (Crash(id),step) => CrashComponent(id,step,5)
+        case (Crash(id,_),step) => CrashComponent(id,step,5)
       }
 
       val as = arrows.zipWithIndex.toVdomArray { case (a, index) =>

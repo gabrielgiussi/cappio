@@ -1,5 +1,6 @@
 package oss.ggiussi.cappio.impl.arbiter
 
+import oss.ggiussi.cappio.InstanceID
 import oss.ggiussi.cappio.core.Steps.Steps
 import oss.ggiussi.cappio.core._
 import oss.ggiussi.cappio.core.Transition.Transition
@@ -19,13 +20,17 @@ object Arbiter {
 
 }
 
-case class ReceiveRequest(from: Int, id: Int) extends Action
+sealed trait ArbiterAction extends Action {
+  override val instance = InstanceID("arbiter")
+}
 
-case class ReceiveGrant(from: Int, id: Int) extends Action
+case class ReceiveRequest(from: Int, id: Int) extends ArbiterAction
 
-case class SendRequest(id: Int, to: Int) extends Action
+case class ReceiveGrant(from: Int, id: Int) extends ArbiterAction
 
-case class SendGrant(id: Int, to: Int) extends Action
+case class SendRequest(id: Int, to: Int) extends ArbiterAction
+
+case class SendGrant(id: Int, to: Int) extends ArbiterAction
 
 object ArbiterState {
   // Hay una logica en la creacion del estado inicial (validar que el lastwordard apunte en la direccion del holder) TODO

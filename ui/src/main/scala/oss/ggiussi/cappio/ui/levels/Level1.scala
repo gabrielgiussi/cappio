@@ -3,6 +3,7 @@ package oss.ggiussi.cappio.ui.levels
 import oss.ggiussi.cappio.core.Composer._
 import oss.ggiussi.cappio.core.Level.Condition
 import oss.ggiussi.cappio.core._
+import oss.ggiussi.cappio.impl.Instances
 import oss.ggiussi.cappio.impl.bcast.{BrokenBcast, BrokenBcastState}
 import oss.ggiussi.cappio.impl.links.{FLLState, FairLossLink, FullFLLState}
 import oss.ggiussi.cappio.impl.processes.{ProcessBcast, ProcessState, Up}
@@ -33,18 +34,24 @@ object Level1 extends LevelT[(STuple6[FullFLLState], STuple3[ProcessState], STup
       c2 <- composeTuple2(c1, ProcessBcast(2, Set(1, 0)))
     } yield c2
 
-    val bcast: Option[Automaton[STuple3[BrokenBcastState]]] = for {
-      c1 <- BrokenBcast(0, Set(1, 2)) composeTuple BrokenBcast(1, Set(0, 2))
-      c2 <- composeTuple2(c1, BrokenBcast(2, Set(1, 0)))
-    } yield c2
+    val bcast: Option[Automaton[STuple3[BrokenBcastState]]] = {
+      val _bcast = BrokenBcast(Instances.BCAST) _
+      for {
+        c1 <- _bcast(0, Set(1, 2)) composeTuple _bcast(1, Set(0, 2))
+        c2 <- composeTuple2(c1, _bcast(2, Set(1, 0)))
+      } yield c2
+    }
 
-    val links = for {
-      c1 <- FairLossLink(0, 1) composeTuple FairLossLink(0, 2)
-      c2 <- composeTuple2(c1, FairLossLink(1, 2))
-      c3 <- composeTuple3(c2, FairLossLink(0, 0))
-      c4 <- composeTuple4(c3, FairLossLink(1, 1))
-      c5 <- composeTuple5(c4, FairLossLink(2, 2))
-    } yield c5
+    val links = {
+      val fll = FairLossLink(Instances.BCAST_LINK) _
+      for {
+        c1 <- fll(0, 1) composeTuple fll(0, 2)
+        c2 <- composeTuple2(c1, fll(1, 2))
+        c3 <- composeTuple3(c2, fll(0, 0))
+        c4 <- composeTuple4(c3, fll(1, 1))
+        c5 <- composeTuple5(c4, fll(2, 2))
+      } yield c5
+    }
 
 
     val automaton: Option[Automaton[State]] = for {

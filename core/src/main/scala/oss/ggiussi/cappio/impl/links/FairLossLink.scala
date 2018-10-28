@@ -1,6 +1,6 @@
 package oss.ggiussi.cappio.impl.links
 
-import oss.ggiussi.cappio.ProcessID
+import oss.ggiussi.cappio.{InstanceID, ProcessID}
 import oss.ggiussi.cappio.core.LinkProtocol._
 import oss.ggiussi.cappio.core.Transition.Transition
 import oss.ggiussi.cappio.core._
@@ -34,9 +34,15 @@ case class FullFLLState(ab: FLLState, ba: FLLState) {
   def drop(id: MessageID) = copy(ab = ab.drop(id), ba = ba.drop(id))
 }
 
-case class FairLossLink(a: ProcessID, b: ProcessID)(implicit payloads: Payloads) extends Automaton[FullFLLState] {
+object FairLossLink {
+  def apply(instance: InstanceID)(a: ProcessID, b: ProcessID)(implicit payloads: Payloads): FairLossLink = new FairLossLink(a, b,instance)
+}
+
+case class FairLossLink(a: ProcessID, b: ProcessID, instance: InstanceID)(implicit payloads: Payloads) extends Automaton[FullFLLState] {
+  implicit val instanceID = instance // TODO esto es propio de Automaton? (no es de la teoria pero lo voy a usar siempre)
+
   override val sig: ActionSignature = {
-    val in: Set[Action] = payloads.sends(a, b) ++ payloads.sends(b, a) ++ payloads.drops(a,b) ++ payloads.drops(b,a)
+    val in: Set[Action] = payloads.sends(a, b) ++ payloads.sends(b, a) ++ payloads.drops(a, b) ++ payloads.drops(b, a)
     val out: Set[Action] = payloads.delivers(a, b) ++ payloads.delivers(b, a)
     val int: Set[Action] = Set.empty[Action]
     ActionSignature(in = in, out = out, int = int)
@@ -44,11 +50,11 @@ case class FairLossLink(a: ProcessID, b: ProcessID)(implicit payloads: Payloads)
 
   override val steps: Steps.Steps[FullFLLState] =
     Steps.steps[FullFLLState]({
-      case a@Drop(id) if inputAction(a) => Effect(_.drop(id))
-      case a@Send(`a`, `b`, msg) if inputAction(a) => Effect(state => state.copy(ab = state.ab.add(msg)))
-      case a@Deliver(`a`, `b`, msg) if outputAction(a) => Effect(state => state.ab.canDeliver(msg), state => state.copy(ab = state.ab.remove(msg)))
+      case a@Drop(id, `instance`) if inputAction(a) => Effect(_.drop(id))
+      case a@Send(`a`, `b`, `instance`, msg) if inputAction(a) => Effect(state => state.copy(ab = state.ab.add(msg)))
+      case a@Deliver(`a`, `b`, `instance`, msg) if outputAction(a) => Effect(state => state.ab.canDeliver(msg), state => state.copy(ab = state.ab.remove(msg)))
 
-      case a@Send(`b`, `a`, msg) if inputAction(a) => Effect(state => state.copy(ba = state.ba.add(msg)))
-      case a@Deliver(`b`, `a`, msg) if outputAction(a) => Effect(state => state.ba.canDeliver(msg), state => state.copy(ba = state.ba.remove(msg)))
+      case a@Send(`b`, `a`, `instance`, msg) if inputAction(a) => Effect(state => state.copy(ba = state.ba.add(msg)))
+      case a@Deliver(`b`, `a`, `instance`, msg) if outputAction(a) => Effect(state => state.ba.canDeliver(msg), state => state.copy(ba = state.ba.remove(msg)))
     })
 }

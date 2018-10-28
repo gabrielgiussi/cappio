@@ -1,6 +1,6 @@
 package oss.ggiussi.cappio.impl
 
-import oss.ggiussi.cappio.ProcessID
+import oss.ggiussi.cappio.{InstanceID, ProcessID}
 import oss.ggiussi.cappio.core.LinkProtocol._
 import oss.ggiussi.cappio.core._
 
@@ -18,9 +18,9 @@ package object links {
 
   case class Message(payload: Any, id: MessageID)
 
-  def send(from: ProcessID, to: ProcessID, payload: Any)(step: Int) = Send(from, to, Message(from, to, payload, step))
+  def send(from: ProcessID, to: ProcessID, payload: Any)(step: Int)(implicit instance: InstanceID) = Send(Message(from, to, payload, step))
 
-  def deliver(from: ProcessID, to: ProcessID, payload: Any)(step: Int) = Deliver(from, to, Message(from, to, payload, step))
+  def deliver(from: ProcessID, to: ProcessID, payload: Any)(step: Int)(implicit instance: InstanceID) = Deliver(Message(from, to, payload, step))
 
 
 }

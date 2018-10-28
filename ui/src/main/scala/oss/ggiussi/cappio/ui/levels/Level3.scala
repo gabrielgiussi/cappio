@@ -4,6 +4,7 @@ import oss.ggiussi.cappio.core.Composer._
 import oss.ggiussi.cappio.core.Level.Condition
 import oss.ggiussi.cappio.core.LinkProtocol.{Deliver, Send}
 import oss.ggiussi.cappio.core._
+import oss.ggiussi.cappio.impl.Instances
 import oss.ggiussi.cappio.impl.bcast.BrokenBcastProtocol.{BrkBcast, BrkDeliver}
 import oss.ggiussi.cappio.impl.bcast.{BrokenBcast, BrokenBcastState}
 import oss.ggiussi.cappio.impl.links._
@@ -36,18 +37,25 @@ object Level3 extends LevelT[((FullPLState,FullPLState,FullPLState,PLState,PLSta
       c2 <- composeTuple2(c1, ProcessBcast(2, Set(1, 0)))
     } yield c2
 
-    val bcast: Option[Automaton[STuple3[BrokenBcastState]]] = for {
-      c1 <- BrokenBcast(0, Set(1, 2)) composeTuple BrokenBcast(1, Set(0, 2))
-      c2 <- composeTuple2(c1, BrokenBcast(2, Set(1, 0)))
-    } yield c2
+    val bcast: Option[Automaton[STuple3[BrokenBcastState]]] = {
+      val _bcast = BrokenBcast(Instances.BCAST) _
+      for {
+        c1 <- _bcast(0, Set(1, 2)) composeTuple _bcast(1, Set(0, 2))
+        c2 <- composeTuple2(c1, _bcast(2, Set(1, 0)))
+      } yield c2
+    }
 
-    val links = for {
-      c1 <- PerfectLink.fullDuplex(0, 1) composeTuple PerfectLink.fullDuplex(0, 2)
-      c2 <- composeTuple2(c1, PerfectLink.fullDuplex(1, 2))
-      c3 <- composeTuple3(c2, PerfectLink(0, 0))
-      c4 <- composeTuple4(c3, PerfectLink(1, 1))
-      c5 <- composeTuple5(c4, PerfectLink(2, 2))
-    } yield c5
+    val links = {
+      val fd = PerfectLink.fullDuplex(Instances.BCAST_LINK) _
+      val pl = PerfectLink(Instances.BCAST_LINK) _
+      for {
+        c1 <- fd(0, 1) composeTuple fd(0, 2)
+        c2 <- composeTuple2(c1, fd(1, 2))
+        c3 <- composeTuple3(c2, pl(0, 0))
+        c4 <- composeTuple4(c3, pl(1, 1))
+        c5 <- composeTuple5(c4, pl(2, 2))
+      } yield c5
+    }
 
 
     val automaton: Option[Automaton[State]] = for {
@@ -65,11 +73,11 @@ object Level3 extends LevelT[((FullPLState,FullPLState,FullPLState,PLState,PLSta
     )
 
     Level(conditions, schedConditions.map(_._2), automaton.get, initalState, Some({
-      case BrkBcast(from,p,step) =>
-        val r: Set[Action] = Set(0,1,2).map(to => Send(from,to,Message(from,to,p,step)))
+      case BrkBcast(from,_,p,step) =>
+        val r: Set[Action] = Set(0,1,2).map(to => Send(from,to,Instances.BCAST_LINK,Message(from,to,p,step)))
         println(r)
         r
-      case Deliver(from,to,msg) => Set(BrkDeliver(from,to,msg))
+      case Deliver(from,to,_,msg) => Set(BrkDeliver(from,to,Instances.BCAST,msg))
       case _ => Set.empty
     }))
   }

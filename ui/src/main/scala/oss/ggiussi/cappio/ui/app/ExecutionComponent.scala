@@ -15,15 +15,15 @@ object ExecutionComponent {
 
   def couldDrop(sched: List[Action], id: MessageID): Boolean = {
     val sent = sched.exists {
-      case Send(_,_,Message(_,`id`)) /*if id == i */ => true
+      case Send(_,_,_,Message(_,`id`)) /*if id == i */ => true
       case _ => false
     }
     val dropped = sched.exists {
-      case Drop(`id`) => true
+      case Drop(`id`,_) => true
       case _ => false
     }
     val delivered = sched.exists {
-      case Deliver(_,_,Message(_,`id`)) => true
+      case Deliver(_,_,_,Message(_,`id`)) => true
       case _ => false
     }
     sent && !delivered && !dropped
@@ -35,8 +35,8 @@ object ExecutionComponent {
           <.ul(
             exec.enabled().filterNot {
               //case Send(_,_,Message(_,MessageID(_,_,_,step))) if step != currentStep => true
-              case Drop(id) => !couldDrop(exec.sched,id)
-              case BrkBcast(_,_,step) if step != currentStep => true // TODO
+              case Drop(id,_) => !couldDrop(exec.sched,id)
+              case BrkBcast(_,_,_,step) if step != currentStep => true // TODO
               case _ => false
             }.zipWithIndex.toVdomArray { case (action, index) =>
               <.li(

@@ -1,11 +1,11 @@
 package oss.ggiussi.cappio.impl.links
 
-import oss.ggiussi.cappio.ProcessID
+import oss.ggiussi.cappio.{InstanceID, ProcessID}
 import oss.ggiussi.cappio.core.LinkProtocol.{Deliver, Drop, Send}
 import oss.ggiussi.cappio.core._
 
 object PLState {
-  def empty() = PLState(Set.empty,Set.empty)
+  def empty() = PLState(Set.empty, Set.empty)
 }
 
 case class PLState(sent: Set[Message], delivered: Set[Message]) {
@@ -19,7 +19,7 @@ case class PLState(sent: Set[Message], delivered: Set[Message]) {
 }
 
 object FullPLState {
-  def empty() = FullPLState(PLState.empty,PLState.empty)
+  def empty() = FullPLState(PLState.empty, PLState.empty)
 }
 
 case class FullPLState(ab: PLState, ba: PLState) {
@@ -28,20 +28,24 @@ case class FullPLState(ab: PLState, ba: PLState) {
 
 object PerfectLink {
 
-  def fullDuplex(a: ProcessID, b: ProcessID)(implicit payloads: Payloads): Automaton[FullPLState] = PerfectLink(a,b).compose(PerfectLink(b,a),(ab,ba) => FullPLState(ab,ba))(_.ab,_.ba).get
+  def fullDuplex(instance: InstanceID)(a: ProcessID, b: ProcessID)(implicit payloads: Payloads): Automaton[FullPLState] = PerfectLink(a, b, instance).compose(PerfectLink(b, a, instance), (ab, ba) => FullPLState(ab, ba))(_.ab, _.ba).get
 
+  def apply(instance: InstanceID)(from: ProcessID, to: ProcessID)(implicit payloads: Payloads): PerfectLink = new PerfectLink(from, to, instance)(payloads)
 }
 
-case class PerfectLink(from: ProcessID, to: ProcessID)(implicit payloads: Payloads) extends Automaton[PLState] {
+case class PerfectLink(from: ProcessID, to: ProcessID, instance: InstanceID)(implicit payloads: Payloads) extends Automaton[PLState] {
+
+  implicit val instanceID = instance
+
   override val sig: ActionSignature = {
     val in: Set[Action] = payloads.sends(from, to) //++ payloads.drops(from, to)
-    val out: Set[Action] = payloads.delivers(from,to)
+    val out: Set[Action] = payloads.delivers(from, to)
     val int: Set[Action] = Set.empty
     ActionSignature(in = in, out = out, int = int)
   }
   override val steps: Steps.Steps[PLState] = Steps.steps[PLState]({
-    case a@Send(`from`, `to`, msg) if inputAction(a) => Effect(_.send(msg))
-    case a@Deliver(`from`, `to`, msg) if outputAction(a) => Effect(_.canDeliver(msg), _.deliver(msg))
+    case a@Send(`from`, `to`, `instance`, msg) if inputAction(a) => Effect(_.send(msg))
+    case a@Deliver(`from`, `to`, `instance`, msg) if outputAction(a) => Effect(_.canDeliver(msg), _.deliver(msg))
     //case a@Drop(_) if inputAction(a) => Effect.noEffect()
   })
 }

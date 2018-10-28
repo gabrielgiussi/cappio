@@ -1,5 +1,6 @@
 package oss.ggiussi.cappio.core
 
+import oss.ggiussi.cappio.InstanceID
 import oss.ggiussi.cappio.core.Steps.Steps
 import oss.ggiussi.cappio.core.Transition.Transition
 
@@ -8,7 +9,10 @@ case object UnsatisfiedPreconditionException extends RuntimeException
 
 case object UnknownActionException extends RuntimeException
 
-trait Action
+// TODO or case class ActionI(instance: InstanceID, a: Action) extends Action
+trait Action {
+  val instance: InstanceID
+}
 
 object Effect {
   // // or Try[S] TODO
@@ -49,7 +53,7 @@ case class ActionSignature(in: Set[Action], out: Set[Action], int: Set[Action]) 
     val _in0 = int intersect that.acts
     val _in1 = that.int intersect acts
     val r = (_out isEmpty) && (_in0 isEmpty) && (_in1 isEmpty)
-    if (!r) {
+    if (!r) { // TODO remove
       println(s"Action signatures are incompatibles because out = ${_out isEmpty} || in0 = ${_in0 isEmpty} || in1 ${_in1 isEmpty}")
       println(s"intersects in ${out intersect that.out}")
     }
@@ -69,6 +73,8 @@ case class ActionSignature(in: Set[Action], out: Set[Action], int: Set[Action]) 
     val _int = int union (acts intersect actions)
     copy(in = _in, out = _out, int = _int)
   }
+
+
 }
 
 
@@ -157,6 +163,8 @@ trait Automaton[S] {
   def inputAction(action: Action): Boolean = sig.in contains action
 
   def outputAction(action: Action): Boolean = sig.out contains action
+
+  def internalAction(action: Action): Boolean = sig.int contains action
 
 }
 
