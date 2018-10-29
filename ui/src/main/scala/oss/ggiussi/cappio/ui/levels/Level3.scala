@@ -1,6 +1,7 @@
 package oss.ggiussi.cappio.ui.levels
 
 import oss.ggiussi.cappio.core.Composer._
+import oss.ggiussi.cappio.core.Execution.Triggers
 import oss.ggiussi.cappio.core.Level.Condition
 import oss.ggiussi.cappio.core.LinkProtocol.{Deliver, Send}
 import oss.ggiussi.cappio.core._
@@ -72,14 +73,13 @@ object Level3 extends LevelT[((FullPLState,FullPLState,FullPLState,PLState,PLSta
       (BrokenBcastState.empty, BrokenBcastState.empty, BrokenBcastState.empty)
     )
 
-    Level(conditions, schedConditions.map(_._2), automaton.get, initalState, Some({
-      case BrkBcast(from,_,p,step) =>
-        val r: Set[Action] = Set(0,1,2).map(to => Send(from,to,Instances.BCAST_LINK,Message(from,to,p,step)))
-        println(r)
-        r
+    val triggers: Option[Triggers] = Some({
+      case BrkBcast(from,_,p,step) => Set(0,1,2).map(to => Send(from,to,Instances.BCAST_LINK,Message(from,to,p,step)))
       case Deliver(from,to,_,msg) => Set(BrkDeliver(from,to,Instances.BCAST,msg))
       case _ => Set.empty
-    }))
+    })
+
+    Level(conditions, schedConditions.map(_._2), automaton.get, initalState, None)
   }
 
 }

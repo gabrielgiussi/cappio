@@ -60,20 +60,20 @@ case class Arbiter(a: Int, neighbors: Set[Int]) extends Automaton[ArbiterState] 
 }
 
 
-case class Message(from: Int, to: Int, t: String)
+case class ArbiterMessage(from: Int, to: Int, t: String)
 
-class MessageSystem(adjacencies: Set[(Int, Int)]) extends Automaton[Set[Message]] {
+class MessageSystem(adjacencies: Set[(Int, Int)]) extends Automaton[Set[ArbiterMessage]] {
   override val sig: ActionSignature = {
     val in: Set[Action] = adjacencies.flatMap { case (a1, a2) => Set(SendRequest(a1, a2), SendRequest(a2, a1), SendGrant(a1, a2), SendGrant(a2, a1)) }
     val out: Set[Action] = adjacencies.flatMap { case (a1, a2) => Set(ReceiveRequest(a1, a2), ReceiveRequest(a2, a1), ReceiveGrant(a1, a2), ReceiveGrant(a2, a1)) }
     ActionSignature(in, out, Set())
   }
-  override val steps: Steps[Set[Message]] = {
-    val transitions: Transition[Set[Message]] = {
-      case SendRequest(a, _a) if adjacencies contains(a, _a) => Effect(_ + Message(a, _a, "request"))
-      case SendGrant(a, _a) if adjacencies contains(a, _a) => Effect(_ + Message(a, _a, "grant"))
-      case ReceiveRequest(a, _a) if adjacencies contains(a, _a) => Effect(_ contains (Message(a, _a, "request")), _ - Message(a, _a, "request"))
-      case ReceiveGrant(a, _a) if adjacencies contains(a, _a) => Effect(_ contains (Message(a, _a, "grant")), _ - Message(a, _a, "grant"))
+  override val steps: Steps[Set[ArbiterMessage]] = {
+    val transitions: Transition[Set[ArbiterMessage]] = {
+      case SendRequest(a, _a) if adjacencies contains(a, _a) => Effect(_ + ArbiterMessage(a, _a, "request"))
+      case SendGrant(a, _a) if adjacencies contains(a, _a) => Effect(_ + ArbiterMessage(a, _a, "grant"))
+      case ReceiveRequest(a, _a) if adjacencies contains(a, _a) => Effect(_ contains (ArbiterMessage(a, _a, "request")), _ - ArbiterMessage(a, _a, "request"))
+      case ReceiveGrant(a, _a) if adjacencies contains(a, _a) => Effect(_ contains (ArbiterMessage(a, _a, "grant")), _ - ArbiterMessage(a, _a, "grant"))
     }
     Steps.steps(transitions)
   }
@@ -109,8 +109,8 @@ object Prueba extends App {
     val t0 = arbiter.compose(arbiter1, (s1: ArbiterState, s2: ArbiterState) => (s1, s2))(_._1, _._2).get
     t0.composeTuple(arbiter2).get
   }
-  val automaton: Automaton[(((ArbiterState, ArbiterState), ArbiterState), Set[Message])] = t.composeTuple(m).get.hide(t.sig.out -- Set(SendGrant(0, 3), SendGrant(2, 4)))
-  val initialState = (((initialState0, initialState1), initialState2), Set.empty[Message])
+  val automaton: Automaton[(((ArbiterState, ArbiterState), ArbiterState), Set[ArbiterMessage])] = t.composeTuple(m).get.hide(t.sig.out -- Set(SendGrant(0, 3), SendGrant(2, 4)))
+  val initialState = (((initialState0, initialState1), initialState2), Set.empty[ArbiterMessage])
 
   println(Execution(automaton, initialState).next(2.receivesReqFrom(4)).isEnabled(1.receivesReqFrom(2)))
 

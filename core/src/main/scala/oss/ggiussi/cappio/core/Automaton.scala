@@ -14,26 +14,33 @@ trait Action {
   val instance: InstanceID
 }
 
+case class NextState[S](state: S, triggers: Set[Action] = Set.empty)
+
 object Effect {
+
   // // or Try[S] TODO
   // enrealidad precondition y f dependen del payload del action tmb, pero lo estoy capturando en un closure (es menos prolijo pero me deja escribir menos verbose)
   //def inputEnabled[S](f: S => S): Effect[S] = new Effect((_, _) => true, { case (s, _) => f(s) })
 
   //def inputEnabledP[S](f: (S, Action) => S): Effect[S] = new Effect[S]((_, _) => true, f)
 
-  def apply[S](f: S => S): Effect[S] = new Effect((_, _) => true, { case (s, _) => f(s) })
+  def apply[S](f: S => S): Effect[S] = new Effect((_, _) => true, { case (s, _) => NextState(f(s)) })
 
-  def apply[S](precondition: S => Boolean, f: S => S): Effect[S] = new Effect({ case (s, _) => precondition(s) }, { case (s, _) => f(s) })
+  def triggers[S](f: S => NextState[S]): Effect[S] = new Effect((_, _) => true, { case (s, _) => f(s) })
 
-  def precondition[S](precondition: S => Boolean): Effect[S] = new Effect({ case (s, _) => precondition(s) }, { case (s, _) => s })
+  def triggers[S](precondition: S => Boolean, f: S => NextState[S]): Effect[S] = new Effect({ case (s, _) => precondition(s) }, { case (s, _) => f(s) })
 
-  def noEffect[S](): Effect[S] = new Effect((_,_) => true, { case (s, _) => s })
+  def apply[S](precondition: S => Boolean, f: S => S): Effect[S] = new Effect({ case (s, _) => precondition(s) }, { case (s, _) => NextState(f(s)) })
+
+  def precondition[S](precondition: S => Boolean): Effect[S] = new Effect({ case (s, _) => precondition(s) }, { case (s, _) => NextState(s) })
+
+  def noEffect[S](): Effect[S] = new Effect((_, _) => true, { case (s, _) => NextState(s) })
 
 }
 
 // It will be hard to test effects if doesn't consider actions
-case class Effect[S](precondition: (S, Action) => Boolean, f: (S, Action) => S) extends Function1[(S, Action), S] {
-  def apply(input: (S, Action)): S = if (precondition(input._1, input._2)) f(input._1, input._2) else throw UnsatisfiedPreconditionException
+case class Effect[S](precondition: (S, Action) => Boolean, f: (S, Action) => NextState[S]) extends Function1[(S, Action), NextState[S]] {
+  def apply(input: (S, Action)) = if (precondition(input._1, input._2)) f(input._1, input._2) else throw UnsatisfiedPreconditionException
 
 }
 
@@ -84,7 +91,7 @@ object Transition {
 
 object Steps {
 
-  trait Steps[S] extends PartialFunction[(S, Action), S] {
+  trait Steps[S] extends PartialFunction[(S, Action), NextState[S]] {
 
     def isEnabled(state: S, d: Action): Boolean
 
@@ -101,7 +108,7 @@ object Steps {
     override def isDefinedAt(x: (S, Action)): Boolean = transition.isDefinedAt(x._2)
 
     // TODO transition.apply puede dar un MatchInput error, usar un applyOrElse q tire exception
-    override def apply(v1: (S, Action)): S = v1 match {
+    override def apply(v1: (S, Action)) = v1 match {
       case (state, action) if transition.isDefinedAt(action) => transition.apply(action).apply(state, action)
       //case _ => throw UnknownActionException TODO review
     }
@@ -119,14 +126,14 @@ object Steps {
         (steps1.isDefinedAt(s1, action)) || (steps2.isDefinedAt(s2, action))
     }
 
-    override def apply(v1: (S3, Action)): S3 = {
-      def aux[A]: ((A, Action)) => A = (s: (A, Action)) => s._1
+    override def apply(v1: (S3, Action)): NextState[S3] = {
+      def aux[A]: ((A, Action)) => NextState[A] = (s: (A, Action)) => NextState(s._1)
 
       v1 match {
         case (state, action) if (isDefinedAt(v1)) =>
           val (s1, s2) = (f1(state), f2(state))
           val (n1, n2) = (steps1.applyOrElse((s1, action), aux), steps2.applyOrElse((s2, action), aux))
-          f(n1, n2)
+          NextState(f(n1.state, n2.state), n1.triggers ++ n2.triggers)
         case _ => throw UnknownActionException
       }
     }
@@ -177,12 +184,12 @@ object Composer {
   type STuple6[S] = Tuple6[S, S, S, S, S, S]
   type STuple7[S] = Tuple7[S, S, S, S, S, S, S]
 
-  def composeTuple2[S1,S2,S3](a1: Automaton[(S1, S2)], a2: Automaton[S3]): Option[Automaton[(S1, S2, S3)]] = a1.compose(a2, (s1: (S1, S2), s2: S3) => (s1._1, s1._2, s2))(s => (s._1, s._2), _._3)
+  def composeTuple2[S1, S2, S3](a1: Automaton[(S1, S2)], a2: Automaton[S3]): Option[Automaton[(S1, S2, S3)]] = a1.compose(a2, (s1: (S1, S2), s2: S3) => (s1._1, s1._2, s2))(s => (s._1, s._2), _._3)
 
-  def composeTuple3[S1,S2,S3,S4](a1: Automaton[(S1, S2, S3)], a2: Automaton[S4]): Option[Automaton[(S1, S2, S3, S4)]] = a1.compose(a2, (s1: (S1, S2, S3), s2: S4) => (s1._1, s1._2, s1._3, s2))(s => (s._1, s._2, s._3), _._4)
+  def composeTuple3[S1, S2, S3, S4](a1: Automaton[(S1, S2, S3)], a2: Automaton[S4]): Option[Automaton[(S1, S2, S3, S4)]] = a1.compose(a2, (s1: (S1, S2, S3), s2: S4) => (s1._1, s1._2, s1._3, s2))(s => (s._1, s._2, s._3), _._4)
 
-  def composeTuple4[S1,S2,S3,S4,S5](a1: Automaton[(S1,S2,S3,S4)], a2: Automaton[S5]): Option[Automaton[(S1,S2,S3,S4,S5)]] = a1.compose(a2, (s1: (S1,S2,S3,S4), s2: S5) => (s1._1, s1._2, s1._3, s1._4, s2))(s => (s._1, s._2, s._3, s._4), _._5)
+  def composeTuple4[S1, S2, S3, S4, S5](a1: Automaton[(S1, S2, S3, S4)], a2: Automaton[S5]): Option[Automaton[(S1, S2, S3, S4, S5)]] = a1.compose(a2, (s1: (S1, S2, S3, S4), s2: S5) => (s1._1, s1._2, s1._3, s1._4, s2))(s => (s._1, s._2, s._3, s._4), _._5)
 
-  def composeTuple5[S1,S2,S3,S4,S5,S6](a1: Automaton[(S1,S2,S3,S4,S5)], a2: Automaton[S6]): Option[Automaton[(S1,S2,S3,S4,S5,S6)]] = a1.compose(a2, (s1: (S1,S2,S3,S4,S5), s2: S6) => (s1._1, s1._2, s1._3, s1._4, s1._5, s2))(s => (s._1, s._2, s._3, s._4, s._5), _._6)
+  def composeTuple5[S1, S2, S3, S4, S5, S6](a1: Automaton[(S1, S2, S3, S4, S5)], a2: Automaton[S6]): Option[Automaton[(S1, S2, S3, S4, S5, S6)]] = a1.compose(a2, (s1: (S1, S2, S3, S4, S5), s2: S6) => (s1._1, s1._2, s1._3, s1._4, s1._5, s2))(s => (s._1, s._2, s._3, s._4, s._5), _._6)
 
 }

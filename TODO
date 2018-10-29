@@ -70,3 +70,24 @@
      si un componente A tiene como output action la input action de un componente B, A esta en layer n y B en layer n + 1)
 
 (17) Reemplazar pattern matching del estilo `id` por el chequeo de si esta en la input action (que va a ser universal para todos los automatons)
+
+(18) Tengo que introducir algunas constraints definidas por el System Model.
+     Puntualmente cuando se trata de sync model "the transmission period of every message is bounded by some known constant" (pag 50)
+     Por lo tanto el usuario no puede elegir demorar el Deliver tod el tiempo que quiara, esto es fundamental para PerfectFailureDetector.
+
+(19) Una instancia de FairLossLink,
+     hace send de A a B
+     y hace deliver de B a A?, o deliver de A a B?
+
+(20) Estoy manejando dos tipos de estados en los automatas
+     (a) Visible: es propio de la abstraction implementada. Ejemplo alive and detected sets on PerfectFailureDetection.
+     (b) Interno: este es el que uso para implementar los triggers (enabled "actions" like deliver after a send). Este estado no se debería mostrar hacia afuera, y no es de interes para el usuario.
+
+(21) Triggers is broken!!!
+     No puedo calcular las actions to trigger solo a partir de la input action en tods los casos (como BrkDeliver a partir de Deliver).
+     Ejemplo: PerfectFailureDetector, on Timeout trigger Crash solo para un subconjunto de procesos.
+     Alternativas
+     (a) type Triggers = PartialFunction[(Action,S), Set[Action]] (donde S es el State) (ver si es viable)
+     (b) trait Steps[S] extends PartialFunction[(S, Action), NextState[S]]
+
+(22) Effect.precondition should return more information than a boolean, for debuggin purposes.

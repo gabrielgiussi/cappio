@@ -15,9 +15,10 @@ object Execution {
 case class Execution[S](automaton: Automaton[S], initialState: S, steps: List[Step[S]] = List.empty, triggers: Triggers = Execution.EmptyTriggers, round: Int = 0) {
 
   protected[Execution] def _next(state: S, d: Action): Execution[S] = {
-    val nextState = automaton.steps.apply((state, d))
+    val NextState(nextState,t) = automaton.steps.apply((state, d))
     val step = Step(state, d, nextState)
-    copy(steps = steps :+ step)
+    val ex = copy(steps = steps :+ step)
+    t.foldLeft(ex)(_ next _)
   }
 
   def next(d: Action): Execution[S] = {
