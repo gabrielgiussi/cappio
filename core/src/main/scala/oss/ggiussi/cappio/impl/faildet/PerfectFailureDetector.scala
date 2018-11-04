@@ -74,14 +74,14 @@ case class PerfectFailureDetector(id: ProcessID, instance: InstanceID)(implicit 
     ActionSignature(in = in, out = out, int = int)
   }
 
-  override val steps: Steps.Steps[PFDState] = Steps.steps[PFDState]({
-    case t@Timeout(`instance`, _) => Effect.triggers(_.timeout(t))
-    case Deliver(_, `id`, `FAILURE_DET_LINK`, Message(HeartbeatRequest(q), MessageID(_, _, _, step))) => Effect.triggers(_.heartbeatReq(Send(Message(id, q, HeartbeatReply(id), step))(FAILURE_DET_LINK)))
-    case Deliver(_, `id`, `FAILURE_DET_LINK`, Message(HeartbeatReply(p), _)) => Effect(_.heartbeatReply(p))
+  override val steps: Steps.Steps[PFDState] = Steps.steps2[PFDState](sig, {
+    case t@Timeout(_, _) => Effect.triggers(_.timeout(t))
+    case Deliver(_, _, _, Message(HeartbeatRequest(q), MessageID(_, _, _, step))) => Effect.triggers(_.heartbeatReq(Send(Message(id, q, HeartbeatReply(id), step))(FAILURE_DET_LINK)))
+    case Deliver(_, _, _, Message(HeartbeatReply(p), _)) => Effect(_.heartbeatReply(p))
 
-      // TODO tambien podria mover el pattern matching sobre el payload (req or reply) al state.
-    case s@Send(`id`, _, `FAILURE_DET_LINK`, Message(HeartbeatRequest(`id`), _)) => Effect(_.triggers.wasTriggered(s), _.request(s))
-    case s@Send(`id`, _, `FAILURE_DET_LINK`, Message(HeartbeatReply(`id`), _)) => Effect(_.triggers.wasTriggered(s), _.reply(s))
+    // TODO tambien podria mover el pattern matching sobre el payload (req or reply) al state.
+    case s@Send(_, _, _, Message(HeartbeatRequest(_), _)) => Effect(_.triggers.wasTriggered(s), _.request(s))
+    case s@Send(_, _, _, Message(HeartbeatReply(_), _)) => Effect(_.triggers.wasTriggered(s), _.reply(s))
   })
 }
 
@@ -98,7 +98,7 @@ object PFD extends App {
   println(execution
     .next(Deliver(1, 0, Instances.FAILURE_DET_LINK, Message(1, 0, HeartbeatRequest(1), 0)))
     .next(Timeout(i, 0))
-    .next(Deliver(1, 0, Instances.FAILURE_DET_LINK, Message(0, 1, HeartbeatReply(1), 0)))
+    .next(Deliver(1, 0, Instances.FAILURE_DET_LINK, Message(1, 0, HeartbeatReply(1), 0)))
     .sched())
 
 }

@@ -2,12 +2,14 @@ package oss.ggiussi.cappio.core
 
 import oss.ggiussi.cappio.InstanceID
 import oss.ggiussi.cappio.core.Steps.Steps
-import oss.ggiussi.cappio.core.Transition.Transition
+import oss.ggiussi.cappio.core.Transition.{Transition, Transition2}
 
 // TODO rename
 case object UnsatisfiedPreconditionException extends RuntimeException
 
-case object UnknownActionException extends RuntimeException
+case class UnknownActionException(a: Action) extends RuntimeException {
+  override def getMessage: String = s"Action $a unknown"
+}
 
 // TODO or case class ActionI(instance: InstanceID, a: Action) extends Action
 trait Action {
@@ -81,12 +83,16 @@ case class ActionSignature(in: Set[Action], out: Set[Action], int: Set[Action]) 
     copy(in = _in, out = _out, int = _int)
   }
 
+  def contains(action: Action): Boolean = (in contains action) || (out contains action) || (int contains action)
+
 
 }
 
 
 object Transition {
   type Transition[S] = PartialFunction[Action, Effect[S]]
+
+  type Transition2[S] = Function1[Action,Effect[S]]
 }
 
 object Steps {
@@ -97,21 +103,33 @@ object Steps {
 
   }
 
-  def steps[S](transition: Transition[S]): Steps[S] = new Steps[S] {
-    // 1. how to model input enabled? if I can't tell if input/output a property of the ActionSignature (not a action property itself)
-    // 2. If a precondition doesn't hold (but the action matches), doesn't perform the action or fails (throw exception) ?
-    // 3. Si la action no cumple le precondition no deberia modificar la execution! es decir no tomaria un step.
-    //(v1: (S, Action)) => a.applyOrElse(v1, (v: (S,Action)) => v._1)
+  abstract class BaseSteps[S] extends Steps[S] {
+    final override def isEnabled(state: S, d: Action): Boolean = isDefinedAt((state, d)) && effect(d).precondition.apply(state, d)
 
-    override def isEnabled(state: S, d: Action): Boolean = isDefinedAt((state, d)) && transition.apply(d).precondition.apply(state, d) // TODO UGLY AS SHIT!
+    final override def isDefinedAt(x: (S, Action)): Boolean = isDefined(x._2)
 
-    override def isDefinedAt(x: (S, Action)): Boolean = transition.isDefinedAt(x._2)
-
-    // TODO transition.apply puede dar un MatchInput error, usar un applyOrElse q tire exception
-    override def apply(v1: (S, Action)) = v1 match {
-      case (state, action) if transition.isDefinedAt(action) => transition.apply(action).apply(state, action)
-      //case _ => throw UnknownActionException TODO review
+    final override def apply(v1: (S, Action)): NextState[S] = v1 match {
+      case (state, action) if isDefined(action) => effect(action).apply(state, action)
+      case (_, action) => throw new UnknownActionException(action) // TODO review
     }
+
+    def isDefined(action: Action): Boolean
+
+    def effect(action: Action): Effect[S]
+
+  }
+
+  def steps2[S](signature: ActionSignature,transition: Transition2[S]): Steps[S] = new BaseSteps[S] {
+
+    override def isDefined(action: Action): Boolean = signature contains action
+
+    override def effect(action: Action): Effect[S] = transition(action)
+  }
+
+  def steps[S](transition: Transition[S]): Steps[S] = new BaseSteps[S] {
+    override def isDefined(action: Action): Boolean = transition.isDefinedAt(action)
+
+    override def effect(action: Action): Effect[S] = transition(action)
   }
 
   def compose[S1, S2, S3](steps1: Steps[S1], steps2: Steps[S2], f: (S1, S2) => S3)(implicit f1: S3 => S1, f2: S3 => S2): Steps[S3] = new Steps[S3] {
@@ -134,7 +152,7 @@ object Steps {
           val (s1, s2) = (f1(state), f2(state))
           val (n1, n2) = (steps1.applyOrElse((s1, action), aux), steps2.applyOrElse((s2, action), aux))
           NextState(f(n1.state, n2.state), n1.triggers ++ n2.triggers)
-        case _ => throw UnknownActionException
+        case (_, action) => throw new UnknownActionException(action)
       }
     }
   }

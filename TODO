@@ -110,3 +110,5 @@
 
 (29) Steps[S] extends PartialFunction[(S, Action), ActionResult[S]]
      Donde ActionResult = NextState | NotDefined | UnsatisfiedPrecondition
+     Me da mayor legibilidad y hago explicto lo de que la action q no se matchee en el pattern matching es como q no esta definida en la action signature.
+     Ademas, deberia evitar esto en los automaton y directamente usar la signature del automaton para saber si esta definida o no la action.
