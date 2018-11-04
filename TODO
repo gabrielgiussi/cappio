@@ -108,3 +108,5 @@
 
 (28) Tests!!!!!
 
+(29) Steps[S] extends PartialFunction[(S, Action), ActionResult[S]]
+     Donde ActionResult = NextState | NotDefined | UnsatisfiedPrecondition
