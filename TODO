@@ -91,3 +91,20 @@
      (b) trait Steps[S] extends PartialFunction[(S, Action), NextState[S]]
 
 (22) Effect.precondition should return more information than a boolean, for debuggin purposes.
+
+(23) Facilitar lo que es pattern matching de output actions. Tener un State[S](triggered: Set[Action], s: S) y el pattern matching solo se fije si esta en el set triggered
+
+(24) Revisar el uso de Step. ¿Para que lo necesito? ====> Step lo uso para armar el MessageID y que cada msg sea unico.
+
+(25) Revisar el uso de Message, porque mandar un payload directamente? Esta relacionado con el punto 24 porque Message tmb incluye un MessageID.
+     El uso de MessageID era para identificar univocamente los mensajes y poder armar la signature en base a estos mensajes. También podria usar un UUID pero en ese caso, cuantos uuid armo?
+
+(26) Internal Actions. Timeout (PerfectFailureDetector)
+     No puede estar siempre disponible.
+      (a) Creo acciones de tipo Timeout(step = 0), Timeout(step = 3), Timeout(step = 6) (Donde 3 seria el bounded delay del synchronous system).
+      (b) La habilito en base al estado. Este estado deberia tener algun Clock que identifique el step, que se actualice con una input action Tick.
+
+(27) Como implementar el synchronous system, que a comparacion del partially synchronous tiene un bounded delay y me permite usar algoritmos como el de PerfectFailureDetector?
+
+(28) Tests!!!!!
+

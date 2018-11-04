@@ -1,12 +1,18 @@
 package oss.ggiussi.cappio.core
 
 import org.scalatest.{FlatSpec, Matchers}
+import oss.ggiussi.cappio
+import oss.ggiussi.cappio.InstanceID
 
 class ArbiterSpec extends FlatSpec with Matchers {
 
   import oss.ggiussi.cappio.core.Steps.Steps
   import oss.ggiussi.cappio.core._
   import oss.ggiussi.cappio.core.Transition.Transition
+
+  trait ArbiterAction extends Action {
+    override val instance = InstanceID("arbiter")
+  }
 
 
   object Arbiter {
@@ -23,13 +29,13 @@ class ArbiterSpec extends FlatSpec with Matchers {
 
   }
 
-  case class ReceiveRequest(from: Int, id: Int) extends Action
+  case class ReceiveRequest(from: Int, id: Int) extends ArbiterAction
 
-  case class ReceiveGrant(from: Int, id: Int) extends Action
+  case class ReceiveGrant(from: Int, id: Int) extends ArbiterAction
 
-  case class SendRequest(id: Int, to: Int) extends Action
+  case class SendRequest(id: Int, to: Int) extends ArbiterAction
 
-  case class SendGrant(id: Int, to: Int) extends Action
+  case class SendGrant(id: Int, to: Int) extends ArbiterAction
 
   object ArbiterState {
     // Hay una logica en la creacion del estado inicial (validar que el lastwordard apunte en la direccion del holder) TODO

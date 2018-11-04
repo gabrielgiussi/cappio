@@ -2,6 +2,7 @@ package oss.ggiussi.cappio.core
 
 import oss.ggiussi.cappio.{InstanceID, ProcessID}
 import oss.ggiussi.cappio.core.LinkProtocol.Drop
+import oss.ggiussi.cappio.impl.faildet.PerfectFailureDetectorProtocol.HeartbeatRequest
 import oss.ggiussi.cappio.impl.links.{Message, deliver, send}
 
 case class Payloads(payloads: Set[Any], steps: Int) {
