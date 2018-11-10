@@ -10,6 +10,12 @@ import oss.ggiussi.cappio.impl.links.{Message, MessageID}
 
 object PerfectFailureDetectorProtocol {
 
+  // TODO this is spcecial action because the user shoulnd't send this action. I could associate this to the synchronous model and then send it if this model is chosen.
+  // However, I could use the tick in all automaton also for calculate the step!
+  case object Tick extends Action {
+    override val instance: InstanceID = InstanceID("tick")
+  }
+
   case class Timeout(instance: InstanceID, step: Int) extends Action
 
   case class Crashed(p: ProcessID, instance: InstanceID) extends Action
@@ -36,12 +42,18 @@ object PerfectFailureDetectorProtocol {
 }
 
 object PFDState {
-  def init(id: ProcessID)(implicit processes: Set[ProcessID]): PFDState = new PFDState(processes - id, Set.empty, Triggers.init(), id)
+  def init(id: ProcessID, timer: Int, instance: InstanceID)(implicit processes: Set[ProcessID]): PFDState = new PFDState(processes - id, Set.empty, Triggers.init(), id, instance,0, timer)
 }
 
-// TODO timer !
-case class PFDState(alive: Set[ProcessID], detected: Set[ProcessID], triggers: Triggers, id: ProcessID)(implicit processes: Set[ProcessID]) {
+case class PFDState(alive: Set[ProcessID], detected: Set[ProcessID], triggers: Triggers, id: ProcessID, instance: InstanceID, clock: Int, timer: Int)(implicit processes: Set[ProcessID]) {
   val neighbors = processes - id
+
+  def shouldTimeout(): Boolean = (clock % timer == 0)
+
+  def tick(): NextState[PFDState] = {
+    val next = copy(clock = clock + 1)
+    NextState(next, if (next.shouldTimeout()) Set(Timeout(instance,clock)) else Set.empty)
+  }
 
   def timeout(timeout: Timeout): NextState[PFDState] = {
     val crashedProcesses = neighbors.filter(p => !(alive contains p) && !(detected contains p))
@@ -58,6 +70,8 @@ case class PFDState(alive: Set[ProcessID], detected: Set[ProcessID], triggers: T
   def reply(send: Send): PFDState = copy(triggers = triggers.triggered(send))
 
   def request(send: Send): PFDState = copy(triggers = triggers.trigger(send))
+
+  def triggered(action: Action): PFDState = copy(triggers = triggers.trigger(action))
 }
 
 case class PerfectFailureDetector(id: ProcessID, instance: InstanceID)(implicit processes: Set[ProcessID], _steps: Int) extends Automaton[PFDState] {
@@ -68,37 +82,21 @@ case class PerfectFailureDetector(id: ProcessID, instance: InstanceID)(implicit 
   override val sig: ActionSignature = {
     val heartbeats = Heartbeats(_steps, id, neighbors, FAILURE_DET_LINK)
 
-    val in: Set[Action] = heartbeats.delivers
-    val out: Set[Action] = heartbeats.sends
-    val int: Set[Action] = (0 to _steps).map(Timeout(instance, _)).toSet // TODO va a estar siempre enabled
+    val in: Set[Action] = heartbeats.delivers + Tick
+    val out: Set[Action] = heartbeats.sends ++ neighbors.map(Crashed(_,instance))
+    val int: Set[Action] = (0 to _steps).map(Timeout(instance, _)).toSet
     ActionSignature(in = in, out = out, int = int)
   }
 
   override val steps: Steps.Steps[PFDState] = Steps.steps2[PFDState](sig, {
-    case t@Timeout(_, _) => Effect.triggers(_.timeout(t))
+    case Tick => Effect.triggers(_.tick())
+    case t@Timeout(_, _) => Effect.triggers(_.shouldTimeout(), _.timeout(t))
     case Deliver(_, _, _, Message(HeartbeatRequest(q), MessageID(_, _, _, step))) => Effect.triggers(_.heartbeatReq(Send(Message(id, q, HeartbeatReply(id), step))(FAILURE_DET_LINK)))
     case Deliver(_, _, _, Message(HeartbeatReply(p), _)) => Effect(_.heartbeatReply(p))
 
     // TODO tambien podria mover el pattern matching sobre el payload (req or reply) al state.
     case s@Send(_, _, _, Message(HeartbeatRequest(_), _)) => Effect(_.triggers.wasTriggered(s), _.request(s))
     case s@Send(_, _, _, Message(HeartbeatReply(_), _)) => Effect(_.triggers.wasTriggered(s), _.reply(s))
+    case s@Crashed(_,_) => Effect(_.triggers.wasTriggered(s), _.triggered(s))
   })
-}
-
-object PFD extends App {
-
-  val i = InstanceID("pfd")
-
-  val automaton = PerfectFailureDetector(0, i)(Set(1, 2), 5)
-
-  val state = PFDState.init(0)(Set(1, 2))
-
-  val execution = Execution(automaton, state)
-
-  println(execution
-    .next(Deliver(1, 0, Instances.FAILURE_DET_LINK, Message(1, 0, HeartbeatRequest(1), 0)))
-    .next(Timeout(i, 0))
-    .next(Deliver(1, 0, Instances.FAILURE_DET_LINK, Message(1, 0, HeartbeatReply(1), 0)))
-    .sched())
-
 }

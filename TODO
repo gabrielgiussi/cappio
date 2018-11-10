@@ -41,7 +41,7 @@
      - Kafka
      - CRDTs (tal vez con llevar, esto que no esta implementado en el libro, alcanza)
 
-(11) Consultar a los autores del libro
+#(11) Consultar a los autores del libro
      (a) abstracciones de links
           - UDP -> FairLossLink?
           - TCP -> PerfectLink?
@@ -56,7 +56,7 @@
        La otra opción sería la de usar el step en lugar del índice de la action en la execution, es decir el step lógico que usaría para seleccionar un conjunto de acciones (1 por process).
        Funcionaría como un reloj lógico. Aunque también debería incorporar el uso de un reloj físico porque me va a permitr usar drift y skew (el lógico no).
 
-(13) "The instances are differentiated by their identifiers, and all messages exchanged using the underlying communication primitives
+(X)(13) "The instances are differentiated by their identifiers, and all messages exchanged using the underlying communication primitives
       implicitly carry an instance identifier to match the same instance at all processes" (pag 145)
 
 (14) Deliver a un processo Down deberia estar habilitado, y que no haga nada.
@@ -92,7 +92,7 @@
 
 (22) Effect.precondition should return more information than a boolean, for debuggin purposes.
 
-(23) Facilitar lo que es pattern matching de output actions. Tener un State[S](triggered: Set[Action], s: S) y el pattern matching solo se fije si esta en el set triggered
+(X)(23) Facilitar lo que es pattern matching de output actions. Tener un State[S](triggered: Set[Action], s: S) y el pattern matching solo se fije si esta en el set triggered
 
 (24) Revisar el uso de Step. ¿Para que lo necesito? ====> Step lo uso para armar el MessageID y que cada msg sea unico.
 
@@ -105,6 +105,10 @@
       (b) La habilito en base al estado. Este estado deberia tener algun Clock que identifique el step, que se actualice con una input action Tick.
 
 (27) Como implementar el synchronous system, que a comparacion del partially synchronous tiene un bounded delay y me permite usar algoritmos como el de PerfectFailureDetector?
+     Alternativas
+     (a) Forzar el deliver on timeout. Ejemplo: si se hizo el send en 0 y el bounded delay es de 3, en 3 tengo que forzar el deliver si el usuario no lo hizo.
+     (b) Lo puedo poner como conditions para pasar el level.
+     En ambas opciones tengo que tener la logica para llevar este control de sends sin deliverear y por cuanto tiempo.
 
 (28) Tests!!!!!
 
@@ -112,3 +116,42 @@
      Donde ActionResult = NextState | NotDefined | UnsatisfiedPrecondition
      Me da mayor legibilidad y hago explicto lo de que la action q no se matchee en el pattern matching es como q no esta definida en la action signature.
      Ademas, deberia evitar esto en los automaton y directamente usar la signature del automaton para saber si esta definida o no la action.
+
+(30) BRODCAST Y LAMPORT TIMESTAMPS
+     Incrementaria el timestampo por cada send? O una unica vez por el Brodcast?
+     Creo que al ser los tres send atomicos (o al menos deberian serlos gracias a los triggers) no habria problemas.
+
+(31) Un lamport timestamp por abstraccion? Suponiendo que el proceso hace dos cosas por ejemplo.
+
+#(32) Por que los algoritmos de consensus (e.g. Flooding Consensus) tienen que hacer un propose todos los nodos?
+     Cómo se traduciría a un uso práctico? Suponiendo un cluster que implementa consensus y funciona como un servicio de consensus.... puede ser que un solo cliente proponga un valor, o no?
+
+(33) Flooding Consensus tiene
+     (a) Doble trigger (Bcast y Decide) Deberia ser Bcast, (triggered actions by bcast), Decide (triggerd actions by Decide?
+     (b) Internal action on condition. Special Action Internal que permita triggerear actions? o se triggere a partir de, en este caso, beb-Deliver(Proposal) y beb-Deliver(Decided)
+
+(34) Message metadata => lamport timestamp y vector clocks. Rompen la ActionSignature
+     En realidad no es propio de la metadata sino de to.do el payload, al menos cuando no se reduce a un conjunto como HeartbeatRequest y HeartbeatReply con process ids.
+     Para los payloads lo habia resuelto delimitando el universo de payloads (ejemplo= 1, 2 y 3)
+     El problema es cuando los payloads empiezan a depender de la logica del automata, ejemplo Flooding Consensus arma el Proposal en base al round y el valor que tiene actualmente.
+
+#(35) Porque es necesario hacer un halt de EpochConsensus e instanciar uno nuevo? (Pag 223 y 225)
+     No se puede modifcar el estado?
+     Entiendo que el halt es para lograr lo que se dice en (36) ("Different instances..."), pero no se puede hacer simplemente descartando los mensajes que tengan un timestamp != current valts
+
+#(36) Multiple instances of epoch consensus may be executed at the same point in time by different processes, but when used in our "Leader Driven Consensus" algorithm, then every process only
+      runs at most one epoch consensus instance at a time.
+      Different instances never interfere with each other according to our assumption that every instance is identified by a unique epoch timestamp and because point to point messages and best
+      effort bcast messages are only received from and delivered to other instances with the same timestamp.
+      (Pag 222)
+
+#(37) Obtain the leader l0 of the inital epoch whit timestamp 0 from epoch change instance
+      (Pag 223)
+
+Prioridades
+(35)(37)
+(36)
+(34)
+(27)
+(32)
+(33)
