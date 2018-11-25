@@ -25,8 +25,6 @@ object App {
 
   case object GridPage extends MyPages
 
-  case object Level1Page extends MyPages
-
   case class LevelPage(id: Int) extends MyPages
 
   def main(args: Array[String]): Unit = {

@@ -1,0 +1,35 @@
+(1) Leer documentacion de React (por ejemplo props vs children props)
+
+(2) Leer sobre Callbacks
+
+(3) Investigar DIODE
+
+(4) Investigar https://github.com/shadaj/slinky (tal vez es mas sencillo)
+
+(5) ¿Dónde poner la configuración que define los tamaños (arrow head, process height, round width)?
+
+(6) ¿Cómo poner un tooltip?
+
+(7) ¿Como hacer si dos actions se superponen en un mismo step para un process? Ejemplo: dos delivers.
+    En este caso voy a tener que juntar todas las actions para un process en un step (probablemente sin los sends y delivers).
+
+(8) ¿Cómo incorporar rounds a medida que se necesiten?
+    Necesito el dato del step corriente, si faltan < threshold para que se terminen agrego N
+
+(9) ¿Como navegar la timeline? (zoom, moverse horizontalmente, etc)
+
+(10) Cuando actualizo el estado de un componente, se hace un render de todos los hijos volviendo a pasarle las props (aunque despues el algoritmo de react calcule que no es necesario volver a pintarlo
+     en la ui. Hay alguna manera de evitar que se vuelvan a invocar el render de todos los elementos? No puedo aprovechar la immutabilidad porque siempre voy a estar
+     recreando tod el state en base a la ultima execution.
+
+     Esto puede ser peligroso para timelines con muchas actions porque a medida que avance se va a poner mas lento.
+
+
+
+Detalles
+
+(1) Agregar X como marker-end para los mensajes dropped
+
+(2) Se ve un poco de linea detras del marker-end arrow head
+
+(3) El text con el nombre del proceso, como ajustarlo en base al tamaño donde se tiene que mostrar? (ejemplo disminuir la altura de la fuente)

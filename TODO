@@ -144,13 +144,29 @@
       Different instances never interfere with each other according to our assumption that every instance is identified by a unique epoch timestamp and because point to point messages and best
       effort bcast messages are only received from and delivered to other instances with the same timestamp.
       (Pag 222)
+      No entiendo a que hace referencia con la primer parte?
 
 #(37) Obtain the leader l0 of the inital epoch whit timestamp 0 from epoch change instance
       (Pag 223)
 
+(38) Si ya no puedo pedir la lista de actions enabled (por 34), como puedo mostrar la lista de acciones al usuario para que elija?
+     Voy a tener que mostrar simplemente las action signatures (ej: Send(1,0)) y el usuario va a tener que "deducir" que mandar en base al estado.
+     Ok.... pero si deduce que tiene que mandar un HeartbeatRequest(1) como lo "ingresaria" en la UI para que se envie?
+     Es decir, tengo que mostrarle al input especial que permita elegir el "tipo" de payload a mandar, y este tipo de payload depende de las abstracciones elegidas.
+     Por ejemplo, si hay un PerfectFailureDetector el usuario puede elegir HeartbeatRequests o HeartbeatReply, pero si no estan no.
+     Con lo cual, los payloads "disponibles" van a depender de
+     (a) Los automatas que formen la composicion (ej: si esta pfd tengo HeartbeatRequest/Reply)
+     (b) El estado de los automatas (ej: si el usuario hizo un Send(payload = Value(4)), habilita el Deliver(payload = Value(4))
+
+     El punto (b) tal vez sea mas sencillo, porque en realidad esto ya esta determindo por las actions triggered, solo habria que "disponibilizarlas" al usuario.
+     El punto (a) es mas complicado, sobre tod si requerimos un UUID (el libro lo tiene como requerimiento y yo lo uso para matchear send con deliver y poder dibujarlos),
+     un lamport timestamp o un vector clock.
+     Incluso lamport y vector clock pueden no ser tan sencillos pero si deducibles por parte del usuario (que debera entenderlos para poder usarlos)
+     Pero el UUID?
+     Podria ponerlo yo por abajo cuando el usuario seleccione un Send. Luego le va a figurar el Deliver correspondiente con un UUID
+
 Prioridades
-(35)(37)
-(36)
+(35)(36)(37) => update state?
 (34)
 (27)
 (32)

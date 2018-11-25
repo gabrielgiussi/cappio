@@ -61,12 +61,7 @@ case class ActionSignature(in: Set[Action], out: Set[Action], int: Set[Action]) 
     // require that internal actions of each automaton in a composition be disjoint from the actions of the remaining automata
     val _in0 = int intersect that.acts
     val _in1 = that.int intersect acts
-    val r = (_out isEmpty) && (_in0 isEmpty) && (_in1 isEmpty)
-    if (!r) { // TODO remove
-      println(s"Action signatures are incompatibles because out = ${_out isEmpty} || in0 = ${_in0 isEmpty} || in1 ${_in1 isEmpty}")
-      println(s"intersects in ${out intersect that.out}")
-    }
-    r
+    (_out isEmpty) && (_in0 isEmpty) && (_in1 isEmpty)
   }
 
   def compose(that: ActionSignature): Option[ActionSignature] = if (compatible(that)) {

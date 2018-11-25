@@ -2,6 +2,7 @@ package oss.ggiussi.cappio.ui.app
 
 import japgolly.scalajs.react.vdom.Implicits.vdomAttrVtJsAny
 import japgolly.scalajs.react.vdom.svg_<^._
+import japgolly.scalajs.react.ScalaComponent
 
 object Constants {
   val arrowHeadSize = 6
@@ -27,14 +28,55 @@ object MarkerDefs {
     ^.markerWidth := arrowHeadSize,
     ^.markerHeight := arrowHeadSize,
     ^.markerUnits := "userSpaceOnUse",
-    VdomAttr("refX") := "0",
-    VdomAttr("refY") := arrowHeadSize / 2,
-    VdomAttr("orient") := "auto",
+    ^.orient := "auto",
+    ^.refX := "0",
+    ^.refY := arrowHeadSize / 2,
     <.path(
       ^.d := s"M0,0 L0,${arrowHeadSize} L${arrowHeadSize},${arrowHeadSize / 2} z",
       ^.fill := "black"
     )
   )
+
+  val BlackArrowHeadId = "blackarrowhead"
+  val ReadArrowHeadId = "readarrowhead"
+
+  val BlackArrowHead = (size: Double) =>  DroppedHead(size,BlackArrowHeadId,"black")//ArrowHead(size,BlackArrowHeadId,"black")
+  val ReadArrowHead = (size: Double) =>  ArrowHead(size,ReadArrowHeadId,"red")
+
+  private val DroppedHead = ScalaComponent.builder[(Double,String,String)]("DroppedHead")
+    .render_P {
+      case (size,id,color) =>
+        <.marker(
+          ^.id := id,
+          ^.markerWidth := size,
+          ^.markerHeight := size,
+          ^.markerUnits := "userSpaceOnUse",
+          ^.refX := size,
+          ^.refY := size / 2,
+          ^.orient := "auto",
+          <.path(
+            ^.d := s"M0,0 L0,${size} L${size},${size / 2} z",
+            ^.fill := color
+          )
+        )
+    }.build
+
+  private val ArrowHead = ScalaComponent.builder[(Double,String,String)]("ArrowHead")
+    .render_P { case (size,id,color) =>
+      <.marker(
+        ^.id := id,
+        ^.markerWidth := size,
+        ^.markerHeight := size,
+        ^.markerUnits := "userSpaceOnUse",
+        ^.refX := size,
+        ^.refY := size / 2,
+        ^.orient := "auto",
+        <.path(
+          ^.d := s"M0,0 L0,${size} L${size},${size / 2} z",
+          ^.fill := color
+        )
+      )
+    }.build
 
   val markers = List(arrowHead).toTagMod
 
