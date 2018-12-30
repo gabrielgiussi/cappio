@@ -1,6 +1,6 @@
 package oss.ggiussi.cappio.core
 
-import oss.ggiussi.cappio.core.Execution.Triggers
+import oss.ggiussi.cappio.{ProcessID, Processes}
 import oss.ggiussi.cappio.core.Level.Condition
 
 
@@ -8,7 +8,7 @@ object Level {
 
   type Condition[S] = S => Boolean
 
-  def apply[S](conditions: List[StateCondition[S]], schedConditions: List[Condition[List[Action]]], automaton: Automaton[S], initialState: S, triggers: Option[Triggers] = None): Level[S] = new Level(conditions, schedConditions, List(Execution(automaton, initialState,triggers = triggers.getOrElse(Execution.EmptyTriggers))))
+  def apply[S](conditions: List[StateCondition[S]], schedConditions: List[Condition[List[Action]]], automaton: Automaton[S], initialState: S, monitor: List[Action => Set[Action]])(implicit p: Processes): Level[S] = new Level(conditions, schedConditions, List(Execution(automaton, initialState,monitor = monitor)),p.p)
 }
 
 object StateCondition {
@@ -38,15 +38,15 @@ case class Failed[S](level: Level[S]) extends LevelResult[S] {
 }
 
 // un level es una execution + conditions
-case class Level[S](conditions: List[StateCondition[S]], schedConditions: List[Condition[List[Action]]], executions: List[Execution[S]]) {
-
-  protected def last(): Execution[S] = executions.last
+case class Level[S](conditions: List[StateCondition[S]], schedConditions: List[Condition[List[Action]]], executions: List[Execution[S]], processes: Set[ProcessID]) {
 
   def next(action: Action): LevelResult[S] = {
     val ex = last.next(action)
     val level = copy(executions = executions :+ ex)
-    if ((conditions.forall(_.apply(ex.state))) && (schedConditions.forall(_.apply(ex.sched())))) Success(level) else if (level.last().enabled().isEmpty) Failed(level) else Pending(level)
+    if ((conditions.forall(_.apply(ex.state))) && (schedConditions.forall(_.apply(ex.sched())))) Success(level) else Pending(level)
   }
+
+  def last(): Execution[S] = executions.last
 
   // TODO why pending?
   def prev(): Level[S] = if (executions.size == 1) this else copy(executions = executions.reverse.tail.reverse)
@@ -54,4 +54,8 @@ case class Level[S](conditions: List[StateCondition[S]], schedConditions: List[C
   def nextStep(): Int = executions.size - 1
 
   def state() = executions.lastOption.map(_.state)
+
+
+  def sched(): Set[(Action,Int)] = executions.foldLeft[(Set[(Action,Int)],Set[Action],Int)]((Set(),Set(),0)){ case ((acc,last,step),ex) => (acc ++ (ex.sched().toSet -- last).map(_ -> step),ex.sched().toSet, step + 1) }._1
+
 }

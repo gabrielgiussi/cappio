@@ -10,10 +10,10 @@ import oss.ggiussi.cappio.ui.app2.MessageComponent.MessageComponentProps
 object GridComponent {
 
   case class GridConf(rounds: Int, roundWidth: Double, processHeight: Double, arrowHeadSize: Double, labelWidth: Double) {
-    def point(step: Int, process: Int): (Double, Double) = ((step * roundWidth) + labelWidth, process * processHeight)
+    def point(step: Int, process: Int): (Double, Double) = ((step * roundWidth) + labelWidth, (process + 1) * processHeight)
   }
 
-  case class GridProps(processes: Set[(Process, Option[Step])], conf: GridConf)
+  case class GridProps2(processes: Set[(Process, Option[Step])], messages: List[MessageComponentProps], conf: GridConf)
 
   val ProcessTimeline = ScalaComponent.builder[(Process,Option[Step],GridConf)]("ProcessTimeline")
     .render_P { case (p,crashed,conf) =>
@@ -97,23 +97,27 @@ object GridComponent {
       )
     }.build
 
-  val Component = ScalaComponent.builder[GridProps]("Grid")
-    .render_P { case GridProps(processes, conf) =>
+  val Component = ScalaComponent.builder[GridProps2]("Grid")
+    .render_P { case GridProps2(processes, messages, conf) =>
       <.svg(
         <.defs(
           MarkerDefs.BlackArrowHead(conf.arrowHeadSize),
           MarkerDefs.ReadArrowHead(conf.arrowHeadSize)
         ),
-        ^.width := 10000,
+        ^.width := 10000, // TODO
         ^.height := 10000,
         ^.x := 0,
         ^.y := 0,
         Processes((processes, conf)),
         <.svg(
           ^.x := 0,
-          ^.y := conf.processHeight,
-          MessageComponent.Component(MessageComponentProps("prueba", "beb-bcast", 0, 1, 0, Set(1), Set(), conf)), // TODO
-          MessageComponent.Component(MessageComponentProps("prueba", "beb-bcast", 1, 1, 0, Set(), Set(1), conf))
+          ^.y := 0, // TODO conf.processHeight,
+          messages.zipWithIndex.toVdomArray { case (props,k) =>
+            <.svg(
+              html.^.key := k,
+              MessageComponent.Component(props)
+            )
+          }
         )
       )
     }.build

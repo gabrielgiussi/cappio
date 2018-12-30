@@ -1,26 +1,51 @@
 package oss.ggiussi.cappio.core
 
+import java.util.UUID
+
 import oss.ggiussi.cappio.{InstanceID, ProcessID}
-import oss.ggiussi.cappio.impl.links.{Envelope, Message, MessageID}
 
 object LinkProtocol {
 
-  object Send {
-    def apply(message: Message)(implicit instanceID: InstanceID) = new Send(message.id.from, message.id.to, instanceID, message)
+  case class MessageID(uuid: UUID)
+
+  object Message {
+    def apply(payload: Any): Message = new Message(payload, MessageID(UUID.randomUUID()))
   }
 
-  object Deliver {
-    def apply(message: Message)(implicit instanceID: InstanceID) = new Deliver(message.id.from, message.id.to, instanceID, message)
+  case class Message(payload: Any, id: MessageID)
+
+  case class SendHeader(from: ProcessID, to: ProcessID, instance: InstanceID) extends ActionHeader
+
+  case class DeliverHeader(from: ProcessID, to: ProcessID, instance: InstanceID) extends ActionHeader
+
+  // Todos los links van a accionar con este header, la alternativa es poner el from y to.
+  case class DropHeader(from: ProcessID, to: ProcessID, instance: InstanceID) extends ActionHeader
+
+  trait NetworkAction extends Action {
+    def id: MessageID
   }
 
-  case class Send(from: ProcessID, to: ProcessID, instance: InstanceID, message: Message) extends Envelope {
-    override def toString: String = s"Send(from: $from, to: $to, payload: ${message.payload}, step: ${message.id.step}, instance: ${instance.id})"
+  case class Deliver(header: DeliverHeader, msg: Message) extends NetworkAction {
+    override def payload = Some(msg)
+
+    override def id: MessageID = msg.id
   }
 
-  case class Deliver(from: ProcessID, to: ProcessID,instance: InstanceID, message: Message) extends Envelope {
-    override def toString: String = s"Deliver(from: $from, to: $to, payload: ${message.payload}, step: ${message.id.step})"
+  case class Send(header: SendHeader, msg: Message) extends NetworkAction {
+    override def payload = Some(msg)
+
+    override def id: MessageID = msg.id
   }
 
-  case class Drop(m: MessageID, instance: InstanceID) extends Action
+
+  case class Drop(header: DropHeader, id: MessageID) extends NetworkAction {
+    override def payload = Some(id)
+  }
+
+  def send(from: ProcessID, to: ProcessID, instanceID: InstanceID, message: Message, metadata: Option[Any] = None): Send = Send(SendHeader(from, to, instanceID), message)
+
+  def deliver(from: ProcessID, to: ProcessID, message: Message, instanceID: InstanceID, metadata: Option[Any] = None): Deliver = Deliver(DeliverHeader(from, to, instanceID), message)
+
+  def drop(from: ProcessID, to: ProcessID, instance: InstanceID, msg: MessageID, metadata: Option[Any] = None): Action = Drop(DropHeader(from, to, instance), msg)
 
 }

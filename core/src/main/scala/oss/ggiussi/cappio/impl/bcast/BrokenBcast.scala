@@ -1,33 +1,41 @@
 package oss.ggiussi.cappio.impl.bcast
 
-import com.sun.xml.internal.ws.api.pipe.NextAction
-import oss.ggiussi.cappio.{InstanceID, ProcessID}
-import oss.ggiussi.cappio.core.LinkProtocol.{Deliver, Send}
-import oss.ggiussi.cappio.core.Transition.Transition
+import oss.ggiussi.cappio.core.LinkProtocol._
 import oss.ggiussi.cappio.core._
-import oss.ggiussi.cappio.impl.Instances
+import oss.ggiussi.cappio.impl.{Instances, Triggers}
 import oss.ggiussi.cappio.impl.bcast.BrokenBcastProtocol._
-import oss.ggiussi.cappio.impl.links.Message
+import oss.ggiussi.cappio.{InstanceID, ProcessID}
 
 object BrokenBcastProtocol {
 
-  // TODO tambien podria ser que BrkBcast ya tenga la lista de Message to deliver.
-  // step here seems odd
-  case class BrkBcast(from: ProcessID, instance: InstanceID, payload: Any, step: Int) extends Action {
-    override def toString: String = s"$from Bcast $payload"
+  def bcast(from: ProcessID, instance: InstanceID, message: Message, metadata: Option[Any] = None) = BrkBcast(BrkBcastHeader(from,instance),message)
+
+  def bdeliver(from: ProcessID, to: ProcessID, instance: InstanceID, message: Message, metadata: Option[Any] = None) = BrkDeliver(BrkDeliverHeader(from,to,instance),message)
+
+  case class BrkBcastHeader(from: ProcessID, instance: InstanceID) extends ActionHeader
+
+  case class BrkDeliverHeader(from: ProcessID, to: ProcessID, instance: InstanceID) extends ActionHeader
+
+  case class BrkDeliver(header: BrkDeliverHeader, msg: Message) extends Action {
+    override def payload = Some(msg)
   }
 
-  case class BrkDeliver(from: ProcessID, to: ProcessID, instance: InstanceID, message: Message) extends Action // <----- process now must understand BrkDeliver instead of Deliver!!!! (should create a parametrizable Process)?
+  case class BrkBcast(header: BrkBcastHeader, msg: Message) extends Action {
+    override def payload = Some(msg)
+  }
 
 }
 
 object BrokenBcastState {
-  def empty() = BrokenBcastState(toSend = Set.empty, toDeliver = Set.empty)
+  //def empty() = BrokenBcastState(toSend = Set.empty, toDeliver = Set.empty)
+  def empty() = BrokenBcastState(Triggers.init())
 }
 
+/*
 case class BrokenBcastState(toSend: Set[Send], toDeliver: Set[BrkDeliver]) {
-  def bcast(from: ProcessID, processes: Set[ProcessID], payload: Any, step: Int) = {
-    val _toSend = processes.map(to => Send(from, to, Instances.BCAST_LINK, Message(from, to, payload, step)))
+
+  def bcast(from: ProcessID, processes: Set[ProcessID], message: Message) = {
+    val _toSend: Set[Send] = processes.map(to => LinkProtocol.send(from, to, Instances.BCAST_LINK,message))
     NextState(copy(toSend = toSend ++ _toSend), Set.empty[Action] ++ _toSend)
   }
 
@@ -39,44 +47,53 @@ case class BrokenBcastState(toSend: Set[Send], toDeliver: Set[BrkDeliver]) {
 
   def bDeliver(d: BrkDeliver) = copy(toDeliver = toDeliver - d)
 
-  def deliver(msg: Message) = {
-    val _toDeliver = BrkDeliver(msg.id.from, msg.id.to, Instances.BCAST, msg)
+  def deliver(id: ProcessID, to: ProcessID, msg: Message) = {
+    val _toDeliver = BrkDeliver(BrkDeliverHeader(id,to,Instances.BCAST), msg)
     NextState(copy(toDeliver = toDeliver + _toDeliver), Set(_toDeliver))
   }
 }
+*/
+case class BrokenBcastState(triggers: Triggers) {
+  // TODO message or payload?
+  def bcast(from: ProcessID, processes: Set[ProcessID], message: Message) = {
+    val toSend: Set[Action] = processes.map(to => LinkProtocol.send(from, to, Instances.BCAST_LINK,Message(message.payload)))
+    NextState(copy(triggers.trigger(toSend)), Set.empty[Action] ++ toSend)
+  }
+
+  def deliver(id: ProcessID, to: ProcessID, msg: Message) = {
+    val toDeliver = BrkDeliver(BrkDeliverHeader(id,to,Instances.BCAST), msg)
+    NextState(copy(triggers.trigger(toDeliver)), Set(toDeliver))
+  }
+
+  def bDeliver(d: BrkDeliver) = copy(triggers.trigger(d))
+
+  def send(s: Send) = copy(triggers.trigger(s))
+}
+
 
 
 object BrokenBcast {
-  def apply(instance: InstanceID)(id: ProcessID, neighbors: Set[ProcessID])(implicit payloads: Payloads): BrokenBcast = new BrokenBcast(id, neighbors, instance)(payloads)
+  def apply(instance: InstanceID)(id: ProcessID, neighbors: Set[ProcessID]): BrokenBcast = new BrokenBcast(id, neighbors, instance)
 }
 
 // A BebBcast will look like the same, the only thing that changes is the implementation of the link
-case class BrokenBcast(id: ProcessID, neighbors: Set[ProcessID], instance: InstanceID)(implicit payloads: Payloads) extends Automaton[BrokenBcastState] {
+case class BrokenBcast(id: ProcessID, neighbors: Set[ProcessID], instance: InstanceID) extends Automaton[BrokenBcastState] {
 
   import Instances._
 
   private val processes = neighbors + id
 
   override val sig: ActionSignature = {
-    val messages = processes.flatMap(p => payloads.messages(id, p))
-    val in: Set[Action] = {
-      val delivers: Set[Action] = messages.map(Deliver(_)(BCAST_LINK))
-      val bcast: Set[Action] = messages.map(m => BrkBcast(m.id.from, instance, m.payload, m.id.step)) // TODO
-      delivers ++ bcast
-    }
-    val out: Set[Action] = {
-      val sends: Set[Action] = messages.map(Send(_)(BCAST_LINK))
-      val bDelivers: Set[Action] = messages.map(m => BrkDeliver(m.id.from, m.id.to, instance, m))
-      sends ++ bDelivers
-    }
-    val int: Set[Action] = Set.empty[Action]
+    val in: Set[ActionHeader] = processes.map(DeliverHeader(_,id,BCAST_LINK)) ++ Set(BrkBcastHeader(id, instance))
+    val out: Set[ActionHeader] = processes.map(SendHeader(id,_,BCAST_LINK)) ++ processes.map(BrkDeliverHeader(_,id,instance))
+    val int = Set.empty[ActionHeader]
     ActionSignature(in = in, out = out, int = int)
   }
 
-  override val steps: Steps.Steps[BrokenBcastState] = Steps.steps[BrokenBcastState]({
-    case BrkBcast(`id`, `instance`, payload, step) if payloads enabled payload => Effect.triggers(_.bcast(id, processes, payload, step))
-    case a@BrkDeliver(`id`, to,`instance`, msg) if (processes contains to) && (payloads enabled msg.payload) => Effect(_.canBDeliver(a), _.bDeliver(a))
-    case a@Send(`id`, to, `BCAST_LINK`, msg) if processes contains to => Effect(_.canSend(a), _.send(a))
-    case Deliver(`id`, to, `BCAST_LINK`, msg) if processes contains to => Effect.triggers(_.deliver(msg))
+  override val steps: Steps.Steps[BrokenBcastState] = Steps.steps2[BrokenBcastState](sig, {
+    case BrkBcast(_,msg) => Effect.triggers(_.bcast(id, processes, msg))
+    case a:BrkDeliver => Effect(_.triggers.wasTriggered(a), _.bDeliver(a))
+    case a:Send => Effect(_.triggers.wasTriggered(a), _.send(a))
+    case Deliver(DeliverHeader(from,_,_), msg) => Effect.triggers(_.deliver(from,id,msg))
   })
 }

@@ -11,9 +11,37 @@ case class UnknownActionException(a: Action) extends RuntimeException {
   override def getMessage: String = s"Action $a unknown"
 }
 
-// TODO or case class ActionI(instance: InstanceID, a: Action) extends Action
-trait Action {
+trait ActionHeader {
+
   val instance: InstanceID
+
+}
+
+/*
+object ActionBody {
+  def empty = ActionBody(None,None)
+
+  def apply(payload: Any): ActionBody = new ActionBody(Some(payload), None)
+}
+
+case class ActionBody(payload: Option[Any], metadata: Option[Any])
+
+object Action {
+  def apply(header: ActionHeader): Action = new Action(header, ActionBody.empty)
+}
+*/
+trait Action {
+  def header: ActionHeader
+  def payload: Option[Any]
+  def metadata: Option[Any] = None
+}
+
+trait NoPayloadAction extends Action {
+  final override def payload: Option[Any] = None
+}
+
+trait SimpleAction extends ActionHeader with NoPayloadAction {
+  override def header: ActionHeader = this
 }
 
 case class NextState[S](state: S, triggers: Set[Action] = Set.empty)
@@ -38,6 +66,8 @@ object Effect {
 
   def noEffect[S](): Effect[S] = new Effect((_, _) => true, { case (s, _) => NextState(s) })
 
+  def noEffect[S](precondition: S => Boolean): Effect[S] = new Effect((s,_) => precondition(s), { case (s, _) => NextState(s) })
+
 }
 
 // It will be hard to test effects if doesn't consider actions
@@ -46,14 +76,14 @@ case class Effect[S](precondition: (S, Action) => Boolean, f: (S, Action) => Nex
 
 }
 
-case class ActionSignature(in: Set[Action], out: Set[Action], int: Set[Action]) {
+case class ActionSignature(in: Set[ActionHeader], out: Set[ActionHeader], int: Set[ActionHeader]) {
   require(in intersect out intersect int isEmpty, "The sets in,out & int must be disjoint")
 
-  def acts(): Set[Action] = in union out union int
+  def acts(): Set[ActionHeader] = in union out union int
 
-  def ext(): Set[Action] = in union out
+  def ext(): Set[ActionHeader] = in union out
 
-  def local(): Set[Action] = out union int
+  def local(): Set[ActionHeader] = out union int
 
   def compatible(that: ActionSignature): Boolean = {
     // require that the output actions of composed automata be disjoint
@@ -71,14 +101,14 @@ case class ActionSignature(in: Set[Action], out: Set[Action], int: Set[Action]) 
     Some(ActionSignature(in = _in, out = _out, int = _int))
   } else None
 
-  def hide(actions: Set[Action]): ActionSignature = {
+  def hide(actions: Set[ActionHeader]): ActionSignature = {
     val _in = in -- actions
     val _out = out -- actions
     val _int = int union (acts intersect actions)
     copy(in = _in, out = _out, int = _int)
   }
 
-  def contains(action: Action): Boolean = (in contains action) || (out contains action) || (int contains action)
+  def contains(action: ActionHeader): Boolean = (in contains action) || (out contains action) || (int contains action)
 
 
 }
@@ -114,9 +144,10 @@ object Steps {
 
   }
 
+  // TODO rename
   def steps2[S](signature: ActionSignature,transition: Transition2[S]): Steps[S] = new BaseSteps[S] {
 
-    override def isDefined(action: Action): Boolean = signature contains action
+    override def isDefined(action: Action): Boolean = signature contains action.header
 
     override def effect(action: Action): Effect[S] = transition(action)
   }
@@ -155,7 +186,7 @@ object Steps {
 
 trait Automaton[S] {
 
-  private final case class HideAutomaton[S](automaton: Automaton[S], actions: Set[Action]) extends Automaton[S] {
+  private final case class HideAutomaton[S](automaton: Automaton[S], actions: Set[ActionHeader]) extends Automaton[S] {
     override val sig: ActionSignature = automaton.sig.hide(actions)
     override val steps: Steps[S] = automaton.steps // TODO should impact in stepts to? (i think so)
   }
@@ -178,13 +209,13 @@ trait Automaton[S] {
 
   def composeTuple[S2](that: Automaton[S2]): Option[Automaton[(S, S2)]] = compose(that, (s1: S, s2: S2) => (s1, s2))(_._1, _._2)
 
-  def hide(actions: Set[Action]): Automaton[S] = HideAutomaton(this, actions)
+  def hide(actions: Set[ActionHeader]): Automaton[S] = HideAutomaton(this, actions)
 
-  def inputAction(action: Action): Boolean = sig.in contains action
+  def inputAction(action: ActionHeader): Boolean = sig.in contains action
 
-  def outputAction(action: Action): Boolean = sig.out contains action
+  def outputAction(action: ActionHeader): Boolean = sig.out contains action
 
-  def internalAction(action: Action): Boolean = sig.int contains action
+  def internalAction(action: ActionHeader): Boolean = sig.int contains action
 
 }
 

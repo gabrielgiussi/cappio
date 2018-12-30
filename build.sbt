@@ -24,7 +24,7 @@ lazy val ui = (project in file("ui"))
   .settings(
     scalaJSUseMainModuleInitializer := true,
     scalaJSUseMainModuleInitializer in Test := false,
-    mainClass in Compile := Some("oss.ggiussi.cappio.ui.app2.App2"),
+    mainClass in Compile := Some("oss.ggiussi.cappio.ui.app.App"),
     // other settings
     libraryDependencies ++= Seq(
       "com.github.japgolly.scalajs-react" %%% "core" % react,

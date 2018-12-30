@@ -1,7 +1,7 @@
 package oss.ggiussi.cappio.ui.levels
 
 import oss.ggiussi.cappio.core.Level.Condition
-import oss.ggiussi.cappio.core.LinkProtocol.Deliver
+import oss.ggiussi.cappio.core.LinkProtocol.DeliverHeader
 import oss.ggiussi.cappio.core._
 import oss.ggiussi.cappio.impl.links.{FLLState, FairLossLink, FullFLLState}
 import oss.ggiussi.cappio.impl.processes.{Process, ProcessState, Up}

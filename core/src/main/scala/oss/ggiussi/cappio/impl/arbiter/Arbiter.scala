@@ -9,28 +9,32 @@ import oss.ggiussi.cappio.core.Transition.Transition
 object Arbiter {
 
   implicit class ArbiterProtocol(id: Int) {
-    def receivesReqFrom(from: Int) = ReceiveRequest(from, id)
+    def receivesReqFrom(from: Int) = ArbiterAction(ReceiveRequest(from, id))
 
-    def sendsReqTo(to: Int) = SendRequest(id, to)
+    def sendsReqTo(to: Int) = ArbiterAction(SendRequest(id, to))
 
-    def receivesGrantFrom(from: Int) = ReceiveGrant(from, id)
+    def receivesGrantFrom(from: Int) = ArbiterAction(ReceiveGrant(from, id))
 
-    def sendsGrantTo(to: Int) = SendGrant(id, to)
+    def sendsGrantTo(to: Int) = ArbiterAction(SendGrant(id, to))
   }
 
 }
 
-sealed trait ArbiterAction extends Action {
+sealed trait ArbiterActionHeader extends ActionHeader {
   override val instance = InstanceID("arbiter")
 }
 
-case class ReceiveRequest(from: Int, id: Int) extends ArbiterAction
+case class ArbiterAction(header: ArbiterActionHeader) extends Action {
+  val payload: Option[Any] = None
+}
 
-case class ReceiveGrant(from: Int, id: Int) extends ArbiterAction
+case class ReceiveRequest(from: Int, id: Int) extends ArbiterActionHeader
 
-case class SendRequest(id: Int, to: Int) extends ArbiterAction
+case class ReceiveGrant(from: Int, id: Int) extends ArbiterActionHeader
 
-case class SendGrant(id: Int, to: Int) extends ArbiterAction
+case class SendRequest(id: Int, to: Int) extends ArbiterActionHeader
+
+case class SendGrant(id: Int, to: Int) extends ArbiterActionHeader
 
 object ArbiterState {
   // Hay una logica en la creacion del estado inicial (validar que el lastwordard apunte en la direccion del holder) TODO
@@ -40,22 +44,20 @@ object ArbiterState {
 case class ArbiterState(requesting: Set[Int], lastforward: Int, holding: Boolean, requested: Boolean)
 
 case class Arbiter(a: Int, neighbors: Set[Int]) extends Automaton[ArbiterState] {
-  val steps: Steps[ArbiterState] = {
-    val transitions: Transition[ArbiterState] = {
-      case ReceiveRequest(v, `a`) => Effect(state => state.copy(state.requesting + v))
-      case ReceiveGrant(v, `a`) => Effect({ case state@ArbiterState(_, lastforward, holding, _) => if (!holding && lastforward == v) state.copy(holding = true, requested = false) else state })
-      case SendRequest(`a`, v) => Effect({ case ArbiterState(requesting, lastforward, holding, requested) => !requesting.isEmpty && !requested && !holding && lastforward == v }, _.copy(requested = true))
-      // TODO lastforward = w, y ∉ requesting for all y ∈ (w v) pag 64
-      case SendGrant(`a`, v) => Effect({ case ArbiterState(requesting, lastforward, holding, _) => requesting.contains(v) && holding }, state => state.copy(state.requesting - v, lastforward = v, holding = false))
-    }
-    Steps.steps(transitions)
-  }
   // action signature depends on the neighbors (the graph G)
   override val sig: ActionSignature = {
-    val in: Set[Action] = neighbors.flatMap(v => Set(ReceiveRequest(v, a), ReceiveGrant(v, a)))
-    val out: Set[Action] = neighbors.flatMap(v => Set(SendRequest(a, v), SendGrant(a, v)))
+    val in: Set[ActionHeader] = neighbors.flatMap(v => Set(ReceiveRequest(v, a), ReceiveGrant(v, a)))
+    val out: Set[ActionHeader] = neighbors.flatMap(v => Set(SendRequest(a, v), SendGrant(a, v)))
     ActionSignature(in, out, Set())
   }
+
+  val steps: Steps[ArbiterState] = Steps.steps2(sig, action => action.header match {
+    case ReceiveRequest(v, _) => Effect(state => state.copy(state.requesting + v))
+    case ReceiveGrant(v, _) => Effect({ case state@ArbiterState(_, lastforward, holding, _) => if (!holding && lastforward == v) state.copy(holding = true, requested = false) else state })
+    case SendRequest(_, v) => Effect({ case ArbiterState(requesting, lastforward, holding, requested) => !requesting.isEmpty && !requested && !holding && lastforward == v }, _.copy(requested = true))
+    // TODO lastforward = w, y ∉ requesting for all y ∈ (w v) pag 64
+    case SendGrant(_, v) => Effect({ case ArbiterState(requesting, lastforward, holding, _) => requesting.contains(v) && holding }, state => state.copy(state.requesting - v, lastforward = v, holding = false))
+  })
 
 }
 
@@ -64,19 +66,16 @@ case class ArbiterMessage(from: Int, to: Int, t: String)
 
 class MessageSystem(adjacencies: Set[(Int, Int)]) extends Automaton[Set[ArbiterMessage]] {
   override val sig: ActionSignature = {
-    val in: Set[Action] = adjacencies.flatMap { case (a1, a2) => Set(SendRequest(a1, a2), SendRequest(a2, a1), SendGrant(a1, a2), SendGrant(a2, a1)) }
-    val out: Set[Action] = adjacencies.flatMap { case (a1, a2) => Set(ReceiveRequest(a1, a2), ReceiveRequest(a2, a1), ReceiveGrant(a1, a2), ReceiveGrant(a2, a1)) }
+    val in: Set[ActionHeader] = adjacencies.flatMap { case (a1, a2) => Set(SendRequest(a1, a2), SendRequest(a2, a1), SendGrant(a1, a2), SendGrant(a2, a1)) }
+    val out: Set[ActionHeader] = adjacencies.flatMap { case (a1, a2) => Set(ReceiveRequest(a1, a2), ReceiveRequest(a2, a1), ReceiveGrant(a1, a2), ReceiveGrant(a2, a1)) }
     ActionSignature(in, out, Set())
   }
-  override val steps: Steps[Set[ArbiterMessage]] = {
-    val transitions: Transition[Set[ArbiterMessage]] = {
-      case SendRequest(a, _a) if adjacencies contains(a, _a) => Effect(_ + ArbiterMessage(a, _a, "request"))
-      case SendGrant(a, _a) if adjacencies contains(a, _a) => Effect(_ + ArbiterMessage(a, _a, "grant"))
-      case ReceiveRequest(a, _a) if adjacencies contains(a, _a) => Effect(_ contains (ArbiterMessage(a, _a, "request")), _ - ArbiterMessage(a, _a, "request"))
-      case ReceiveGrant(a, _a) if adjacencies contains(a, _a) => Effect(_ contains (ArbiterMessage(a, _a, "grant")), _ - ArbiterMessage(a, _a, "grant"))
-    }
-    Steps.steps(transitions)
-  }
+  override val steps: Steps[Set[ArbiterMessage]] = Steps.steps2(sig, action => action.header match {
+    case SendRequest(a, _a) if adjacencies contains(a, _a) => Effect(_ + ArbiterMessage(a, _a, "request"))
+    case SendGrant(a, _a) if adjacencies contains(a, _a) => Effect(_ + ArbiterMessage(a, _a, "grant"))
+    case ReceiveRequest(a, _a) if adjacencies contains(a, _a) => Effect(_ contains (ArbiterMessage(a, _a, "request")), _ - ArbiterMessage(a, _a, "request"))
+    case ReceiveGrant(a, _a) if adjacencies contains(a, _a) => Effect(_ contains (ArbiterMessage(a, _a, "grant")), _ - ArbiterMessage(a, _a, "grant"))
+  })
 }
 
 object Prueba extends App {

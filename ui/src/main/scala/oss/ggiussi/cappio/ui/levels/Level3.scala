@@ -1,12 +1,10 @@
 package oss.ggiussi.cappio.ui.levels
-
+import oss.ggiussi.cappio.Processes
 import oss.ggiussi.cappio.core.Composer._
-import oss.ggiussi.cappio.core.Execution.Triggers
 import oss.ggiussi.cappio.core.Level.Condition
-import oss.ggiussi.cappio.core.LinkProtocol.{Deliver, Send}
+import oss.ggiussi.cappio.core.LinkProtocol._
 import oss.ggiussi.cappio.core._
 import oss.ggiussi.cappio.impl.Instances
-import oss.ggiussi.cappio.impl.bcast.BrokenBcastProtocol.{BrkBcast, BrkDeliver}
 import oss.ggiussi.cappio.impl.bcast.{BrokenBcast, BrokenBcastState}
 import oss.ggiussi.cappio.impl.links._
 import oss.ggiussi.cappio.impl.processes.{Down, ProcessBcast, ProcessState, Up}
@@ -29,13 +27,13 @@ object Level3 extends LevelT[((FullPLState,FullPLState,FullPLState,PLState,PLSta
   val schedConditions: List[(String, Condition[List[Action]])] = List()
 
   val level = {
-    implicit val payloads = Payloads(Set(1, 2), 10)
+    implicit val p = Processes(Set(0,1,2))
 
     import Composer._
 
     val processes: Option[Automaton[STuple3[ProcessState]]] = for {
-      c1 <- ProcessBcast(0, Set(1, 2)) composeTuple ProcessBcast(1, Set(0, 2))
-      c2 <- composeTuple2(c1, ProcessBcast(2, Set(1, 0)))
+      c1 <- ProcessBcast(0) composeTuple ProcessBcast(1)
+      c2 <- composeTuple2(c1, ProcessBcast(2))
     } yield c2
 
     val bcast: Option[Automaton[STuple3[BrokenBcastState]]] = {
@@ -73,13 +71,18 @@ object Level3 extends LevelT[((FullPLState,FullPLState,FullPLState,PLState,PLSta
       (BrokenBcastState.empty, BrokenBcastState.empty, BrokenBcastState.empty)
     )
 
+    /*
     val triggers: Option[Triggers] = Some({
-      case BrkBcast(from,_,p,step) => Set(0,1,2).map(to => Send(from,to,Instances.BCAST_LINK,Message(from,to,p,step)))
-      case Deliver(from,to,_,msg) => Set(BrkDeliver(from,to,Instances.BCAST,msg))
+      case BrkBcastHeader(from,_,p,step) => Set(0,1,2).map(to => Send(from,to,Instances.BCAST_LINK,Message(from,to,p,step)))
+      case DeliverHeader(from,to,_,msg) => Set(BrkDeliver(from,to,Instances.BCAST,msg))
       case _ => Set.empty
     })
+    */
 
-    Level(conditions, schedConditions.map(_._2), automaton.get, initalState, None)
+    Level(conditions, schedConditions.map(_._2), automaton.get, initalState, List({
+      case Send(SendHeader(from,to,instance),msg) => Set(Deliver(DeliverHeader(from,to,instance),msg)) ++ (if (from == to) Set() else Set(Drop(DropHeader(from,to,instance),msg.id)))
+      case _ => Set()
+    }))
   }
 
 }

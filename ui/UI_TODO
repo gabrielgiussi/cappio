@@ -24,7 +24,21 @@
 
      Esto puede ser peligroso para timelines con muchas actions porque a medida que avance se va a poner mas lento.
 
+(11) Cómo hago para pasar un child component en reactjs?
+     Quiero poder hacer
+     SendSelector(
+       ...
+       StringPayloadSelector(
+       )
+     )
 
+     SendSelector(
+       ...
+       HeartbeatPayloadSelector(
+       )
+     )
+
+(12) De donde tomar las InstanceID ? El automaton me deberia dar algo del estilo un stack de componentes con sus instanceID.
 
 Detalles
 

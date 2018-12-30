@@ -28,12 +28,14 @@ object MessageComponent {
   val SelfArrowLine = ScalaComponent.builder[ArrowProps]("SelfArrowLine")
     .render_P {
       case ArrowProps(Arrow(from, to, sent, status), conf) =>
-        val (x1, y1) = conf.point(sent, from)
-        val (x2, y2) = conf.point(status.step, to)
+        val (x1, y) = conf.point(sent, from)
+        val (x2, _) = conf.point(status.step, to)
         <.path(
-          ^.d := s"M$x1 $y1 Q ${(x2 + x1) / 2} -5 $x2 $y2",
+          ^.d := s"M$x1 $y Q ${(x2 + x1) / 2} ${y - conf.processHeight} $x2 $y",
           ^.stroke := "black",
           ^.fill := "transparent",
+          ^.strokeWidth := "2",
+          ^.strokeDasharray := "5,5",
           ^.markerEnd := s"url(#${MarkerDefs.BlackArrowHeadId})"
         )
     }.build
@@ -46,11 +48,6 @@ object MessageComponent {
         ^.x1 := x1,
         ^.x2 := x2,
         ^.y1 := y1,
-        /*
-        ^.y2 := (y2 + {
-          if (y1 < y2) (conf.arrowHeadSize * -1) else conf.arrowHeadSize
-        }),
-        */
         ^.y2 := y2,
         ^.strokeWidth := "2", // TODO this values should come from props
         ^.stroke := (status match {

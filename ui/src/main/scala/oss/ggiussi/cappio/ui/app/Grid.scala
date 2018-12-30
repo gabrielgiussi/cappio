@@ -1,9 +1,8 @@
 package oss.ggiussi.cappio.ui.app
 
 import japgolly.scalajs.react.{Callback, ScalaComponent}
-import oss.ggiussi.cappio.core.LinkProtocol.{Deliver, Drop, Send}
+import oss.ggiussi.cappio.core.LinkProtocol._
 import oss.ggiussi.cappio.core.{Action, Execution}
-import oss.ggiussi.cappio.impl.links.{Message, MessageID}
 import Constants._
 import oss.ggiussi.cappio.ProcessID
 import oss.ggiussi.cappio.impl.processes.ProcessProtocol.Crash
@@ -94,28 +93,28 @@ object Grid {
       )
     }.build
 
-  val CrashComponent = ScalaComponent.builder[(ProcessID, Int,Int)]("Crash")
-    .render_P { case (id,step,size) =>
-      val (x,y) = point(step,id)
-        <.svg(
-          <.line(
-            ^.x1 := x - size,
-            ^.y1 := y - size,
-            ^.x2 := x + size,
-            ^.y2 := y + size,
-            ^.strokeWidth := "2",
-            ^.stroke := "red",
-          ),
-          <.line(
-            ^.x1 := x - size,
-            ^.y1 := y + size,
-            ^.x2 := x + size,
-            ^.y2 := y - size,
-            ^.strokeWidth := "2",
-            ^.stroke := "red",
-          )
+  val CrashComponent = ScalaComponent.builder[(ProcessID, Int, Int)]("Crash")
+    .render_P { case (id, step, size) =>
+      val (x, y) = point(step, id)
+      <.svg(
+        <.line(
+          ^.x1 := x - size,
+          ^.y1 := y - size,
+          ^.x2 := x + size,
+          ^.y2 := y + size,
+          ^.strokeWidth := "2",
+          ^.stroke := "red",
+        ),
+        <.line(
+          ^.x1 := x - size,
+          ^.y1 := y + size,
+          ^.x2 := x + size,
+          ^.y2 := y - size,
+          ^.strokeWidth := "2",
+          ^.stroke := "red",
         )
-  }.build
+      )
+    }.build
 
   val Processes = ScalaComponent.builder[ProcessTimelineProps]("Execution")
     .render_P { case ProcessTimelineProps(rounds, processes, callback) =>
@@ -133,11 +132,11 @@ object Grid {
 
       val actions = executions.zipWithIndex.foldLeft(List.empty[(Action, Int)]) { (acc, a) => acc ++ (a._1.sched().toSet -- acc.map(_._1).toSet).map(_ -> a._2) }
 
-       val messages = actions.collect {
-          case (Deliver(f, to, _,msg), index) => (2,GridDeliver(index, f, to, msg))
-          case (Send(f, to, _, msg), index) => (1,GridSend(index, f, to, msg))
-          case (Drop(id,_), index) => (2,GridDrop(index, id.from, id.to, id))
-        }
+      val messages = actions.collect {
+        case (Deliver(DeliverHeader(f, to, _), msg), index) => (2, GridDeliver(index, f, to, msg))
+        case (Send(SendHeader(f, to, _), msg), index) => (1, GridSend(index, f, to, msg))
+        case (Drop(DropHeader(from,to, _),id), index) => (2, GridDrop(index, from, to, id))
+      }
 
       val arrows = messages.groupBy(_._2.msgID).values.map(_.sortBy(_._1).map(_._2)).flatMap {
         //case List(GridDeliver(delivered, from, to, _), GridSend(sent, _, _, _)) => Some(Arrow(from, to, sent, delivered, true))
@@ -147,7 +146,7 @@ object Grid {
       }
 
       val crash = actions.collect {
-        case (Crash(id,_),step) => CrashComponent(id,step,5)
+        case (Crash(id, _), step) => CrashComponent(id, step, 5)
       }
 
       val as = arrows.zipWithIndex.toVdomArray { case (a, index) =>

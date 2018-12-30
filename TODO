@@ -165,6 +165,33 @@
      Pero el UUID?
      Podria ponerlo yo por abajo cuando el usuario seleccione un Send. Luego le va a figurar el Deliver correspondiente con un UUID
 
+(39) ¿Cómo hacer un automata process reutilizable en base a los stacks de automaton que se compongan? Ejemplo, si se usa bcast tiene que entender BcastDeliver, si se usa
+     FailureDetector tiene que entender timeout, etc.
+
+(40) (a) Tick(instance) o (b) Tick(instance,process)?
+     Con (a) todos los PFD van a timeoutear en el mismo momento (lo cual tiene sentido para el sync model)
+
+(41) Ya que me estoy alejando del modelo de automata, no seria conveniente que el estate sea parte del automaton?
+     Con lo cual me ahorraria el tema de componer estado en tuplas.
+
+(42) La logica para traducir el sched a GridProps (aka step donde se cayeron los procesos mas mensajes entregados) también depende del stack de componentes que conforman los automaton.
+     Por ejemplo, un automaton puede manejar la action Crashed y otro CrashedAll, necesito saber que actions "buscar" en el sched.
+
+(43) Cuál es el step de una action?
+     Lo uso solo para dibujar? Si es asi deberia ir en ui y no en core.
+     Si es solo para dibujar, podria incrementar el tick:
+     (a) Despues de cada action
+     (b) Después de cada action seleccionada por el usuario (esto excluiria triggered actions), entonces un Bcast y los Send sucederian todos en el mismo Step. Pareceria estar bien porque
+         sucede dentro del mismo componente de manera local (no implica red).
+
+     Si tiene algún impacto en la lógica de los automaton, podria incrementarlo con cada Tick (esto tambien lo puedo usar para mover los relojes locales y mostrar el clock drift)
+
+(44) En FLL, el Send habilita el Deliver y el Drop. Pero luego si hago un Deliver ya no deberia poder hacer el drop. El problema es que es input enabled.
+     (a) Hacer drop output action
+     (b) Tener otra funcion que elimine actions del set de enabled! En este caso un Deliver elimina el Drop.
+
+(45) Quiero tener la posibilidad de hacer distintos tipos de procesos, por ejemplo para poder hacer un cluster de cassandra y un cluster de clientes.
+
 Prioridades
 (35)(36)(37) => update state?
 (34)
