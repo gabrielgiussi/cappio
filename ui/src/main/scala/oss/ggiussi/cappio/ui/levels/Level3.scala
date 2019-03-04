@@ -71,15 +71,8 @@ object Level3 extends LevelT[((FullPLState,FullPLState,FullPLState,PLState,PLSta
       (BrokenBcastState.empty, BrokenBcastState.empty, BrokenBcastState.empty)
     )
 
-    /*
-    val triggers: Option[Triggers] = Some({
-      case BrkBcastHeader(from,_,p,step) => Set(0,1,2).map(to => Send(from,to,Instances.BCAST_LINK,Message(from,to,p,step)))
-      case DeliverHeader(from,to,_,msg) => Set(BrkDeliver(from,to,Instances.BCAST,msg))
-      case _ => Set.empty
-    })
-    */
 
-    Level(conditions, schedConditions.map(_._2), automaton.get, initalState, List({
+    Level(conditions, automaton.get, initalState, List({
       case Send(SendHeader(from,to,instance),msg) => Set(Deliver(DeliverHeader(from,to,instance),msg)) ++ (if (from == to) Set() else Set(Drop(DropHeader(from,to,instance),msg.id)))
       case _ => Set()
     }))

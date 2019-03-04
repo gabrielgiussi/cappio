@@ -171,7 +171,7 @@
 (40) (a) Tick(instance) o (b) Tick(instance,process)?
      Con (a) todos los PFD van a timeoutear en el mismo momento (lo cual tiene sentido para el sync model)
 
-(41) Ya que me estoy alejando del modelo de automata, no seria conveniente que el estate sea parte del automaton?
+(41) Ya que me estoy alejando del modelo de automata, no seria conveniente que el state sea parte del automaton?
      Con lo cual me ahorraria el tema de componer estado en tuplas.
 
 (42) La logica para traducir el sched a GridProps (aka step donde se cayeron los procesos mas mensajes entregados) también depende del stack de componentes que conforman los automaton.

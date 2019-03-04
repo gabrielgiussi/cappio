@@ -71,7 +71,7 @@ object Level2 extends LevelT[((FullPLState,FullPLState,FullPLState,PLState,PLSta
       (BrokenBcastState.empty, BrokenBcastState.empty, BrokenBcastState.empty)
     )
 
-    Level(conditions, schedConditions.map(_._2), automaton.get, initalState, List({
+    Level(conditions, automaton.get, initalState, List({
       case Send(SendHeader(from,to,instance),msg) => Set(Deliver(DeliverHeader(from,to,instance),msg)) ++ (if (from == to) Set() else Set(Drop(DropHeader(from,to,instance),msg.id)))
       case _ => Set.empty
     }))

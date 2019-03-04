@@ -3,7 +3,6 @@ package oss.ggiussi.cappio.ui.app2
 import japgolly.scalajs.react.{Callback, ScalaComponent}
 import japgolly.scalajs.react.vdom.svg_<^._
 import japgolly.scalajs.react.vdom.{html_<^ => html}
-import oss.ggiussi.cappio.ui.app.Grid.{ProcessTimeline, ProcessTimelineProps}
 import oss.ggiussi.cappio.ui.app.MarkerDefs
 import oss.ggiussi.cappio.ui.app2.MessageComponent.MessageComponentProps
 

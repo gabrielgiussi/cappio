@@ -4,33 +4,30 @@ import japgolly.scalajs.react.component.Scala.BackendScope
 import japgolly.scalajs.react.vdom.HtmlStyles
 import japgolly.scalajs.react.{Callback, ScalaComponent}
 import oss.ggiussi.cappio.ProcessID
-import oss.ggiussi.cappio.core.LinkProtocol.{Deliver, Drop, NetworkAction, Send}
+import oss.ggiussi.cappio.core.LinkProtocol.{Deliver, NetworkAction, Send}
 import oss.ggiussi.cappio.core.{Action, _}
-import oss.ggiussi.cappio.impl.faildet.PerfectFailureDetectorProtocol.Crashed
 import oss.ggiussi.cappio.impl.processes.ProcessProtocol.Crash
-import oss.ggiussi.cappio.ui.app.Grid.GridProps
 import oss.ggiussi.cappio.ui.app.LevelBackend.State
-import oss.ggiussi.cappio.ui.app2
 import oss.ggiussi.cappio.ui.app2.GridComponent
 import oss.ggiussi.cappio.ui.app2.GridComponent.{GridConf, GridProps2}
 import oss.ggiussi.cappio.ui.app2.MessageComponent.MessageComponentProps
-import oss.ggiussi.cappio.ui.levels.Level1
+import oss.ggiussi.cappio.ui.levels.LevelAndSelection
 
 
 object LevelBackend {
 
-  case class State[S](result: LevelResult[S]) {
+  case class State[S](result: LevelResult[S], selection: List[ActionSelectionProps]) {
     def next(action: Action): State[S] = result match {
       case Success(_) => this
       case Failed(_) => this
-      case Pending(level) => State(level.next(action))
+      case Pending(level) => copy(level.next(action)) // TODO this may fail! (the action could not be enabled)
     }
 
-    def prev(): State[S] = State(Pending(result.level.prev()))
+    def prev(): State[S] = copy(Pending(result.level.prev()))
   }
 
-  def apply[S](level: Level[S]) = ScalaComponent.builder[Unit]("ReactRounds")
-    .initialState(State(Pending(level)))
+  def apply[S](level: LevelAndSelection[S]) = ScalaComponent.builder[Unit]("ReactRounds")
+    .initialState(State(Pending(level.level),level.selection))
     .renderBackend[LevelBackend[S]]
     .build
 }
@@ -47,7 +44,6 @@ class LevelBackend[S]($: BackendScope[Unit, State[S]]) {
 
   def render(s: State[S]): VdomElement = {
     val level = s.result.level
-    //Grid.Grid(GridProps(3, s.result.level.executions))
     val processes = level.sched().foldLeft[Map[ProcessID,Option[Int]]](level.processes.map(_ -> None).toMap){
       case (ps,(Crash(id,_),step)) => ps + (id -> Some(step))
       case (ps,_) => ps
@@ -76,7 +72,7 @@ class LevelBackend[S]($: BackendScope[Unit, State[S]]) {
           level.executions.zipWithIndex.last match { case (exec, index) =>
             <.li(
               HtmlStyles.display.`inline-block`,
-              ExecutionComponent(ExecutionProps(next, exec, (index == level.executions.length - 1) && !s.result.ended,level.nextStep)),
+              ExecutionComponent(ExecutionProps(s.selection, next, exec, (index == level.executions.length - 1) && !s.result.ended,level.nextStep)),
               ^.key := index
             )
           }

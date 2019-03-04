@@ -17,6 +17,7 @@ case class Execution[S](automaton: Automaton[S], initialState: S, steps: List[St
 
   // TODO esto no es propio de la teoria de IOAutomata
   def next(dos: Set[Action]): Execution[S] = {
+    println(dos)
     // el forall enabled deberia ser suficiente, sino podria ejecutar en todso los ordenes posibles y chequear q todos lleguen al mismo final state, sino throw exception
     if (dos.forall(isEnabled)) dos.foldLeft(this)(_ next _)
     else throw UnsatisfiedPreconditionException

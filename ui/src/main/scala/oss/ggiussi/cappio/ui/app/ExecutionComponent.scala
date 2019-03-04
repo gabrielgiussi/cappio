@@ -2,15 +2,19 @@ package oss.ggiussi.cappio.ui.app
 
 import japgolly.scalajs.react._
 import japgolly.scalajs.react.vdom.html_<^._
-import oss.ggiussi.cappio.InstanceID
+import oss.ggiussi.cappio.{InstanceID, ProcessID}
 import oss.ggiussi.cappio.core.{Action, Execution}
 import oss.ggiussi.cappio.core.LinkProtocol._
 import oss.ggiussi.cappio.impl.Instances
-import oss.ggiussi.cappio.impl.bcast.BrokenBcastProtocol.BrkBcastHeader
 import oss.ggiussi.cappio.impl.processes.ProcessBcast
 import oss.ggiussi.cappio.ui.app.ActionSelection.BcastProps
 
-case class ExecutionProps(next: Action => Callback, exec: Execution[_], last: Boolean, currentStep: Int)
+sealed trait ActionSelectionProps
+case class SendSelection(instanceID: InstanceID) extends ActionSelectionProps
+case class BCastSelection(instanceID: InstanceID, processes: Set[ProcessID]) extends ActionSelectionProps
+case class CrashSelection(instanceID: InstanceID, processes: Set[ProcessID]) extends ActionSelectionProps
+
+case class ExecutionProps(selection: List[ActionSelectionProps], next: Action => Callback, exec: Execution[_], last: Boolean, currentStep: Int)
 
 object ExecutionComponent {
 
@@ -38,35 +42,18 @@ object ExecutionComponent {
 
   val ExecutionComponent =
     ScalaComponent.builder[ExecutionProps]("Execution")
-      .render_P { case ExecutionProps(next, exec, last, currentStep) =>
+      .render_P { case ExecutionProps(selection, next, exec, last, currentStep) =>
         <.div(
-          ActionSelection.Send((InstanceID("a"), next)),
-          ActionSelection.Bcast(BcastProps(Instances.BCAST,next,Set(0,1,2))),
-          ActionSelection.CrashSelector((ProcessBcast.instance,Set(0,1,2),next)),
-          ActionSelection.ActionList((exec.enabledActions,next)),
-          <.label(
-            s"Size ${exec.enabled.size}"
-          )
+          selection.flatMap {
+            case SendSelection(instanceID) => Some(ActionSelection.Send((instanceID, next)))
+            case BCastSelection(instance,processes) => Some(ActionSelection.Bcast(BcastProps(instance,next,processes)))
+            case CrashSelection(instance,processes) => Some(ActionSelection.CrashSelector((instance,processes,next)))
+            case _ => None
+          }.toVdomArray,
+          ActionSelection.ActionList((exec.enabledActions,next))
         )
-        /*
-          <.ul(
-            exec.enabled().filterNot {
-              //case Send(_,_,Message(_,MessageID(_,_,_,step))) if step != currentStep => true
-              case DropHeader(id,_) => !couldDrop(exec.sched,id)
-              case BrkBcastHeader(_,_,_,step) if step != currentStep => true // TODO
-              case _ => false
-            }.zipWithIndex.toVdomArray { case (action, index) =>
-              <.li(
-                ^.onClick -->? Option(actionSelected(next)(action)).filter(_ => last),
-                action.toString,
-                ^.key := index
-              )
-            }
-        )
-        */
       }
       .build
-
 
   def apply(p: ExecutionProps) = ExecutionComponent.apply(p)
 

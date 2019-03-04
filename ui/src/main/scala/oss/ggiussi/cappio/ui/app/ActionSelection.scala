@@ -6,7 +6,6 @@ import oss.ggiussi.cappio.core.LinkProtocol.Message
 import oss.ggiussi.cappio.{InstanceID, ProcessID}
 import oss.ggiussi.cappio.core.{Action, LinkProtocol}
 import oss.ggiussi.cappio.impl.bcast.BrokenBcastProtocol
-import oss.ggiussi.cappio.impl.faildet.PerfectFailureDetectorProtocol.Crashed
 import oss.ggiussi.cappio.impl.processes.ProcessProtocol.Crash
 
 object ActionSelection {

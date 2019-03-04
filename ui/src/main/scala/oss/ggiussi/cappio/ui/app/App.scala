@@ -13,7 +13,6 @@ import oss.ggiussi.cappio.core.{Action, _}
 import oss.ggiussi.cappio.impl.links.{FLLState, FairLossLink}
 import oss.ggiussi.cappio.ui
 import oss.ggiussi.cappio.ui.levels
-import oss.ggiussi.cappio.ui.levels.LevelX
 
 object App {
 

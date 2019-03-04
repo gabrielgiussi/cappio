@@ -72,7 +72,10 @@ object Effect {
 
 // It will be hard to test effects if doesn't consider actions
 case class Effect[S](precondition: (S, Action) => Boolean, f: (S, Action) => NextState[S]) extends Function1[(S, Action), NextState[S]] {
-  def apply(input: (S, Action)) = if (precondition(input._1, input._2)) f(input._1, input._2) else throw UnsatisfiedPreconditionException
+  def apply(input: (S, Action)) = {
+    println(input)
+    if (precondition(input._1, input._2)) f(input._1, input._2) else throw UnsatisfiedPreconditionException
+  }
 
 }
 

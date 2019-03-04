@@ -23,8 +23,6 @@ object MessageComponent {
 
   case class Delivered(step: Step) extends MessageStatus
 
-  //case object Pending extends MessageStatus
-
   val SelfArrowLine = ScalaComponent.builder[ArrowProps]("SelfArrowLine")
     .render_P {
       case ArrowProps(Arrow(from, to, sent, status), conf) =>

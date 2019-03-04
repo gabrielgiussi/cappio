@@ -31,28 +31,6 @@ object BrokenBcastState {
   def empty() = BrokenBcastState(Triggers.init())
 }
 
-/*
-case class BrokenBcastState(toSend: Set[Send], toDeliver: Set[BrkDeliver]) {
-
-  def bcast(from: ProcessID, processes: Set[ProcessID], message: Message) = {
-    val _toSend: Set[Send] = processes.map(to => LinkProtocol.send(from, to, Instances.BCAST_LINK,message))
-    NextState(copy(toSend = toSend ++ _toSend), Set.empty[Action] ++ _toSend)
-  }
-
-  def canSend(s: Send): Boolean = toSend contains s
-
-  def send(s: Send) = copy(toSend = toSend - s)
-
-  def canBDeliver(d: BrkDeliver): Boolean = toDeliver contains d
-
-  def bDeliver(d: BrkDeliver) = copy(toDeliver = toDeliver - d)
-
-  def deliver(id: ProcessID, to: ProcessID, msg: Message) = {
-    val _toDeliver = BrkDeliver(BrkDeliverHeader(id,to,Instances.BCAST), msg)
-    NextState(copy(toDeliver = toDeliver + _toDeliver), Set(_toDeliver))
-  }
-}
-*/
 case class BrokenBcastState(triggers: Triggers) {
   // TODO message or payload?
   def bcast(from: ProcessID, processes: Set[ProcessID], message: Message) = {

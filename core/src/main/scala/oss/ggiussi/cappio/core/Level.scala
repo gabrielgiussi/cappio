@@ -8,7 +8,7 @@ object Level {
 
   type Condition[S] = S => Boolean
 
-  def apply[S](conditions: List[StateCondition[S]], schedConditions: List[Condition[List[Action]]], automaton: Automaton[S], initialState: S, monitor: List[Action => Set[Action]])(implicit p: Processes): Level[S] = new Level(conditions, schedConditions, List(Execution(automaton, initialState,monitor = monitor)),p.p)
+  def apply[S](conditions: List[StateCondition[S]], automaton: Automaton[S], initialState: S, monitor: List[Action => Set[Action]])(implicit p: Processes): Level[S] = new Level(conditions, List(Execution(automaton, initialState,monitor = monitor)),p.p)
 }
 
 object StateCondition {
@@ -38,7 +38,9 @@ case class Failed[S](level: Level[S]) extends LevelResult[S] {
 }
 
 // un level es una execution + conditions
-case class Level[S](conditions: List[StateCondition[S]], schedConditions: List[Condition[List[Action]]], executions: List[Execution[S]], processes: Set[ProcessID]) {
+case class Level[S](conditions: List[StateCondition[S]], executions: List[Execution[S]], processes: Set[ProcessID]) {
+
+  val schedConditions: List[Condition[List[Action]]] = List.empty // TODO
 
   def next(action: Action): LevelResult[S] = {
     val ex = last.next(action)

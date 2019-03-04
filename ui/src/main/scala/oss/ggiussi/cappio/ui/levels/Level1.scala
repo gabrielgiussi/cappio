@@ -9,7 +9,9 @@ import oss.ggiussi.cappio.impl.Instances
 import oss.ggiussi.cappio.impl.bcast.{BrokenBcast, BrokenBcastState}
 import oss.ggiussi.cappio.impl.links.{FLLState, FairLossLink, FullFLLState}
 import oss.ggiussi.cappio.impl.processes.{ProcessBcast, ProcessState, Up}
-import oss.ggiussi.cappio.ui.app.Conditions
+import oss.ggiussi.cappio.ui.app._
+
+case class LevelAndSelection[S](level: Level[S], selection: List[ActionSelectionProps])
 
 object Level1 extends LevelT[((FullFLLState,FullFLLState,FullFLLState,FLLState,FLLState,FLLState), STuple3[ProcessState], STuple3[BrokenBcastState])] {
 
@@ -25,6 +27,11 @@ object Level1 extends LevelT[((FullFLLState,FullFLLState,FullFLLState,FLLState,F
   )
 
   val schedConditions: List[(String, Condition[List[Action]])] = List()
+
+  def selection: List[ActionSelectionProps] = List(
+    BCastSelection(Instances.BCAST,Set(0,1,2)),
+    CrashSelection(ProcessBcast.instance,Set(0,1,2))
+  )
 
   val level = {
 
@@ -72,13 +79,13 @@ object Level1 extends LevelT[((FullFLLState,FullFLLState,FullFLLState,FLLState,F
       (BrokenBcastState.empty, BrokenBcastState.empty, BrokenBcastState.empty)
     )
 
-    println(automaton.get.sig.acts().mkString("\n"))
-
-    Level(conditions, schedConditions.map(_._2), automaton.get, initalState, List({
+    Level(conditions, automaton.get, initalState, List({
       case Send(SendHeader(from,to,instance),msg) => Set(Deliver(DeliverHeader(from,to,instance),msg)) ++ (if (from == to) Set() else Set(Drop(DropHeader(from,to,instance),msg.id)))
       case _ => Set.empty
     }))
 
   }
+
+  val a = LevelAndSelection(level,selection)
 
 }

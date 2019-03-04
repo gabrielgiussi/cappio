@@ -14,7 +14,10 @@ lazy val cappio = project.in(file("."))
 
 lazy val core = (project in file("core"))
   .settings(
-    commonSettings
+    commonSettings,
+    libraryDependencies ++= Seq(
+      "org.scalaz" %% "scalaz-core" % "7.2.27"
+    )
     // other settings
   ) enablePlugins (ScalaJSPlugin)
 
