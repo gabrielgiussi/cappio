@@ -9,10 +9,9 @@ package object levels {
 
   @JSExport
   val levels = List(
-    Level1.a
-    //Level2.level,
-    //Level3.level
+    Level1.a,
+    Level2.a,
+    Level3.a
   ).zipWithIndex
-    //.map { case (level,i) => (level,i + 1)}
     .map { case (level,i) => (LevelPage(i + 1), level)}
 }

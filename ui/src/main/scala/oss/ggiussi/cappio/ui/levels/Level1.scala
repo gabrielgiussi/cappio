@@ -13,6 +13,11 @@ import oss.ggiussi.cappio.ui.app._
 
 case class LevelAndSelection[S](level: Level[S], selection: List[ActionSelectionProps])
 
+
+/*
+  Broken Bcast.
+  Make states differ (should drop state)
+ */
 object Level1 extends LevelT[((FullFLLState,FullFLLState,FullFLLState,FLLState,FLLState,FLLState), STuple3[ProcessState], STuple3[BrokenBcastState])] {
 
   type State = ((FullFLLState,FullFLLState,FullFLLState,FLLState,FLLState,FLLState), STuple3[ProcessState], STuple3[BrokenBcastState])
@@ -25,8 +30,6 @@ object Level1 extends LevelT[((FullFLLState,FullFLLState,FullFLLState,FLLState,F
     StateCondition("Process 2 state should be x = 0", (s: State) => s._2._3 == Up(0)),
     StateCondition("There must not be remaining messages to deliver", (s: State) => List(s._1._1, s._1._2, s._1._3).forall(_.empty) && List(s._1._4, s._1._5, s._1._6).forall(_.empty))
   )
-
-  val schedConditions: List[(String, Condition[List[Action]])] = List()
 
   def selection: List[ActionSelectionProps] = List(
     BCastSelection(Instances.BCAST,Set(0,1,2)),

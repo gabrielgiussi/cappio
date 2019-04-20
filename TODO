@@ -92,10 +92,6 @@
 
 (22) Effect.precondition should return more information than a boolean, for debuggin purposes.
 
-(X)(23) Facilitar lo que es pattern matching de output actions. Tener un State[S](triggered: Set[Action], s: S) y el pattern matching solo se fije si esta en el set triggered
-
-(24) Revisar el uso de Step. ¿Para que lo necesito? ====> Step lo uso para armar el MessageID y que cada msg sea unico.
-
 (25) Revisar el uso de Message, porque mandar un payload directamente? Esta relacionado con el punto 24 porque Message tmb incluye un MessageID.
      El uso de MessageID era para identificar univocamente los mensajes y poder armar la signature en base a estos mensajes. También podria usar un UUID pero en ese caso, cuantos uuid armo?
 
@@ -191,6 +187,12 @@
      (b) Tener otra funcion que elimine actions del set de enabled! En este caso un Deliver elimina el Drop.
 
 (45) Quiero tener la posibilidad de hacer distintos tipos de procesos, por ejemplo para poder hacer un cluster de cassandra y un cluster de clientes.
+
+(46) BCast no tiene el id de los procesos, tengo que tener cuidado con esto si quiero tener clusters de distinto tipo (ej kafka y cassandra). Supongo que lo puedo hacer
+     via instanceId, pero tambien lo estoy hardcodeando.
+
+(47) Voy a poder disponiblizar los vector clocks via metadata? O voy a tener que incorporar un tipo de comunicación diferente para componetnes locales?
+     Y alguna noción de contexto en el cual vaya poniendo elementos como vector clocks. El objetivo es que pueda usar un beb bcast para mandar mensajes con o sin vector clock.
 
 Prioridades
 (35)(36)(37) => update state?

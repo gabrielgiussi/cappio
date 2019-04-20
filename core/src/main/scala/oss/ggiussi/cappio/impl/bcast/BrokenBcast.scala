@@ -54,7 +54,7 @@ object BrokenBcast {
   def apply(instance: InstanceID)(id: ProcessID, neighbors: Set[ProcessID]): BrokenBcast = new BrokenBcast(id, neighbors, instance)
 }
 
-// A BebBcast will look like the same, the only thing that changes is the implementation of the link
+// TODO rename A BebBcast will look like the same, the only thing that changes is the implementation of the link
 case class BrokenBcast(id: ProcessID, neighbors: Set[ProcessID], instance: InstanceID) extends Automaton[BrokenBcastState] {
 
   import Instances._

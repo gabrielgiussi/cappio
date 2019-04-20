@@ -8,7 +8,18 @@ import oss.ggiussi.cappio.impl.Instances
 import oss.ggiussi.cappio.impl.bcast.{BrokenBcast, BrokenBcastState}
 import oss.ggiussi.cappio.impl.links._
 import oss.ggiussi.cappio.impl.processes.{ProcessBcast, ProcessState, Up}
+import oss.ggiussi.cappio.ui.app.{ActionSelectionProps, BCastSelection, CrashSelection}
 
+/*
+  Beb bcast
+  Make state converge (even if message is dropped).
+  Para que este nivel tenga sentido tengo que usar una de las siguientes opciones
+    (a) Network partition
+    (b) Drop message as condition.
+  La opción (b) es mas fácil.
+  La opción (a) requiere insertar actions preconfiguradas, estas acciones ademas no pueden ser fijas. Se tienen que insertar en base a acciones previas. Es decir
+  hay una logica en el mecanismo de insercion de actions.
+ */
 object Level2 extends LevelT[((FullPLState,FullPLState,FullPLState,PLState,PLState,PLState), STuple3[ProcessState], STuple3[BrokenBcastState])] {
 
   type State = ((FullPLState,FullPLState,FullPLState,PLState,PLState,PLState), STuple3[ProcessState], STuple3[BrokenBcastState])
@@ -24,7 +35,11 @@ object Level2 extends LevelT[((FullPLState,FullPLState,FullPLState,PLState,PLSta
     StateCondition("There must not be remaining messages to deliver", (s: State) => List(s._1._4, s._1._5, s._1._6).forall(_.isEmpty) && List(s._1._1, s._1._2, s._1._3).forall(_.isEmpty))
   )
 
-  val schedConditions: List[(String, Condition[List[Action]])] = List()
+
+  val selection: List[ActionSelectionProps] = List(
+    BCastSelection(Instances.BCAST,Set(0,1,2)),
+    CrashSelection(ProcessBcast.instance,Set(0,1,2))
+  )
 
   val level = {
     implicit val p = Processes(Set(0, 1, 2))
@@ -76,5 +91,7 @@ object Level2 extends LevelT[((FullPLState,FullPLState,FullPLState,PLState,PLSta
       case _ => Set.empty
     }))
   }
+
+  val a = LevelAndSelection(level,selection)
 
 }

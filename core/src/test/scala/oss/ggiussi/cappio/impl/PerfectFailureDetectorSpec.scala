@@ -16,13 +16,13 @@ class PerfectFailureDetectorSpec extends WordSpec with Matchers {
 
   val execution = Execution(automaton, state)
 
-
+/*
   println(execution
     .next(LinkProtocol.deliver(1, 0,Message(HeartbeatRequest(1)), Instances.FAILURE_DET_LINK))
     .next(Timeout(instance))
     .next(LinkProtocol.deliver(1, 0, Message(HeartbeatReply(1)), Instances.FAILURE_DET_LINK))
     .sched())
-
+*/
   "Perfect Failure Detector" must {
     "trigger a Timeout after n ticks" in {
       execution.next(Tick).next(Tick).sched().take(3) shouldBe List(Tick,Tick,Timeout(instance))

@@ -8,7 +8,12 @@ import oss.ggiussi.cappio.impl.Instances
 import oss.ggiussi.cappio.impl.bcast.{BrokenBcast, BrokenBcastState}
 import oss.ggiussi.cappio.impl.links._
 import oss.ggiussi.cappio.impl.processes.{Down, ProcessBcast, ProcessState, Up}
+import oss.ggiussi.cappio.ui.app.{ActionSelectionProps, BCastSelection, CrashSelection}
 
+/*
+  Break beb bcast
+  Make states differ (crash sender)
+ */
 object Level3 extends LevelT[((FullPLState,FullPLState,FullPLState,PLState,PLState,PLState), STuple3[ProcessState], STuple3[BrokenBcastState])] {
 
   type State = ((FullPLState,FullPLState,FullPLState,PLState,PLState,PLState), STuple3[ProcessState], STuple3[BrokenBcastState])
@@ -24,7 +29,10 @@ object Level3 extends LevelT[((FullPLState,FullPLState,FullPLState,PLState,PLSta
     }),
   )
 
-  val schedConditions: List[(String, Condition[List[Action]])] = List()
+  val selection: List[ActionSelectionProps] = List(
+    BCastSelection(Instances.BCAST,Set(0,1,2)),
+    CrashSelection(ProcessBcast.instance,Set(0,1,2))
+  )
 
   val level = {
     implicit val p = Processes(Set(0,1,2))
@@ -77,5 +85,7 @@ object Level3 extends LevelT[((FullPLState,FullPLState,FullPLState,PLState,PLSta
       case _ => Set()
     }))
   }
+
+  val a = LevelAndSelection(level,selection)
 
 }
