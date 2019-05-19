@@ -1,0 +1,55 @@
+
+### Que tengo que dibujar?
+
+(1) Input actions
+    (a) Request disponibles (stack.requests (Bcast, Read/Write, etc)) (*)
+    (b) Deliver disponibles (network.toDeliver)
+    (c) Drops (network.toDeliver)
+    (d) Crash: procesos alive (Set[(ProcessId,Status))
+
+    (opcional)
+
+    (e) Network Partitions
+    (f) Drift
+
+(*) Para poder hacer esto voy a necesitar algo similar a lo que habia hecho en el poc anterior, un ActionHeader y un Action.
+    Es decir por un lado tengo el tipo de action y por el otro el contenido (que puede ser opcional como en el caso del Read)
+    Bcast => Bcast(-processId-,-payload-)
+    La ui deberia saber como instanciar estas actions (y como pintar el input para el payload)
+
+    Los eventos (Bcast,Timeout,Crash,etc) deberían ser visibles para ui
+
+(2) Lineas de tiempo
+    list of process ids, numero de turnos (prefixed?)
+
+(3) Status x Proceso
+
+(4) Delivers
+    Indice del drop, Message UUID, from, to, payload
+
+(5) Drops
+    Indice del drop, Message UUID, from, to, payload
+
+(6) Crashes
+    Indice del crash, process id
+
+(7) Schedule (lista de requests/indications)
+
+(8) Level Conditions
+
+(9) Indications (flechitas para arriba en el diagrama)
+
+(opcional)
+
+(9) Undelivered send
+    Si bien mejora la experiencia del usuario es medio dificil porque tengo que ir calculando el angulo en base al turno para que se vaya
+    extendiendo en el tiempo el undelivered send, salvo que lo haga con lineas rectas |_____
+    Tambien podria mostrarlos en otro lado que no sea el diagrama!
+
+(10) Eventos locales
+
+(11) Software stack (Broadcast -> PL -> SL -> FLL)
+
+
+
+
