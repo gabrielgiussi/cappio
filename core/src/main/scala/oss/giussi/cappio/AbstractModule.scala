@@ -6,6 +6,8 @@ import oss.giussi.cappio.impl.net.Socket
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 
+// FIXME abstract class BaseState[R,S,I,Self <: StateWithModule[R,S,I,Self]](m: Module[R,S,I]) extends StateWithModule[R,S,I,Self]
+
 trait StateWithModule[R, S, I, Self <: StateWithModule[R,S,I,Self]] { this: Self =>
   def updateModule(m: Module[R, S, I]): Self // FIXME como hago para que aca sea updateModule(m: A) donde A <: Module[R, S, I]
 
@@ -41,6 +43,7 @@ abstract class AbstractModule[R, S <: StateWithModule[UR, US, UI, S], I, UR, US,
   }
 
   // if indications can be mixed with events it will be better to separate in two classes
+  // ns should be an Option[S] asi puedo decir q no cambio el estado
   case class LocalStep(indications: Set[I], events: Set[LocalIndication],requests: Set[LocalRequest], sends: Set[FLLSend], ns: S)
 
   //implicit def usesNextStateAsLocalStep(ns: NextState[UR,US,UI]): LocalStep = LocalStep(ns.indications.map(LocalIndication), ns.send, state.updateModule(ns.module))
@@ -87,4 +90,32 @@ abstract class AbstractModule[R, S <: StateWithModule[UR, US, UI, S], I, UR, US,
 
   override def tick: Next = requestMsg(Seq(Tick,DelegateTick)) // TODO order matters
 
+}
+
+case class CombinedModule[R1,S1,I1,R2,S2,I2,S](i1: Instance, m1: Module[R1,S1,I1], i2: Instance, m2: Module[R2,S2,I2], fs: (S1,S2) => S) extends Module[Either[R1,R2],S,Either[I1,I2]] {
+  override def request(in: Either[R1, R2]): Next = in match {
+    case Left(r) => p1(m1.request(r))
+    case Right(r) => p2(m2.request(r))
+  }
+
+  private def p1(ns: NextState[R1,S1,I1]) = next(copy(m1 = ns.module), ns.indications.map(Left(_)), ns.send)
+
+  private def p2(ns: NextState[R2,S2,I2]) = next(copy(m2 = ns.module), ns.indications.map(Right(_)), ns.send)
+
+  override def state: S = fs(m1.state,m2.state)
+
+  override def tail: Socket[Either[R1, R2], S, Either[I1, I2]] = (fll: FLLDeliver) => {
+    if (fll.packet.instance == i1)
+      p1(m1.tail.deliver(fll))
+    else if (fll.packet.instance == i2) p2(m2.tail.deliver(fll))
+    else throw new RuntimeException("No instance match")
+  }
+
+  override def tick: Next = {
+    val NextState(ind1,send1,ns1) = m1.tick
+    val NextState(ind2,send2,ns2) = m2.tick
+    val lind = ind1.map(Left(_))
+    val rind = ind2.map(Right(_))
+    next(copy(m1 = ns1, m2 = ns2), lind ++ rind, send1 ++ send2)
+  }
 }

@@ -2,6 +2,7 @@ package oss.giussi.cappio
 
 import java.util.UUID
 
+import oss.giussi.cappio.impl.bcast.UniformReliableBroadcast.Payload
 import oss.giussi.cappio.impl.net.FairLossLink.{FLLDeliver, FLLSend}
 
 import scala.util.{Failure, Success, Try}
@@ -10,6 +11,8 @@ object Packet {
   def apply(from: Int, to: Int, payload: Any, instance: Instance): Packet = new Packet(UUID.randomUUID(), payload, ProcessId(from), ProcessId(to), instance)
 
   def apply(from: ProcessId, to: ProcessId, payload: Any, instance: Instance): Packet = new Packet(UUID.randomUUID(), payload, from, to, instance)
+
+  def apply(payload: Payload, from: ProcessId, to: ProcessId, instance: Instance): Packet = new Packet(payload.id, payload.msg, from, to, instance)
 }
 
 // Deberian poder ser creados solo por las abstraction de network

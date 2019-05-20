@@ -1,38 +1,42 @@
 package oss.giussi.cappio.impl.bcast
 
-import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.{BebBcast, BebDeliver}
-import oss.giussi.cappio.impl.net.FairLossLink.{FLLDeliver, FLLSend}
+import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.{BEBState, BebBcast, BebDeliver}
 import oss.giussi.cappio.impl.net.PerfectLink.{PLDeliver, PLSend, PerfectLinkState}
-import oss.giussi.cappio.impl.net.Socket
-import oss.giussi.cappio.{Instance, Module, NextState, Packet, ProcessId}
+import oss.giussi.cappio.impl.net.{PerfectLink, Socket}
+import oss.giussi.cappio._
+import oss.giussi.cappio.impl.bcast.UniformReliableBroadcast.Payload
 
 object BestEffortBroadcast {
-  case class BebBcast(payload: Any, instance: Instance)
 
-  case class BebDeliver(from: ProcessId, payload: Any)
+  object BebBcast {
+    def apply(payload: Any, instance: Instance): BebBcast = new BebBcast(Payload(payload), instance)
+  }
+
+  case class BebBcast(payload: Payload, instance: Instance)
+
+  case class BebDeliver(from: ProcessId, payload: Payload)
+
+  object BEBState {
+    def init(timeout: Int) = BEBState(PerfectLink.init(timeout))
+  }
+
+  case class BEBState(module: Module[PLSend, PerfectLinkState, PLDeliver]) extends StateWithModule[PLSend, PerfectLinkState, PLDeliver, BEBState] {
+    override def updateModule(m: Module[PLSend, PerfectLinkState, PLDeliver]): BEBState = copy(m)
+  }
+
+  def init(self: ProcessId,all:Set[ProcessId], timeout: Int) = BestEffortBroadcast(self,all,BEBState.init(timeout))
 }
 
-case class BestEffortBroadcast(self: ProcessId, all: Set[ProcessId], pl: Module[PLSend,PerfectLinkState,PLDeliver]) extends Module[BebBcast,Unit,BebDeliver]{
-  override def request(in: BebBcast): Next = {
-    val (toSend,newpl) = all.map(to => PLSend(Packet(self,to,in.payload,in.instance)))
-    .foldLeft((Set.empty[FLLSend],pl)){
-      case ((sends,link),req) =>
-        val NextState(_,s,plns) = link.request(req)
-        (sends ++ s,plns)
-    }
-    next(copy(pl = newpl),send = toSend)
+case class BestEffortBroadcast(self: ProcessId, all: Set[ProcessId], state: BEBState) extends AbstractModule[BebBcast, BEBState, BebDeliver, PLSend, PerfectLinkState, PLDeliver] {
+  override def copyModule(s: BEBState): AbstractModule[BebBcast, BEBState, BebDeliver, PLSend, PerfectLinkState, PLDeliver] = copy(state = s)
+
+  override def processLocal(l: LocalMsg, state: BEBState): LocalStep = l match {
+    case Tick => LocalStep(state)
+    case PublicRequest(BebBcast(Payload(id,msg), instance)) =>
+      val req = all.map(to => LocalRequest(PLSend(Packet(id,msg, self, to, instance))))
+      LocalStep.localRequest(req, state)
+    case LocalIndication(PLDeliver(Packet(id, payload, from, _, _))) => LocalStep(Set(BebDeliver(from, Payload(id,payload))), state)
   }
 
-  override def state: Unit = ()
-
-  override def tail: Socket[BebBcast, Unit, BebDeliver] = (deliver: FLLDeliver) => {
-    val NextState(ind,_,plns) = pl.tail.deliver(deliver)
-    val PLDeliver(Packet(_,payload,from,_,_)) = ind.head // FIXME ind.head
-    next(copy(pl = plns), indications = Set(BebDeliver(from,payload)))
-  }
-
-  override def tick: Next = {
-    val NextState(_,send,plns) = pl.tick
-    next(copy(pl = plns), send = send)
-  }
+  override def t: Socket[PLSend, PerfectLinkState, PLDeliver] = state.module.tail
 }
