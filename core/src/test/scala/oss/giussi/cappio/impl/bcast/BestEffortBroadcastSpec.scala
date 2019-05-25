@@ -16,7 +16,7 @@ class BestEffortBroadcastSpec extends WordSpec with Matchers {
 
   "BestEfforBroadcast" must {
     "A" in {
-      beb.request(BebBcast("something", instance))
+      beb.request(BebBcast(Payload("something"), instance))
         .send.map { case FLLSend(Packet(_, payload, from, to, _)) => (from.id, to.id, payload) } should contain theSameElementsAs Set(0, 1, 2).map(to => (0, to, "something"))
     }
     "B" in {

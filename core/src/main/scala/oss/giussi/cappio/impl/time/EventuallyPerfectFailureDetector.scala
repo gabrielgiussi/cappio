@@ -50,6 +50,4 @@ case class EventuallyPerfectFailureDetector(self: ProcessId, all: Set[ProcessId]
 
   }
 
-  override def t: Socket[PLSend, PerfectLinkBetaState, PLDeliver] = state.module.tail
-
 }

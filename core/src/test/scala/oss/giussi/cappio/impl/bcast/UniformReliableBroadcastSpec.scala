@@ -2,7 +2,6 @@ package oss.giussi.cappio.impl.bcast
 
 import org.scalatest.{Matchers, WordSpec}
 import oss.giussi.cappio.{Packet, ProcessId}
-import oss.giussi.cappio.impl.bcast.UniformReliableBroadcast.{Payload, URBBcast, URBDeliver}
 import oss.giussi.cappio.impl.net.FairLossLink.{FLLDeliver, FLLSend}
 
 class UniformReliableBroadcastSpec extends WordSpec with Matchers {
@@ -16,12 +15,14 @@ class UniformReliableBroadcastSpec extends WordSpec with Matchers {
 
   "A" should  {
     "B" in {
-      urb.request(URBBcast(Payload("gaga")))
-        .send.map { case FLLSend(Packet(_,p,from,to,_)) => (p,from.id,to.id) } should contain theSameElementsAs (0 to 2).map(("gaga",0,_))
+      val payload = Payload("gaga")
+      val uuid = payload.id
+      urb.request(URBBcast(payload))
+        .send.map { case FLLSend(Packet(`uuid`,URBData(ProcessId(0),"gaga"),ProcessId(0),to,_)) => (to.id) } should contain theSameElementsAs Set(0,1,2)
     }
     "C" in {
       val payload = Payload("gaga")
-      val urbPayload = Payload(payload.id,URBDeliverMsg(0,payload.msg))
+      val urbPayload = Payload(payload.id,URBData(0,payload.msg))
       urb.request(URBBcast(payload))
         .module.tail.deliver(FLLDeliver(Packet(urbPayload,1,0,BEB)))
         .module.tail.deliver(FLLDeliver(Packet(urbPayload,2,0,BEB)))

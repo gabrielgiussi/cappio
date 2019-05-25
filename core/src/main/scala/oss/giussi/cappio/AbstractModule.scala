@@ -12,6 +12,8 @@ trait StateWithModule[R, S, I, Self <: StateWithModule[R,S,I,Self]] { this: Self
   def updateModule(m: Module[R, S, I]): Self // FIXME como hago para que aca sea updateModule(m: A) donde A <: Module[R, S, I]
 
   def module(): Module[R,S,I]
+
+  final def tail = module().tail
 }
 
 abstract class AbstractModule[R, S <: StateWithModule[UR, US, UI, S], I, UR, US, UI] extends Module[R, S, I] {
@@ -64,7 +66,7 @@ abstract class AbstractModule[R, S <: StateWithModule[UR, US, UI, S], I, UR, US,
     def pq(queue: Queue[Msg], indications: Set[I], sends: Set[FLLSend], state: S): (S, Set[I], Set[FLLSend]) = {
       if (queue.isEmpty) (state, indications, sends)
       else {
-        //println(queue.head)
+        // save all events and indications, it may be useful for UI! (e.g. PFD.Crashed)
         val LocalStep(ind, events, rqs,ss, ns) = processMsg(queue.head, state)
         // TODO watch out with the order of this events, if its matters I'm in trouble
         pq(queue.tail ++ events ++ rqs, indications ++ ind, sends ++ ss, ns)
@@ -86,7 +88,7 @@ abstract class AbstractModule[R, S <: StateWithModule[UR, US, UI, S], I, UR, US,
 
   override def tail: Socket[R, S, I] = (packet: FLLDeliver) => requestMsg(Seq(LocalNextState(t.deliver(packet))))
 
-  def t: Socket[UR,US,UI]
+  final def t: Socket[UR,US,UI] = state.tail
 
   override def tick: Next = requestMsg(Seq(Tick,DelegateTick)) // TODO order matters
 

@@ -8,10 +8,6 @@ import oss.giussi.cappio.impl.bcast.UniformReliableBroadcast.Payload
 
 object BestEffortBroadcast {
 
-  object BebBcast {
-    def apply(payload: Any, instance: Instance): BebBcast = new BebBcast(Payload(payload), instance)
-  }
-
   case class BebBcast(payload: Payload, instance: Instance)
 
   case class BebDeliver(from: ProcessId, payload: Payload)
@@ -38,5 +34,4 @@ case class BestEffortBroadcast(self: ProcessId, all: Set[ProcessId], state: BEBS
     case LocalIndication(PLDeliver(Packet(id, payload, from, _, _))) => LocalStep(Set(BebDeliver(from, Payload(id,payload))), state)
   }
 
-  override def t: Socket[PLSend, PerfectLinkState, PLDeliver] = state.module.tail
 }

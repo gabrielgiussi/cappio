@@ -38,6 +38,4 @@ case class EventualLeaderElection(self: ProcessId, state: ELEState) extends Abst
 
   }
 
-  override def t: Socket[NoRequest, EPFDState, EPFDIndication] = state.module.tail
-
 }

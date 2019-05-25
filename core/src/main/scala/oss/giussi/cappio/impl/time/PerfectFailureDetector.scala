@@ -43,14 +43,13 @@ case class PerfectFailureDetector(self: ProcessId, state: PFDState, timeout: Int
   override def processLocal(l: LocalMsg, state: PFDState): LocalStep = l match {
     case PublicRequest(_) => LocalStep(state)
     case Tick if state.timer + 1 == timeout =>
-      val (ns,crashed,alive) = state.timeout()
+      val (ns, crashed, alive) = state.timeout()
       val ind = crashed.map(Crashed)
-      val heartbeats = alive.map(id => LocalRequest(PLSend(Packet(self,id,HeartbeatRequest,instance))))
-      LocalStep.prueba(ind,heartbeats,ns)
+      val heartbeats = alive.map(id => LocalRequest(PLSend(Packet(self, id, HeartbeatRequest, instance))))
+      LocalStep.prueba(ind, heartbeats, ns)
     case Tick => LocalStep(state.tick())
-    case LocalIndication(PLDeliver(Packet(_,HeartbeatReply,from,_,_))) => LocalStep(state.hearbeat(from))
-    case LocalIndication(PLDeliver(Packet(_,HeartbeatRequest,from,_,_))) => LocalStep.localRequest(Set(LocalRequest(PLSend(Packet(self,from,HeartbeatReply,instance)))),state)
+    case LocalIndication(PLDeliver(Packet(_, HeartbeatReply, from, _, _))) => LocalStep(state.hearbeat(from))
+    case LocalIndication(PLDeliver(Packet(_, HeartbeatRequest, from, _, _))) => LocalStep.localRequest(Set(LocalRequest(PLSend(Packet(self, from, HeartbeatReply, instance)))), state)
   }
 
-  override def t: Socket[PLSend, PerfectLinkBetaState, PLDeliver] = state.module.tail
 }

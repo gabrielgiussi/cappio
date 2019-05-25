@@ -49,6 +49,4 @@ case class LeaderElection(state: LEState) extends AbstractModule[NoRequest,LESta
     case Tick => LocalStep(state) //  TODO make process local a partial function ??
   }
 
-  override def t: Socket[NoRequest, PFDState, Crashed] = state.module.tail
-
 }

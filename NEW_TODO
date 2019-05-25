@@ -1,0 +1,357 @@
+(1) ¿Dónde modelar el estado?
+(2) ¿Cómo modelar el crash de un nodo?
+(3) ¿Cómo modelar el timeout de los Perfect Failure Detector? (partial async) (tienen una restricción de tiempo para q los algoritmos funcionen bien)
+*(4) Hacer la pregunta q le hice a Alex por twitter y medium
+(6) ¿Como modelar mensajes que se pierden? ¿un FairLossLink que puedas elegir entre Deliver y Drop?
+(7) ¿Como modelar que algunos algortimos solo se pueden usar en un system model especifico, por ejemplo Perfect failure detector en partially sync.
+*(8) ¿Cómo son las reglas de composicion de los modulos?
+    Suponiendo
+    Modulo a.A {
+      request action1
+      indication action2
+    }
+    Modulo B {
+      request action1
+      indication action2
+    }
+    Modulo C {
+       request action3
+       indication action4
+    }
+
+    (a) Puedo poner ModuloA y ModuloB a la misma altura en la software layer? De manera que cuando llega una action1 se ejecutan la de los dos modulos?
+        Este escenario no lo veo en el libro, porque si bien Perfect Link y Stubborn tienen send, estan asociados a una instancia!
+        Stuborn entiende sl Send y Perfect entiende pl Send
+    (b) Puedo poner ModuloA y ModuloC a la misma alutra? Me daria una interfaz {
+       request action1
+       request action3
+       indication action2
+       indication action4
+    }
+    (c)
+
+(9) Los procesos (aka stack of modules) tienen estado?
+    O dicho de otra forma, cada abstraccion tiene estado, pero pueden compartirlo?
+    Un caso que se me ocurre es el de tener acceso a un reloj fisico, para mostrar los problemas que puede tener.
+    Alternativas
+    (a) Todas las abstracciones tienen accesso a un estado compartido (que se mantiene entre acciones). Una abstraccion Clock sera la encargada
+        de modificar este estado compartido con cada Tick
+    (b) El Clock recibe deliver y agrega el reloj fisico a la action => (deliver,clock). Tambien tendria que "esuchar" los ticks para avanzar el reloj.
+
+(10) Suponiendo que tengo un Perfect Link (perfect -> stubborn -> fair loss)
+     Cuando el usuario seleccione un Send, se tienen que ejecutar los 3 action handlers (en orden).
+     Despues de esto voy a tener disponible la action Deliver que la estaria ejecutando la network.
+     Hasta ahora la estaba disponibilizando como una triggered action y por lo tanto la podia seleccionar.
+     Alternativas
+     (a.A) Podria incorporar una abstraccion network que como input action tenga DoDeliver y como output el deliver. En este caso necesito tener una lista
+         de las triggered action para permitirle al usuario seleccionar.
+     (B) Objeto especial compartido Network (no uno por proceso) que reciba los send de FairLossLink y me permita elegir los delivers.
+
+(11) Necesito una forma de poder mostrar el estado de las abstracciones (potencialmente en tds sus niveles) para poder mostrarlos en la UI
+(12) ¿Cómo modelar metadata? Ejemplo: Vector clock
+*(13) ¿Como modelar Tick action? (para tiemouts!)
+     (a.A) Actions por defecto que pone cappio.
+         Tick -> user selected -> Tick -> user selected -> Tick -> ...
+         User selected puede ser una input action (como Send), un deliver/drop de la red, o un crash de proceso
+*(14) Pag 20. "Every process is implemented by the same automaton"
+     ¿Como podria modelar un cluster de clientes y uno de cassandra? O solo modelo el de cassandra?
+*(15) Pag 21. "The steps of the processes are executed according to ticks of the global clock: ONE STEP PER CLOCK TICK"
+     Even if two steps are xecuted at the same physical instant, we view them as if they were executed at two different times of our global clock"
+     One step per process? O one step en general?
+
+     Me interesa tener un orden global en el cual ocurren las acciones para poder pintarlas. Y me gustaria que dos acciones ocurrieran con el mismo indice
+     para pintarlas a la misma altura y que sea mas grafico que son concurrentes (potencialmente pueden ocurrir en el mismo instante)
+     Podria usar el tick entre actiones como indice. (esta pregunta esta ligada  la 13)
+     seria Tick -> (1 to N) user selected action -> Tick
+     El usuario tendria q elegir una accion por proceso entre ticks, con la posibilidad de elegir una NoOpAction
+
+*(16) Tiene alguna contra modelar el Crash como una input action?
+     lo que haria seria por ejemplo combinar el Modulo de PF + Modulo Crashable = Modulo {
+       send
+       crash
+     }
+     El problema con esto es que voy a poder seguir haciendo el send. (Salvo que con el crash modifique un estado compartido del Proceso que me permita ver si
+     esta crashed o no. Pero a su vez requiere que haga una abstraccion PerfectLinkCrashable para que tenga la logica de consultar el estado en el send.
+     Tal vez es mejor considerar el estado del proceso como algo unico que todas las abstraccions lo consideren (o que no tengan que considerarlo y sea el
+     scheduler de actions que considere el estado de los procesos, porque las abstraccions van a hacer todas lo mismo, si esta crasheado no hacer nada).
+     Tengamos en cuenta q no estoy considerando CrashRecovery.
+
+(17) ¿Que necesito para dibujar?
+     Input actions
+     Crashes
+     Drops
+     Delivers
+     Process state (ejemplo current vector clock)
+     ¿Local events? Revisar esto con un caso mas complejo como broadcast. Pero en principio podria obviarlos y tener un diagrama "aceptable"
+
+(18) Necesito poder diferenciar entre eventos entre procesos y eventos locales entre componentes (para poder dibujarlos distinto).
+
+(19) Clock drift
+     Alternativas
+     (a.A) request action
+     (B) special request action (¿tiene algun impacto para cappio?)
+     (C) Special event send to processes outside actions (like network drops)
+
+(20) ¿Qué necesito para dibuar los atomic register?
+
+(21) ¿Cómo modelar topologías?
+     Es decir que el proceso 1 pueda enviar al 2, pero no pueda enviar al 3
+     ¿Usando estado en Perfect Link?
+     que reciba la input action send pero que no haga nada
+     "Every pair of processes is connected by a bidirectional link, a topology that provides full connectivity among the processes" (pag 32)
+
+(22) "a.A process step consist of receiving (delivering) a message from another process (global event), executing a local computation (local event)
+      and sending a message to some process (global event)" (pag 21)
+
+      Delivering a message => "output" action
+      Sending a message => "input" action
+      Local computation => local actions + actions on conditions like timeout
+
+(23) Revisar que tipos de acciones internas hay
+     (a.A) Timeout Perfect Failure Detector (pag 51)
+     (B) correct C writeset Regular Register (pag 144)
+     En realidad a.A y B son distintas, la a.A no es sobre una condicion del estado interno de la abstraccion sino en respuesta a una action especial Timeout.
+     Tal vez se pueda manejar como una action especial, por ejemplo modelando los system-model y que al usar Sync/Partial sync tire timeouts
+     En realidad lo de Sync iria en la network, q tendria la logica para mandar los eventos antes del timeout (o fallar)
+     ¿Por que partially sync tambien tira timeouts?¿como sabe que no esta en un estado async? (pag 53)
+     ¿Quien manda entonces el evento timeout?
+
+(24) Revisar gossip a ver si tiene alguna particularidad (pag 96)
+
+(25) Reinicio del proceso. Ver paxos
+
+(26) Eventos especiales:
+     - Drop (user selected)
+     - Timeout? (network?) // tal vez deberia ser un evento propio de la abstraccion.
+     - Crash (user selected)
+     - Drift
+
+(27) ¿Como evitar el stubborn? Para que no este haciendo deliver tod el tiempo (y sea inentendible la UI)
+
+(28) Para que el timeout funcione uso las siguientes reglas
+     Por turno => 1 Deliver por proceso + Tick
+     On tick, incremento el clock
+     Clock == Delta => disparo timeout (el delta es delay del sync model)
+     No puedo hacer mas de un send al mismo proceso en el mismo turno
+     Tengo que forzar los delivers para procesos no crasheados!
+
+(29) Dependencias explicitas entre system model y abstractions?
+     Ejemplo Perfect Failure detector requires Sync Model
+
+(30) Como modelar Crash recovery?
+
+*(31) Porque en AtomicRegister Read y Write (y ReadReturn y WriteReturn) son actions y no payloads de Send?
+
+*(32) "Each correct process accesses the registers in a sequential mmaner, which means that after a process has invoked
+      an operation on a register, the process doesn not invoke any further operation on that register until the previous operation completes"
+      (Pag 138)
+      ¿a.A que se debe esta restriccion? ¿Como modelo dos reads de dos usuarios concurrentes?
+      ¿Donde se implementaria esa restriccion? Porque en el pseudocodigo no se ve...
+
+(33) ¿Como implementar la restriccion definida en (32)?
+
+(34) ¿a.A donde van a parar las output actions? ejemplo si la "ultima" abstraction es un beb-broadcast, a donde va beb-deliver?
+
+(35) ¿Como dibujar las linas de read y writes?
+     Para el caso de Read-One Write All, estaria bien que el read sea un punto y no una linea?
+
+(36) Envio de eventos, opciones:
+     (a.A) Stack de componentes con orden
+          send/request -> |_|_|_|_| -> indication
+            indication <- |_|_|_|_| <- deliver
+     (B) "Bolsa" de componentes que registran handlers de eventos, ej PerfectLink registra un handler para escuchar PLSend y PLDeliver
+                           ________
+          send/request -> |        | -> indication
+                          |        |
+                          |        |
+                           --------
+
+     Las indications que salgan del stack serian las output actions de los procesos, ej BebDeliver.
+
+(37) Si ya no invoco metodos desde las abstracciones (e.g. PerfectLink send no invoca el metodo send de StubbornLink)
+     sino que envio eventos a través del stack...
+     ¿como hago con los eventos que se disparan por condiciones?
+     ¿cuál es el momento en el que se chequearia la condicion para saber si tengo q disparar el evento?
+     Se deberia disparar "atomicamente" junto con un send/request/deliver para que no exista un modulo con un estado
+     donde se de la condicion pero no se haya disparado el evento
+     Opciones
+     (a.A)  Evento especial Tick enviado por el Scheduler
+     (B)  Cada abstraccion se encarga de chequear conditions dsp de procesar un send/deliver/request
+     (B') Cada abstraccion se encarga de chequear conditions dsp de procesar un send/deliver/request y antes de delegar las indications
+
+     La diferencia entre B y B' puede tener impacto en los resultados de las operaciones asi que tengo que tener cuidado.
+
+(38) ¿Que hacer con los eventos que no son consumidos por ninguna capa y que no estan en la capa final? (basicamente se debe
+     a que falto alguna implementacion? Lo mejor seria controlar esto al tiempo de armar el stack, como en la materializacion
+     de los streams de akka que controlan que todos los inlets y outlets esten conectados.
+
+(39) ¿Hay algun caso donde una indication generado por un request no tenga que llegar al final del stack sino que tiene que ser consumido por una capa
+     anterior?
+     Ejemplo, urb usa un PerfectFailureDetector.
+     La implementacion Exclude on Timeout dispara el Crash ante el evento Timeout.
+     El Crash tiene que ser consumido por el urb
+     |pf|beb|  crash
+      ------     |
+     |  urb |    v
+
+     Según el dibujo de la pag 12 los request siempre "bajan" y las indications siempre "suben"
+
+
+(49) ¿Como implementar eventos internos sobre conditions? (en que momento se hace el chequeo?)
+
+(50) ¿Como implementar el evento timeout?. Lo puedo considerar un evento interno sobre una condition (steps == X)
+     Si se cumple disparo el timeout y pongo step en 0. Lo que queda es resolver en que momento se incrementa el step? Con cada Tick?
+     Si no uso Tick y uso directamente los request/send/deliver, deberia asegurarme que pase por "todas las capas del stack".
+
+(51) Combinar PL + Stubborn para evitar hacer send en timeout si ya se hizo el deliver.
+     El drop va directo al objeto network, no es una action de la abstraction.
+     Entonces en timeout se va a hacer un nuevo send y va a estar disponible para deliver otra vez, mas engorroso pero modela mejor el escenario.
+
+(52) Que quedó del viejo schedule de IO automata de tuttle?
+     Requests = input actions?
+     Indications = output actions?
+     Local events = internal actions?
+
+(53) Puedo pensar a la impl beb-broadcast como una abstraction
+     request Broadcast
+     request FLLDeliver
+     indication FLLSend
+     indication BebDeliver
+
+     Esto me permitiria tener req(req: Req: Set[Ind] donde Ind podria ser una FLLSend, y ya no tener que tener un objeto especial Send
+
+(54) Como me gustaria escribir las implementaciones? igual que en el libro
+     on event (event.type) { event => // requests
+        if (state == some state)
+           changeState(newState)
+        trigger (events) // indications
+     }
+
+     on (condition) {
+
+     }
+
+(55) La instancia no deberia ser a nivel stack en lugar de modulo?
+     Ejemplo, quiero una abstraccion que tenga 2 PerfectLink
+     Instance1 = PL 1
+     Instance2 = PL 2
+     Segun el libro, los StubbornLink tendrian ambos la instancia SL! (creo que no me va a impactar porque al princpio cuando un proceso
+     recibe la action la va a demultiplexar en base a la instancia a su stack correspondiente y a partir de entra dentro del mismo stack, no van a
+     competir las dos isntancias de StubbornLink
+
+(56) Agregar validaciones en las abstractions? Ejemplo un PerfectLink no puede hacer un Deliver si antes no hizo un Send.
+
+(57) Que es lo que quiero restringir con los tipos?
+     (a) El tipo de request q le puedo mandar a un proceso (desde el scheduler/proceso)
+     (b) Los tipos de eventos que puedo disparar "localmente" (desde una abstraction)
+         Solo puedo emitir eventos que conozcan las abstracciones que uso
+         Al recibir un request puedo crear un channel tipado dependiendo de la abstraction a la que le quiero hablar!
+     (c) Las indications que puedo recibir de un proceso (desde el scheduler/proceso)
+     (d) Los tipos de eventos que puedo disparar sobre una abstraccion que le hago un deliver! (es decir desde la tail)
+
+     Para el proceso no le interesan los eventos locales!
+     Solo habla en terminos de request, indications, send y deliver.
+
+     Process.req(req) -> indications + send
+     Process.deliver(packet) -> indications + send
+
+     Entonces request FLLSend no es lo mismo que Send (esto va a la network)
+     FLLSend puede ser un request o un local event! Esto lo determina la composicion de las abstracciones.
+
+
+(58) Como haces que un SLDeliver llegue al PerfectLink?
+     ST <- FLL (FLL conoce a ST)
+     PL  x  SL <- FLL (SL no conoce a PL)
+     PL  x  ST <- FLL <- Tail (Tail tendria la logica de llamar al deliver y dsp con el resultado llamar a PL.request()
+
+(59) FLL Es una abstraction especial
+     EL request FLLSend no va a ser consumido por las abstracciones (el proceso se encarga de mandarlos a la network)
+     La indication FLLDeliver se mete a traves del deliver de la tail!
+
+(60) Una abstraction ante un req
+     - Trigger local event
+     - Trigger indication
+
+     ante una indication ???
+
+(61) La otra abstraction que es especial es StubbornLink (o cualquiera q dispare FLLSend y consuma FLLDeliver)
+
+(62) Local Event => puede ser un request o una indication, dependiendo de para adonde va
+
+(63) Puedo restringir la cantidad de indications a 1 (En lugar de un set) o hay casos donde podria generar mas de una indication (ante un request/deliver)?
+
+(64) Una implementacion alternativa es usando akka-streams-js
+     las abstractions serian de la forma de grafos
+     req->  send->
+     <-ind  <-deliver
+
+     y la network seria un grafo que junte los dos extremos y se materialice en un valor que me permita hacer los delivers a demanda.
+
+(65) ¿Como implementar las conditions?
+     - pueden ser sobre la network... que no queden paquetes sin entregar....
+     - sobre las indications
+     - sobre el estado de los procesos (up/down o estado interno de las abstractions)
+
+(66) Cuando tagear las acciones con el indice?
+     Request -> al recibir un request en el scheduler
+     FLLDeliver -> al recibir un deliver en el scheduler
+     Indication -> al generar una indication en el scheduler (producto de alguno de request o deliver)
+     FLLSend ->
+
+(67) Lo que no me gusta de la impl actual es que cada abstraction tiene que tenre la logica de delegar el request para abajo y
+     luego tomar las indications y los request del NextState, incluso en algunos casos se que no va a haber indications downstream
+     (ejemplo BebBcast hace PLSend y se q no va a haber indications)
+     Tambien el hecho de tener q delegar el tick
+
+(68) Delego el tick antes o despues del tick interno? Afecta? Ejemplo PerfectFailureDetector (pag 51)
+     El tick lo tengo q delegar porque hay un StubbornLink abajo
+     Y del tick tambien genero PLSend q le tengo q mandar al PL, es decir, al PerfectLink le tengo qmandar los PLSend y el tick
+     Importa el orden? puede que en esta implementacion en particular no, pero semanticamente?
+
+(69) Se esta haciendo muy dificil programar abstractions con este modelo, por ejemplo PerfectFailureDetector
+     tengo que hacer el tick y quedarme con el nuevo estado del pl, y dsp hacerle un fold de los PLSend del timeout y quedarme con el ultimo estado
+     Me gustaria q la implementacion sea mas del estilo trigger event y me olvido, pero es dificil hacer esto con programacion funcional (al menos
+     sin saber mucho FP)
+
+     Tengo que encontrar la forma de separar lo que es la logica propia de cada abstraccion, q en algunos casos es muy simple; de la logica de delegar
+     eventos locales ...
+     Porque sino paxos va a ser muy complicado.
+
+
+(70) Creo que la mejor implementacion de cappio seria que la logica de las abstracciones no estuviera por fuera de la UI sino directamente embebida.
+
+(71) Necesito "exportar" las acciones internas a la UI. Por ejemplo el Crashed del Failure detector es importante para entender...
+
+(72) El codigo no me "obliga" a hacer el chequeo del estado para trigerar los eventos sobre condiciones en un momento determinado.
+     Con esto quiero decir que en un FLLDeliver puedo estar chequeando el estado y disparando una indication (ver LeaderElection por ejemplo)
+     En principio no esta mal, pero seria mejor si me obligara a hacerlo solo en los ticks por ejemplo.
+     Para esto tendria que tratar distinto los Ticks que el resto de los eventos...
+     con esto me refiero a tener acceso a distintos estados  (no se si es posible porque tal vez se necesiten los dos en algun caso) dependiendo de si esun Tick u un request/localindication
+     con distintos estados me refiero al estado que maneja el modulo en uso (que se tiene que modificar cuando le hago un request) y el que maneja el estado local (alive,suspected,timer,etc)
+     O tal vez pueda devolver objetos distintos y controlarlo de este lado (Request LocalStep y Tick que devuelva otro)
+
+(73) en algun capitulo del principio dice que los mensajes son unicos (yo uso eso para evitar deliver duplicados en PerfectLink, es decir que este uuid
+     tiene que vivir más alla del "envio". ejemplo el stubborn va a enviar N paquetes distintos con el mismo UUID
+
+############ Definir reglas
+Ejemplo.
+Un request puede devolver (0 o más indications) + (0 o más FLLSend)
+Enviar un evento local me va a dar un nuevo estado
+Una abstraccion tiene que entender requests y eventos locales que son indications de sus componentes. Osea que sabe todo lo que tiene que entender.
+
+
+Proximos pasos
+- 1 atomic register
+- casual broadcast
+- implementar dependencias de la UI (ejemplo indexar actions)
+- hacer una primera implementacion de la UI
+- Tratar FLLDeliver "locales" (from == to) de una forma especial (no pueden ser dropeados, pero ademas de esto, deberian ser eventos locales?)
+- recoger todos los eventos locales para la UI!
+- Union type class for modules that uses more than two modules (o module como type class serviria?)
+- Reemplazar stubborn con algo especial que no haga el resend para q la ui sea mas limpia
+
+
+
+https://tpolecat.github.io/2015/04/29/f-bounds.html
+http://logji.blogspot.com/2012/11/f-bounded-type-polymorphism-give-up-now.html
+https://twitter.github.io/scala_school/advanced-types.html

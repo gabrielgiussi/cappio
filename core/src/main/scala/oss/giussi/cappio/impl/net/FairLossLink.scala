@@ -5,7 +5,10 @@ import oss.giussi.cappio.impl.net.FairLossLink.{FLLDeliver}
 
 object FairLossLink {
 
-  case class FLLSend(packet: Packet)
+  case class FLLSend(packet: Packet) {
+    // TODO
+    def asDeliver = FLLDeliver(packet)
+  }
 
   // Lo correcto seria que solo el objeto network pueda instanciarlas!
   case class FLLDeliver(packet: Packet)

@@ -27,5 +27,4 @@ case class PerfectLinkBeta(state: PerfectLinkBetaState) extends AbstractModule[P
     case LocalIndication(SLDeliver(p)) => LocalStep(state)
   }
 
-  override def t: Socket[SLSend, StubbornLinkState, SLDeliver] = state.module.tail
 }
