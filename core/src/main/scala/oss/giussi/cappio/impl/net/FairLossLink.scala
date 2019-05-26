@@ -1,7 +1,6 @@
 package oss.giussi.cappio.impl.net
 
-import oss.giussi.cappio.{Module, NextState, Packet}
-import oss.giussi.cappio.impl.net.FairLossLink.{FLLDeliver}
+import oss.giussi.cappio.{FLLDeliver, Module, NextState, Packet}
 
 object FairLossLink {
 
@@ -9,9 +8,6 @@ object FairLossLink {
     // TODO
     def asDeliver = FLLDeliver(packet)
   }
-
-  // Lo correcto seria que solo el objeto network pueda instanciarlas!
-  case class FLLDeliver(packet: Packet)
 
 }
 

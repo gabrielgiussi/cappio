@@ -1,8 +1,7 @@
 package oss.giussi.cappio.impl.net
-import oss.giussi.cappio.impl.net.FairLossLink.FLLDeliver
 import oss.giussi.cappio.impl.net.PerfectLink.{PLDeliver, PLSend, PerfectLinkState}
 import oss.giussi.cappio.impl.net.StubbornLink.{SLDeliver, SLSend, StubbornLinkState}
-import oss.giussi.cappio.{Module, NextState, Packet}
+import oss.giussi.cappio.{FLLDeliver, Module, NextState, Packet}
 
 object PerfectLink {
 

@@ -1,6 +1,6 @@
 package oss.giussi.cappio
 
-import oss.giussi.cappio.impl.net.FairLossLink.{FLLDeliver, FLLSend}
+import oss.giussi.cappio.impl.net.FairLossLink.FLLSend
 
 case class NextStateProcess[Req,State,Ind](indications: Set[Ind], send: Set[FLLSend], process: Process[Req,State,Ind])
 

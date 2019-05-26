@@ -1,10 +1,10 @@
 package oss.giussi.cappio.impl.time
 
 import org.scalatest.{Matchers, WordSpec}
-import oss.giussi.cappio.impl.net.FairLossLink.{FLLDeliver, FLLSend}
+import oss.giussi.cappio.impl.net.FairLossLink.FLLSend
 import oss.giussi.cappio.impl.time.EventuallyPerfectFailureDetector.{EPFDIndication, EPFDState, Restore, Suspect}
 import oss.giussi.cappio.impl.time.PerfectFailureDetector.{HeartbeatReply, HeartbeatRequest}
-import oss.giussi.cappio.{Module, NoRequest, Packet, ProcessId}
+import oss.giussi.cappio.{FLLDeliver, Module, NoRequest, Packet, ProcessId}
 
 class EventuallyPerfectFailureDetectorSpec extends WordSpec with Matchers {
 

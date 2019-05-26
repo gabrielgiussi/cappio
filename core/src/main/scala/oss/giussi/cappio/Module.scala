@@ -1,7 +1,7 @@
 package oss.giussi.cappio
 
-import oss.giussi.cappio.impl.net.{FairLossLink, Socket}
-import oss.giussi.cappio.impl.net.FairLossLink.{FLLDeliver, FLLSend}
+import oss.giussi.cappio.impl.net.FairLossLink.FLLSend
+import oss.giussi.cappio.impl.net.Socket
 
 object NextState {
   def apply[Req,State,Ind](module: Module[Req,State,Ind]): NextState[Req,State,Ind] = NextState[Req,State,Ind](Set.empty[Ind], Set.empty[FLLSend],module)

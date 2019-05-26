@@ -1,6 +1,5 @@
 package oss.giussi.cappio.impl.net
 
-import oss.giussi.cappio.impl.net.FairLossLink.FLLDeliver
 import oss.giussi.cappio.{AbstractModule, Module, NextState, Packet, StateWithModule}
 import oss.giussi.cappio.impl.net.PerfectLink.{PLDeliver, PLSend, PerfectLinkState}
 import oss.giussi.cappio.impl.net.PerfectLinkBeta.PerfectLinkBetaState

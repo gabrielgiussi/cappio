@@ -1,10 +1,8 @@
-package oss.giussi.cappio.impl
+package oss.giussi.cappio
 
 import org.scalatest.{Matchers, WordSpec}
-import oss.giussi.cappio.impl.net.FairLossLink.FLLDeliver
 import oss.giussi.cappio.impl.net.StubbornLink
 import oss.giussi.cappio.impl.net.StubbornLink.{SLDeliver, SLSend}
-import oss.giussi.cappio._
 
 class SchedulerSpec extends WordSpec with Matchers {
 

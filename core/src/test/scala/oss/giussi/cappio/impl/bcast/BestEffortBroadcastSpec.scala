@@ -1,10 +1,10 @@
 package oss.giussi.cappio.impl.bcast
 
 import org.scalatest.{Matchers, WordSpec}
-import oss.giussi.cappio.{Instance, Packet, ProcessId}
 import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.{BebBcast, BebDeliver}
 import oss.giussi.cappio.impl.bcast.UniformReliableBroadcast.Payload
-import oss.giussi.cappio.impl.net.FairLossLink.{FLLDeliver, FLLSend}
+import oss.giussi.cappio.impl.net.FairLossLink.FLLSend
+import oss.giussi.cappio.{FLLDeliver, Instance, Packet, ProcessId}
 
 class BestEffortBroadcastSpec extends WordSpec with Matchers {
 

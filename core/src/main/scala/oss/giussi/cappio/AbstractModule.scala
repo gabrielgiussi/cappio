@@ -1,6 +1,6 @@
 package oss.giussi.cappio
 
-import oss.giussi.cappio.impl.net.FairLossLink.{FLLDeliver, FLLSend}
+import oss.giussi.cappio.impl.net.FairLossLink.FLLSend
 import oss.giussi.cappio.impl.net.Socket
 
 import scala.annotation.tailrec

@@ -1,6 +1,6 @@
 package oss.giussi.cappio
 
-import oss.giussi.cappio.impl.net.FairLossLink.{FLLDeliver, FLLSend}
+import oss.giussi.cappio.impl.net.FairLossLink.FLLSend
 
 // como hago para que IN tenga una NoOp?
 
@@ -12,8 +12,6 @@ object Scheduler {
 }
 
 case class RequestBatch[Req](requests: Map[ProcessId,Req])
-
-case class Drop(packet: Packet)
 
 case class DeliverBatch(ops: Map[ProcessId,Either[FLLDeliver,Drop]])
 

@@ -1,9 +1,9 @@
 package oss.giussi.cappio.impl.time
 
 import org.scalatest.{Matchers, WordSpec}
-import oss.giussi.cappio.{Module, NoRequest, Packet, ProcessId}
-import oss.giussi.cappio.impl.net.FairLossLink.{FLLDeliver, FLLSend}
+import oss.giussi.cappio.impl.net.FairLossLink.FLLSend
 import oss.giussi.cappio.impl.time.PerfectFailureDetector.{Crashed, HeartbeatReply, HeartbeatRequest, PFDState}
+import oss.giussi.cappio.{FLLDeliver, Module, NoRequest, Packet, ProcessId}
 
 class PerfectFailureDetectorSpec extends WordSpec with Matchers {
 
