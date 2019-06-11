@@ -25,7 +25,8 @@
 (3) Status x Proceso
 
 (4) Delivers
-    Indice del drop, Message UUID, from, to, payload
+    Indice del deliver, Message UUID, from, to, payload
+    Indice del send (para poder conectar las dos lineas)
 
 (5) Drops
     Indice del drop, Message UUID, from, to, payload

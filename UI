@@ -1,0 +1,37 @@
+GridConf
+- double or int?
+- labelWidth? mejor hacer un svg dentro del svg padre que ya me ponga la coordenada 0,0 donde arranca el primer step.
+- roundWidth (donde pongo el vertice? a la mitad del round?)
+- processHeigth
+- arrow heads size
+- cross size
+- letter size
+
+
+Tiene que haber una relacion entre processHeigth y roundWidth para que no se deforme
+
+processHeigth * roundWidht = round area
+
+donde pongo el text del svg
+
+
+
+Problemas
+- multiples send en el mismo (turno,proceso)
+- multiples indications en el mismo (turno,proceso)
+- self deliver + ind (creo que van a ir siempre juntos porque no se puede dropear ese deliver)
+
+Must implement
+- i18n
+- type class StateDiv that shows state as a div!
+
+Could implement
+- que aparezca el scroll solo cuando hay rounds para ver. Para esto voy a necesitar el current round (ya sea para pintar mas rounds o para
+  poner el overflow: scroll si pinto los rounds de manera anticipada, ej: 100000 para estar seguro q van a entrar).
+- distintos estilos de arrow head para indications y request (como los que estan en el libro)
+- filtros (por proceso, por tipo de mensaje, etc)
+- show grid on off
+- type safe action selection. El stack de core deberia darme un objeto que me diga que tipos de request entiende, y pasarle esto
+  al div para q pinte los input necesarios
+
+

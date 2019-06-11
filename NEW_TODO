@@ -333,6 +333,47 @@
 (73) en algun capitulo del principio dice que los mensajes son unicos (yo uso eso para evitar deliver duplicados en PerfectLink, es decir que este uuid
      tiene que vivir más alla del "envio". ejemplo el stubborn va a enviar N paquetes distintos con el mismo UUID
 
+
+(74) ** Sync model
+    PerfectFailureDetector.timer = 2 ( TIENE que ser par!)
+    a. como calculo el network delay? timer / 2? (para q se pueda dar el ciclo de req/reply)
+    b. (request -> deliver -> tick) o (request -> tick -> deliver -> tick)
+    c. Como valido que la network cuando se cumple el delay tiene que hacer el deliver o el crash del proceso? Puedo hacer que la network haga el deliver sin importar el estado (asi no tiene
+       dependencias a Process) y que el scheduler se encargue de no hacer el deliver si el estado es Down!
+    d. Si puedo hacer un unico deliver por proceso en cada step no puedo hacer dos sends al mismo proceso en el mismo step. Ejemplo PerfectFailureDetector
+       en el primer tick, los procesos 1 y 2 van a hacer un heartbeatrequest al proceso 3
+       con lo cual voy a tener 2 FLLDeliver con index 0 que van a timeoutear en el mismo index (0 + delay) y solo voy a poder mandar uno!
+       Opciones
+         - a. Asegurar que nunca pueda haber mas de un FLLSend con el mismo indice. La unica manera de asegurar esto es que todito el stack de  abstractions
+              no puedan enviar mas de un FLLSend al mismo proceso en un mismo turno. ¿Puedo restringir esto asi?
+              Si esto no se cumple si o si tengo que permitir mas de un deliver al mismo proceso en un mismo turno (al menos deliver de FLLSend que se hayan originado en el mismo turno y con el mismo sender)
+              Si esto se cumple, tengo que pasar de RequestBatch a un request unico para un proceso determinado + un tick a ese proceso determinado!
+              y los ticks se tienen que ejecutar siempre en el mismo orden (del proceso 0 al N)
+              ejemplo roto (OneTripDelay = 3)
+              1. tick process 0 (FLLSend en 0)
+              2. tick process 1 (FLLSend en 1)
+              3. tick process 2 (FLLSend en 2)
+              4. deliver process 2 (FLLDeliver en 3)
+              5. deliver process 0 (FLLDeliver en 4) // timeout!
+
+              El otro problema del escenario de arriba es que el timeout depende de la cantidad de procesos! si agrego un proceso tengo que incrementar el OneTripDelay
+              Lo tengo que hacer en base a la cantidad de ticks de ese proceso en particular.
+              Osea que el tick del proceso este atado a un tick de la network!
+
+
+
+
+              Si hago esto, para poder "dibujar" request concurrentes (para q sea mas grafico al usuario) tengo que tener dos indices.
+              1. Action Index -> unico. se va a usar para timeoutear la network
+              2. Logical index -> no tiene ningun efecto funcional, solo es para dibujar. Puede haber 1 req por cada proceso en el mismo indice!
+
+
+
+
+
+
+
+
 ############ Definir reglas
 Ejemplo.
 Un request puede devolver (0 o más indications) + (0 o más FLLSend)
@@ -348,7 +389,18 @@ Proximos pasos
 - Tratar FLLDeliver "locales" (from == to) de una forma especial (no pueden ser dropeados, pero ademas de esto, deberian ser eventos locales?)
 - recoger todos los eventos locales para la UI!
 - Union type class for modules that uses more than two modules (o module como type class serviria?)
-- Reemplazar stubborn con algo especial que no haga el resend para q la ui sea mas limpia
+- Reemplazar stubborn con algo especial que no haga el resend para q la ui sea mas limpia (Un perfect link q tire fflsend directamente)
+
+
+Proximos pasos!
+- como implementar un step? (request tick deliver tick | request deliver tick)
+- como indexar las acciones (FLLSend,FLLDeliver, Requests, Indications) Ticks no porque son eventos especiales.
+- como implementar el sync model
+- cuales son las reglas q se pueden definir con respecto a los requests y deliver
+  puede devolver N indications y N send (pero no mas de un send para un mismo proceso)?
+  procesamiento de un request/deliver/tick. lo proceso a traves del stack hasta que no haya eventos locales. (asi lo tengo implementado)
+
+- revisar paxos, es necesario restart? (para poder mandar la consulta)
 
 
 
