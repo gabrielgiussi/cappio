@@ -4,6 +4,13 @@ import com.raquo.laminar.api.L._
 import oss.giussi.cappio.ui.SampleMain.Point
 import oss.giussi.cappio.ui.core.{Crashed, Delivered, Dropped, Indication, Request, Undelivered}
 
+
+/*
+Solucionar
+todo lo referido a tamaños que esten hardcodeados
+parametros q reciben las arrows
+ */
+
 object Arrows {
 
   // TODO donde va esto?

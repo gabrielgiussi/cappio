@@ -8,6 +8,18 @@ sealed trait Action {
   def id: String // TODO improve concrete impls
 }
 
+/*
+sealed abstract case class Index(value: Int)
+
+object Nat {
+  implicit def asInt(index: Index): Int = index.value
+
+  def fromInt(n: Int): Option[Index] =
+    if (n >= 0) Some(new Index(n) {}) else None
+}
+
+ */
+
 case class Index(i: Int)
 
 case class Crashed(process: ProcessId, index: Index) extends Action {
@@ -33,7 +45,3 @@ case class Undelivered(from: ProcessId, to: ProcessId, uuid: UUID, payload: Stri
 case class Delivered(from: ProcessId, to:ProcessId, uuid: UUID, payload: String, sent: Index, received: Index) extends NetworkAction(from,to,uuid,payload,sent)
 
 case class Dropped(from: ProcessId, to: ProcessId, uuid: UUID, payload: String, sent: Index, dropped: Index) extends NetworkAction(from,to,uuid,payload,sent)
-
-case class Base(processes: List[ProcessId], rounds: Int)
-
-case class Schedule(actions: Set[Action])

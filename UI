@@ -33,5 +33,11 @@ Could implement
 - show grid on off
 - type safe action selection. El stack de core deberia darme un objeto que me diga que tipos de request entiende, y pasarle esto
   al div para q pinte los input necesarios
+- animacion cuando cambia el estado de un proceso
+- guardar en local storage el avance
+- guardar el estado del level si cambio de level
+- restart level
+- hide left menu
+
 
 

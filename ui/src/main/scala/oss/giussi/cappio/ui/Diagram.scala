@@ -11,13 +11,16 @@ object Diagram {
     val gridConf = GridConf(10, 40, 100, 10, processes)
     val height = (processes.ids.size * gridConf.roundHeight).toInt
     val width = "10000" // TODO scrolled
-    s.svg(
-      s.height := height.toString,
-      s.width := width,
-      Markers.defs(gridConf.arrowHeadSize.toInt),
-      labels(gridConf, labelWidth, height),
-      timelines(gridConf, labelWidth + 1, $actions),
-      grid(gridConf,labelWidth + 1, height)
+    div(
+      styleAttr := "overflow: scroll; overflow-y: hidden;", // FIXME esto deberia ir dentro de diagram
+      s.svg(
+        s.height := height.toString,
+        s.width := width,
+        Markers.defs(gridConf.arrowHeadSize.toInt),
+        labels(gridConf, labelWidth, height),
+        timelines(gridConf, labelWidth + 1, $actions),
+        grid(gridConf,labelWidth + 1, height)
+      )
     )
   }
 
