@@ -5,9 +5,11 @@ import oss.giussi.cappio.ui.core.Index
 
 case class Point(x: Double, y: Double)
 
-case class GridConfImpl(labelWidth: Int, roundWidth: Double, arrowHeadSize: Double, p: Processes) extends GridConf {
+case class GridConfImpl(roundWidth: Double, p: Processes) extends GridConf {
 
   override val roundHeight = roundWidth * 2
+
+  override val arrowHeadSize: Double = roundWidth * 0.25
 
   val sorted = p.ids.toList.sortBy(_.id)
 
@@ -17,14 +19,12 @@ case class GridConfImpl(labelWidth: Int, roundWidth: Double, arrowHeadSize: Doub
 
   override def y(process: ProcessId): Double = (indexes(process) + 1) * roundHeight
 
-  override def crossSize: Double = roundWidth * 0.5
+  override def crossSize: Double = roundWidth * 0.2
 
   override def processes: List[ProcessId] = sorted
 }
 
 sealed trait GridConf {
-
-  def labelWidth: Int
 
   def roundWidth: Double
 

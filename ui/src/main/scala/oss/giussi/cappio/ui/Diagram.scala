@@ -9,17 +9,16 @@ object Diagram {
   def apply(processes: Processes, $actions: EventStream[List[Action]]) = {
     val labelWidth = 20 // TODO must fit the greatest process id number or use autoscale
     val $bus = new EventBus[GridConfImpl]
-    //val gridConf = GridConfImpl(10, 40, 100, 10, processes)
-    val gridConf = GridConfImpl(10, 40, 10, processes)
+    val gridConf = GridConfImpl(40, processes)
     val $gridConf = $bus.events.toSignal(gridConf)
     val height = (processes.ids.size * gridConf.roundHeight) + gridConf.roundHeight // padding
     val width = "10000" // TODO scrolled
     div(
-      styleAttr := "overflow: scroll; overflow-y: hidden;", // FIXME esto deberia ir dentro de diagram
+      styleAttr := "overflow: scroll; overflow-y: hidden;",
       s.svg(
         s.height := height.toString,
         s.width := width,
-        Markers.defs(gridConf.arrowHeadSize.toInt),
+        child <-- $gridConf.map(c => Markers.defs(c.arrowHeadSize, c.crossSize)),
         labels(gridConf, labelWidth, height),
         timelines(gridConf, $gridConf, labelWidth + 1, $actions),
         grid(gridConf,labelWidth + 1, height)

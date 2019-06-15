@@ -9,6 +9,9 @@ import oss.giussi.cappio.ui.core.{Crashed, Delivered, Dropped, Indication, Netwo
 Solucionar
 todo lo referido a tamaños que esten hardcodeados
 parametros q reciben las arrows
+
+grouped actions
+ver si puedo tipar el payload de las actions
  */
 
 object Arrows {
@@ -36,16 +39,18 @@ object Arrows {
     )
   }
 
+  sealed trait Orientation
+  case object Up extends Orientation
+  case object Down extends Orientation
+
   def indication(ind: Indication, gridConf: GridConf) = {
-    val p1 = gridConf.point(ind.index, ind.process)
-    val p2 = Point(p1.x + 10, p1.y - 10) // FIXME
-    arrow(p1, p2, gridConf)
+    shortArrow(gridConf.point(ind.index,ind.process),Up,gridConf,Markers.ArrowHead)
   }
 
   // FIXME request at index 0 will not appear. Alternatives: make vertix at half of the round or start timelines at (n,0) instead of (0,0)
   def request(req: Request, gridConf: GridConf) = {
     val p2 = gridConf.point(req.index, req.process)
-    val p1 = Point(p2.x - 10, p2.y - 10) // FIXME
+    val p1 = Point(p2.x - (gridConf.roundWidth / 2), p2.y - (gridConf.roundWidth / 2))
     arrow(p1, p2, gridConf)
   }
 
@@ -81,16 +86,24 @@ object Arrows {
     )
   }
 
-  private def shortArrow(action: NetworkAction, gridConf: GridConf, arrowHead: String) = {
-    val p = gridConf.point(action.sent, action.from)
-    val py = gridConf.y(action.to)
-    val y = if (p.y > py) p.y - (gridConf.roundHeight / 2) else p.y + (gridConf.roundHeight / 2)
+  private def shortArrow(p: Point, orientation: Orientation, gridConf: GridConf, arrowHead: String) = {
+    val y = orientation match {
+      case Up => p.y - (gridConf.roundHeight / 2)
+      case Down => p.y + (gridConf.roundHeight / 2)
+    }
     arrow(p, Point(p.x + (gridConf.roundWidth / 2), y), gridConf, arrowHead)
   }
 
-  def undelivered(action: Undelivered, gridConf: GridConf) = shortArrow(action,gridConf,Markers.ArrowHead)
+  private def shortArrowNetwork(action: NetworkAction, gridConf: GridConf, arrowHead: String) = {
+    val p = gridConf.point(action.sent, action.from)
+    val py = gridConf.y(action.to)
+    val orientation = if (p.y > py) Up else Down
+    shortArrow(p, orientation, gridConf, arrowHead)
+  }
 
-  def dropped(action: Dropped, gridConf: GridConf) = shortArrow(action,gridConf,Markers.ArrowHeadX)
+  def undelivered(action: Undelivered, gridConf: GridConf) = shortArrowNetwork(action,gridConf,Markers.ArrowHead)
+
+  def dropped(action: Dropped, gridConf: GridConf) = shortArrowNetwork(action,gridConf,Markers.ArrowHeadX)
 
   def delivered(action: Delivered, gridConf: GridConf) = {
     val p1 = gridConf.point(action.sent, action.from)
