@@ -10,8 +10,6 @@ import scala.util.Try
 
 object SampleMain {
 
-  case class Point(x: Int, y: Int)
-
   case class Route(path: String)
 
   def main(args: Array[String]): Unit = {

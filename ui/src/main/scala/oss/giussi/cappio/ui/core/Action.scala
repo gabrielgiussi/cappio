@@ -30,9 +30,19 @@ case class Request(process: ProcessId, index: Index, payload: String) extends Ac
   override def id: String = s"request-$process-$index"
 }
 
-sealed abstract class NetworkAction(from: ProcessId, to: ProcessId, uuid: UUID, payload: String, sent: Index) extends Action {
+sealed abstract class NetworkAction(val _from: ProcessId,val _to: ProcessId, _uuid: UUID, _payload: String, _sent: Index) extends Action {
 
   override val id = s"network-f:$from-t:$to-$uuid-$sent"
+
+  def from: ProcessId
+
+  def to: ProcessId
+
+  def payload: String
+
+  def uuid: UUID
+
+  def sent: Index
 
 }
 

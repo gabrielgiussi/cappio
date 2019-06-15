@@ -38,6 +38,16 @@ Could implement
 - guardar el estado del level si cambio de level
 - restart level
 - hide left menu
+- cambiar el estilo o el color de la linea de tiempo cuando se cae el nodo (rojo o dashed)
+- cambiar el estilo de la linea a medida que "avanza" el tick
+
+Investigate
+- EventStream[GridConf]
+  conviene que GridConf sea directamente quien hace las arrows?
+  Entiendo que en este casi si cambia el gridConf tiene que reinsertar elementos en el dom
+
+  o conviene que GridConf devuela roundWidth como un Stream[Int] en lugar de un Int?
+
 
 
 

@@ -1,8 +1,5 @@
 package oss.giussi.cappio.ui
 
-import oss.giussi.cappio.ui.SampleMain.Point
-import com.raquo.laminar.api.L._
-import com.raquo.laminar.nodes.{ReactiveChildNode, ReactiveHtmlElement}
 import com.raquo.laminar.api.L.svg
 
 object Markers {

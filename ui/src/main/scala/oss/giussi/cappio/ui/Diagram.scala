@@ -8,8 +8,11 @@ object Diagram {
 
   def apply(processes: Processes, $actions: EventStream[List[Action]]) = {
     val labelWidth = 20 // TODO must fit the greatest process id number or use autoscale
-    val gridConf = GridConf(10, 40, 100, 10, processes)
-    val height = (processes.ids.size * gridConf.roundHeight).toInt
+    val $bus = new EventBus[GridConfImpl]
+    //val gridConf = GridConfImpl(10, 40, 100, 10, processes)
+    val gridConf = GridConfImpl(10, 40, 10, processes)
+    val $gridConf = $bus.events.toSignal(gridConf)
+    val height = (processes.ids.size * gridConf.roundHeight) + gridConf.roundHeight // padding
     val width = "10000" // TODO scrolled
     div(
       styleAttr := "overflow: scroll; overflow-y: hidden;", // FIXME esto deberia ir dentro de diagram
@@ -18,27 +21,28 @@ object Diagram {
         s.width := width,
         Markers.defs(gridConf.arrowHeadSize.toInt),
         labels(gridConf, labelWidth, height),
-        timelines(gridConf, labelWidth + 1, $actions),
+        timelines(gridConf, $gridConf, labelWidth + 1, $actions),
         grid(gridConf,labelWidth + 1, height)
-      )
+      ),
+      input(`type` := "number", inContext(thisNode => onChange.mapTo(thisNode.ref.value).map(w => gridConf.copy(roundWidth = w.toInt)) --> $bus))
     )
   }
 
-  def renderAction(gridConf: GridConf)(id: String, initial: Action, $action: EventStream[Action]) = {
+  def renderAction($gridConf: Signal[GridConf])(id: String, initial: Action, $action: EventStream[Action]) = {
     val signal = $action.toSignal(initial) // TODO no se si esta bien de acuerdo a https://github.com/raquo/Laminar/blob/master/docs/Documentation.md#performant-children-rendering--childrencommand
     s.svg(
-      child <-- signal.map {
-        case d: Delivered => Arrows.delivered(d,gridConf)
-        case u: Undelivered => Arrows.undelivered(u,gridConf)
-        case c: Crashed => Arrows.crashed(c,gridConf)
-        case r: Request => Arrows.request(r,gridConf)
-        case i: Indication => Arrows.indication(i,gridConf)
-        case d: Dropped => Arrows.dropped(d,gridConf)
+      child <-- signal.combineWith($gridConf).map {
+        case (d: Delivered,gridConf) => Arrows.delivered(d,gridConf)
+        case (u: Undelivered, gridConf) => Arrows.undelivered(u,gridConf)
+        case (c: Crashed,gridConf) => Arrows.crashed(c,gridConf)
+        case (r: Request,gridConf) => Arrows.request(r,gridConf)
+        case (i: Indication,gridConf) => Arrows.indication(i,gridConf)
+        case (d: Dropped,gridConf) => Arrows.dropped(d,gridConf)
       }
     )
   }
 
-  def grid(gridConf: GridConf, x: Int, height: Int) = {
+  def grid(gridConf: GridConf, x: Int, height: Double) = {
     s.svg(
       s.x := x.toString,
       s.y := "0",
@@ -55,17 +59,17 @@ object Diagram {
     )
   }
 
-  def labels(gridConf: GridConf, width: Int, heigth: Int) = {
+  def labels(gridConf: GridConf, width: Int, heigth: Double) = {
     s.svg(
       s.x := "0",
       s.y := "0",
       s.width := width.toString,
       s.height := heigth.toString,
-      gridConf.order.map(p =>
+      gridConf.processes.map(p =>
         s.text(
           s.x := "0",
-          s.y := gridConf.py(p._1).toString,
-          s"${p._1.id}"
+          s.y := gridConf.y(p).toString,
+          s"${p.id}"
         )
       )
     )
@@ -73,13 +77,13 @@ object Diagram {
 
 
 
-  def timelines(gridConf: GridConf, x: Int, $actions: EventStream[List[Action]]) = {
+  def timelines(gridConf: GridConf, $gridConf: Signal[GridConf], x: Int, $actions: EventStream[List[Action]]) = {
     s.svg(
       s.x := x.toString,
       s.y := "0",
       //s.viewBox <-- $current.filter(_ > 0).map(x => s"$x 0 $width $height"), // Lo resolvi con el scrol del div por ahora.
-      gridConf.processes.ids.toList.map { p =>
-        val py = gridConf.py(p).toString
+      gridConf.processes.map { p =>
+        val py = gridConf.y(p).toString
         s.line(
           s.stroke := "black",
           s.strokeWidth := "3",
@@ -90,7 +94,7 @@ object Diagram {
           s.r := "30",
         )
       },
-      children <-- $actions.split(_.id)(renderAction(gridConf))
+      children <-- $actions.split(_.id)(renderAction($gridConf))
     )
   }
 
