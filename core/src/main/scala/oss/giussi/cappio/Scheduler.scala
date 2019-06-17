@@ -31,10 +31,10 @@ case class DeliverBatch(ops: Map[ProcessId,Either[FLLDeliver,Drop]]) {
 
   def remove(drop: Drop) = copy(ops = ops - drop.packet.to)
 
-  def clear() = copy()
+  def clear() = DeliverBatch.empty
 }
 
-sealed trait Step[Req,State,Ind] // TODO delete?
+sealed trait Step[Req,State,Ind] // TODO delete? esta bien hacer traits con generics q no usa?
 
 case class WaitingRequest[Req,State,Ind](scheduler: TickScheduler[Req,State,Ind]) extends Step[Req,State,Ind] {
   def request(batch: RequestBatch[Req]) = {

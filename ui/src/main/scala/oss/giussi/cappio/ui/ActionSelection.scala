@@ -25,7 +25,7 @@ object ActionSelection {
 
    */
 
-  def networkInput(available: List[InTransitPacket], $out: Observer[DeliverBatch]) = {
+  def networkInput(available: Set[InTransitPacket], $out: Observer[DeliverBatch]) = {
     val $batch = Var(DeliverBatch.empty)
 
     def renderPacket(over: Var[Option[UUID]])(id: UUID, initial: PacketSelection, $changes: Signal[PacketSelection]) = {
@@ -43,7 +43,7 @@ object ActionSelection {
 
       def renderSelection(update: DeliverBatch => DeliverBatch, text: String) = {
         div(
-          button(cls := "btn btn-danger", "Drop",
+          button(cls := "btn btn-danger", text,
             span(
               cls := "badge badge-danger ml-3", "X",
               onClick.mapToValue(()) --> Observer.apply[Unit](_ => $batch.update(update)) // TODO esta bien?
@@ -87,45 +87,22 @@ object ActionSelection {
       case Right(d) => SelectedDrop(d)
       case Left(d) => SelectedDeliver(d)
     }.toSet)
-    //val $unselected = $selected.map(s => s ++ $available).split(_.packet.id)(renderPacket(over))
+    // FIXME ObserverError: TypeError: prevChildRef.elem$1 is null
+    val $all = $selected.map(s => ($available.filterNot(s.contains) ++ s).toList.sortBy(_.packet.id))
 
     div(
       ul(cls := "list-group list-group-flush",
-        children <-- $selected.map(s => ($available.filterNot(s.contains) ++ s).sortBy(_.packet.id)).split(_.packet.id)(renderPacket(over))
-        /*
-        indexed.map { case (inTransit, index) =>
-          val selected = Var(false)
-          li(cls := "list-group-item",
-            inTransit.packet.toString, // TODO
-            child <-- selected.signal.map(v => if (v) label("Selected") else label("")),
-            onMouseOver.mapToValue(index) --> over.writer,
-            button(`type` := "button", cls := "btn btn-primary btn-sm", "Drop",
-              //visibility <-- over.signal.map(o => if (o == index) "visible" else "hidden"), // TODO glitch
-              hidden <-- over.signal.map(_ != index),
-              onClick.mapTo(inTransit.drop) --> Observer.apply[Drop](d => batch.update(_.add(d)))
-            ),
-            button(`type` := "button", cls := "btn btn-primary btn-sm", "Deliver",
-              hidden <-- over.signal.map(_ != index),
-              onClick.mapTo(inTransit.deliver) --> Observer.apply[FLLDeliver](d => batch.update(_.add(d)))
-            )
-          )
-        }
-
-         */
+        children <-- $all.split(_.packet.id)(renderPacket(over)) // TODO siempre haciendo toList!
       ),
-      //button(`type` := "button", cls := "btn btn-success btn-sm", i(cls := "fas fa-plus")),
       button(`type` := "reset", cls := "btn btn-primary", "Next",
-        disabled <-- $batch.signal.map(_.ops.isEmpty),
         onClick.mapTo($batch.now()) --> $out
       ),
       button(`type` := "button", cls := "btn btn-danger", "Clear",
         disabled <-- $batch.signal.map(_.ops.isEmpty),
-        onClick.mapToValue(()) --> new EventBus[Unit].writer.contramap[Unit](_ => $batch.set(DeliverBatch.empty)) // FIXME ugh!
+        onClick.mapToValue(()) --> Observer.apply[Unit](_ => $batch.set(DeliverBatch.empty))
       )
     )
   }
-
-  // FIXME ziggysstardust_
 
   // TODO como limpiar el form cuando submiteo un req!?
   /*
@@ -175,11 +152,10 @@ object ActionSelection {
         )
       ),
     )
-    // combine with click
     req.changes
       .filter(_.isDefined)
       .map(_.get) // TODO flatMap?
-      .combineWith($add.events) // esto no funciona porque si yo emito una vez un click dsp combina todo con eso. Yo quiero un zip!
+      .combineWith($add.events) // FIXME esto no funciona porque si yo emito una vez un click dsp combina todo con eso. Yo quiero un zip!
       .map(_._1)
       .addObserver(reqWriter)(f)
     f
@@ -194,7 +170,7 @@ object ActionSelection {
   case class RemoveReq(id: ProcessId) extends BatchCommand
 
 
-  def reqBatchInput[Req, Pay](processes: Processes, $obs: Observer[RequestBatch[Req]], inputPayload: Observer[Option[Req]] => String => Input) = {
+  def reqBatchInput[Req](processes: Processes, $obs: Observer[RequestBatch[Req]], inputPayload: Observer[Option[Req]] => String => Input) = {
     def renderReq[Req]($rem: Observer[RemoveReq])(to: ProcessId, initial: (ProcessId, Req), $changes: Signal[(ProcessId, Req)]): Div = div(
       initial.toString(),
       button(`type` := "button", cls := "btn btn-danger btn-sm", i(cls := "fas fa-minus"),
@@ -203,18 +179,16 @@ object ActionSelection {
     )
 
     val $commands = new EventBus[BatchCommand]
-    val $batch: Signal[RequestBatch[Req]] = //EventStream.merge($req.events,$reset.events,)
+    val $batch: Signal[RequestBatch[Req]] =
       $commands.events.fold(RequestBatch[Req](Map.empty)) {
         case (_, Reset) => RequestBatch[Req](Map.empty)
         case (batch, AddReq(id, r: Req)) => batch.add(id, r)
         case (batch, RemoveReq(id)) => batch.remove(id)
       }
-    val a = $batch.map(_.requests.toList).split(_._1)(renderReq($commands.writer))
     div(
-      children <-- a,
+      children <-- $batch.map(_.requests.toList).split(_._1)(renderReq($commands.writer)),
       reqInput(processes, $commands.writer, inputPayload),
-      input(`type` := "submit", cls := "btn btn-primary", value := "Next",
-        disabled <-- $batch.map(_.requests.isEmpty),
+      input(`type` := "submit", cls := "btn btn-primary", value := "Next", // TODO input or button?
         inContext { thisNode =>
           val a = $batch.observe(thisNode)
           onClick.preventDefault.mapTo(a.now()) --> $obs
@@ -227,6 +201,7 @@ object ActionSelection {
     )
   }
 
+  // TODO esto depende de cada nivel
   def selectReqType(types: List[String], obs: Observer[Option[String]], modifiers: Modifier[Select]*) = {
     //val request: Var[Option[String]] = Var(None)
     select(
@@ -243,8 +218,6 @@ object ActionSelection {
     )
   }
 
-  // TODO observer vs WriterBus?
-  //def processSelection(processes: List[ProcessId], selection: WriteBus[Option[ProcessId]]) = {
   def selectProcess(processes: List[ProcessId], obs: Observer[Option[ProcessId]], modifiers: Modifier[Select]*) = {
     select(
       cls := "browser-default custom-select mb-4",

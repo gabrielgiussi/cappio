@@ -3,20 +3,28 @@ package oss.giussi.cappio.ui
 import java.util.UUID
 
 import com.raquo.laminar.api.L._
+import com.raquo.laminar.nodes.ReactiveHtmlElement
+import org.scalajs.dom.html
 import oss.giussi.cappio.Network.InTransitPacket
+import oss.giussi.cappio.impl.net.StubbornLink
+import oss.giussi.cappio.impl.net.StubbornLink.{SLDeliver, SLSend}
 import oss.giussi.cappio.ui.core.{Action, Crashed, Delivered, Dropped, Index, Indication, Request, Undelivered}
-import oss.giussi.cappio.{DeliverBatch, Drop, FLLDeliver, Instance, NextStateScheduler, Packet, ProcessId, ProcessStatus, Processes, RequestBatch, Scheduler, Up}
+import oss.giussi.cappio.{DeliverBatch, Drop, FLLDeliver, Instance, NextStateScheduler, Packet, Process, ProcessId, ProcessStatus, Processes, RequestBatch, Scheduler, Step, TickScheduler, Up, WaitingDeliver, WaitingRequest}
 
 object Levels {
 
-  def level1 = LevelFactory(1, () => LevelImpl(1, Processes(Set(ProcessId(0), ProcessId(1), ProcessId(2)))))
+  val processes = (0 to 2).map { id =>
+    Process(ProcessId(id), StubbornLink.init(3))
+  }.toList
 
-  def level2 = LevelFactory(2, () => LevelImpl(2, Processes((0 to 10).map(ProcessId).toSet)))
+  def level(i: Int) = LevelFactory(i, () => LevelImpl(i, Processes(Set(ProcessId(0), ProcessId(1), ProcessId(2))), Scheduler.init(processes), s => SLSend(Packet(0,1,s,Instance("")))
+  ,(ind: SLDeliver, i: Index) => Indication(ind.packet.to,i,ind.packet.payload.toString), (r: SLSend,i: Index) => Request(r.packet.from,i,r.packet.payload.toString)))
 
   // FIXME esto es por ahora para que siempre genere un nuevo nivel porque las signal ya van a haber cambiado el valor initial
-  val levels: List[LevelFactory] = List(level1,level2)
+  val levels: List[LevelFactory] = List(level(1), level(2))
 
 }
+
 
 case class LevelFactory(x: Int, f: () => Level)
 
@@ -32,104 +40,68 @@ trait Level {
 
   def actionSelection: Div
 
-  // una lista de div por como lo quiero mostrar usando las tarjetas, sino que se vea como un div solo con cards adentro
-  // la logica para actualizar los estados va a estar adentro, aunque tambien es comun a todos los niveles, lo que tienen
-  // que definir es como mostrar un state!, dsp va a ser un split por processId
-  // tal vez tiene mas sentido que provea un stream de List[(ProcessId,Div)]
   def states: Div
 
   def conditions: Div
 
 }
 
-case class LevelImpl(x: Int, processes: Processes) extends AbstractLevel[Unit,Unit,Unit](x,processes) {
+case class LevelImpl[R, S, I](x: Int, processes: Processes, scheduler: Scheduler[R, S, I], f: String => R, toi: (I,Index) => Indication, tor: (R,Index) => Request) extends AbstractLevel(x, processes, scheduler) {
 
-  override val $states = new EventBus[List[ProcessState]].events.toSignal(processes.ids.map(id => ProcessState(id,(),Up)).toList)
+  //override val $states = new EventBus[List[ProcessState]].events.toSignal(processes.ids.map(id => ProcessState(id,,Up)).toList)
+  override def toRequest(s: String): R = f(s)
 
+  override def toIndication(ind: I, i:Index): Indication = toi(ind,i)
+
+  override def toRequest(req: R, i: Index): Request = tor(req,i)
 }
 
-abstract class AbstractLevel[R, S, I](x: Int, processes: Processes) extends Level {
+abstract class AbstractLevel[R, S, I](x: Int, processes: Processes, scheduler: Scheduler[R, S, I]) extends Level {
 
   case class ProcessState(id: ProcessId, state: S, status: ProcessStatus)
 
-  //val $requests = new EventBus[R]
+  val $next = new EventBus[Either[RequestBatch[R],DeliverBatch]]
 
-  /*
+  val $actionsBus = new EventBus[List[Action]]
 
-  val snapshotsBus = new EventBus[Snapshot]
-  val requests = eventBus.events
-  val $scheduler = new EventBus[Scheduler[R,S,I]].events.toSignal(scheduler)
-    .changes
-    .combineWith(requests)
-    .map {
-      case (sch,req) =>
-        val NextStateScheduler(indications,scheduler) = sch.request(???)
-    }
+  case class Snapshot(index: Int, actions: List[Action], step: Step[R,S,I])
 
-   */
+  def toRequest(req: R,i: Index): Request
 
-  val $states: Signal[List[ProcessState]]
+  def toIndication(ind: I,i: Index): Indication
 
-  val uuid = UUID.randomUUID()
+  val $snapshots = $next.events.fold[Snapshot](Snapshot(0,List.empty,WaitingRequest(TickScheduler(scheduler)))){
+    // TODO remove duplicated code
+    case (Snapshot(current,actions,wr@WaitingRequest(_)),Left(req)) =>
+      val (ind,wd) = wr.request(req)
+      val sends = List.empty[Action] // wr.
+      val requests = req.requests.values.map(toRequest(_,Index(current)))
+      val indications = ind.map(toIndication(_,Index(current)))
+      Snapshot(current + 1,actions ++ indications ++ requests ++ sends,wd)
+    case (Snapshot(current,actions,wd@WaitingDeliver(_)),Right(del)) =>
+      val (ind,wr) = wd.deliver(del)
+      val delivers = List.empty[Action] // TODO
+      val indications = ind.map(toIndication(_,Index(current)))
+      Snapshot(current + 1, actions ++ indications ++ delivers,wr)
+    case (s,_) => s // TODO log error in console
+  }
+  val $steps = $snapshots.map(_.step)
 
-  val actions: List[Action] = List(
-    Undelivered(ProcessId(0), ProcessId(2), uuid, "", Index(0)),
-    Delivered(ProcessId(0), ProcessId(2), uuid, "", Index(0), Index(2)),
-    Delivered(ProcessId(1), ProcessId(0), UUID.randomUUID(), "", Index(3), Index(4)),
-    Delivered(ProcessId(2), ProcessId(0), UUID.randomUUID(), "", Index(6), Index(9)),
-    Crashed(ProcessId(2), Index(5)),
-    Request(ProcessId(0), Index(6), ""),
-    Indication(ProcessId(1), Index(20), ""),
-    Dropped(ProcessId(0), ProcessId(1), UUID.randomUUID(), "", Index(25), Index(27))
-  )
+  override val $actions = $snapshots.map(_.actions).changes // TODO puedo devolver una signal directamente total al principio no va a tener actions
 
-  val clicks = new EventBus[String]
-
-  override val $actions: EventStream[List[Action]] = clicks.events.fold(0)((acc, command) => if (command == "Next") acc + 1 else acc - 1).map(i => actions.take(i)
-    .groupBy(_.id).map(_._2.last).toList
-  ).changes
-
+  def toRequest(s: String): R
 
   override def actionSelection: Div = {
-    /*
-    val prevButton = button(
-      "Prev",
-      onClick.preventDefault.mapToValue("Prev") --> clicks
+    div(
+      child <-- $steps.map {
+        case WaitingRequest(sch) => ActionSelection.reqBatchInput(processes,$next.writer.contramap[RequestBatch[R]](r => Left(r)),(obs: Observer[Option[R]]) => (i: String) => input(
+          `type` := "text",
+          // TODO how to throttle key press?
+          inContext(thisNode => onChange.mapTo(Option(thisNode.ref.value).filterNot(_.isEmpty).map(toRequest)) --> obs),
+        ))
+        case WaitingDeliver(sch) => ActionSelection.networkInput(sch.scheduler.network.inTransit(), $next.writer.contramap(r => Right(r)))
+      }
     )
-    val nextButton = button(
-      "Next",
-      onClick.preventDefault.mapToValue("Next") --> clicks
-    )
-    div(prevButton, nextButton)
-     */
-    /*
-    val d = div(
-      ActionSelection.reqBatchInput[String,String](processes,b.writer , obs => i => input(
-        `type` := "text",
-        // TODO how to throttle key press?
-        inContext(thisNode => onChange.mapTo(Option(thisNode.ref.value).filterNot(_.isEmpty)) --> obs),
-      ))
-    )
-    d
-     */
-    val l = (2 to 4).map(i => new InTransitPacket {
-      override val packet: Packet = Packet(i,1,"",Instance(""))
-
-      override def deliver: FLLDeliver = FLLDeliver(packet)
-
-      override def drop: Drop = Drop(packet)
-    }).toList ++ (1 to 3).map(i => new InTransitPacket {
-      override val packet: Packet = Packet(i,4,"",Instance(""))
-
-      override def deliver: FLLDeliver = FLLDeliver(packet)
-
-      override def drop: Drop = Drop(packet)
-    }).toList
-    val b = new EventBus[DeliverBatch]
-    val d = div(
-      ActionSelection.networkInput(l,b.writer)
-    )
-    d
   }
 
   def renderState(id: ProcessId, initial: ProcessState, $states: Signal[ProcessState]) = div(
@@ -138,7 +110,7 @@ abstract class AbstractLevel[R, S, I](x: Int, processes: Processes) extends Leve
       cls := "card",
       div(
         cls := "card-body",
-        renderStateI(id,initial,$states)
+        renderStateI(id, initial, $states)
       )
     )
   )
@@ -147,11 +119,10 @@ abstract class AbstractLevel[R, S, I](x: Int, processes: Processes) extends Leve
 
   override def states: Div = div(
     cls := "row wow fadeIn",
-    children <-- $states.split(_.id)(renderState)
+    // children <-- $states.split(_.id)(renderState) TODO
   )
 
   override def conditions: Div = div()
-
 
 
 }
