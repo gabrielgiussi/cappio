@@ -69,3 +69,12 @@ Proximos pasos
 - Implementar request build por level
 - Implementar status show por level
 - Implementar conditions
+- multi actions
+- text actions
+- ver si puedo hacer el type del payload generico
+- prev, next buttons (List[Snapshot] Instead of Snapshot)
+- fix router
+- tests?
+- integracion y publish en github pages.
+- save level status
+- scorm

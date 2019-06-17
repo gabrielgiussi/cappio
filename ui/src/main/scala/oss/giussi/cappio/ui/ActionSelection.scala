@@ -52,9 +52,9 @@ object ActionSelection {
         )
       }
 
-      def renderDrop(drop: Drop) = renderSelection(_.remove(drop),"Drop")
+      def renderDrop(drop: Drop) = renderSelection(_.remove(drop), "Drop")
 
-      def renderDeliver(deliver: FLLDeliver) = renderSelection(_.remove(deliver),"Deliver")
+      def renderDeliver(deliver: FLLDeliver) = renderSelection(_.remove(deliver), "Deliver")
 
       li(cls := "list-group-item",
         s"From ${initial.packet.from} to ${initial.packet.to} ${initial.packet.payload}", // TODO
@@ -114,7 +114,7 @@ object ActionSelection {
   sel.events(onSelection) // pero q el onSelecion lo defina yo, no que sean dom events
 
    */
-  def reqInput[Req, Pay](processes: Processes, reqWriter: Observer[AddReq[Req]], inputPayload: Observer[Option[Req]] => String => Input) = {
+  def reqInput[Req, Pay](processes: Processes, reqWriter: Observer[AddReq[Req]], inputPayload: Observer[Option[Req]] => ProcessId => String => ReactiveHtmlElement[dom.html.Element]) = {
     val process: Var[Option[ProcessId]] = Var(None) // TODO why use Var if I don't make use of set?
     val request: Var[Option[String]] = Var(None)
     val payload: Var[Option[Req]] = Var(None)
@@ -139,9 +139,11 @@ object ActionSelection {
         ),
         div(cls := "col-md-4 mb-3",
           label(forId := "payload", "Payload"), // TODO pass id
-          child <-- request.signal.changes.map {
-            case Some(s) => iPayload(s)
-            case None => label("")
+          child <-- request.signal.changes.map { rtype =>
+            (for {
+              r <- rtype
+              pid <- process.now()
+            } yield iPayload(pid)(r)) getOrElse label("")
           }
         ),
         div(cls := "col-md-4 mb-3",
@@ -170,7 +172,7 @@ object ActionSelection {
   case class RemoveReq(id: ProcessId) extends BatchCommand
 
 
-  def reqBatchInput[Req](processes: Processes, $obs: Observer[RequestBatch[Req]], inputPayload: Observer[Option[Req]] => String => Input) = {
+  def reqBatchInput[Req](processes: Processes, $obs: Observer[RequestBatch[Req]], inputPayload: Observer[Option[Req]] => ProcessId => String => ReactiveHtmlElement[dom.html.Element]) = {
     def renderReq[Req]($rem: Observer[RemoveReq])(to: ProcessId, initial: (ProcessId, Req), $changes: Signal[(ProcessId, Req)]): Div = div(
       initial.toString(),
       button(`type` := "button", cls := "btn btn-danger btn-sm", i(cls := "fas fa-minus"),
@@ -182,7 +184,7 @@ object ActionSelection {
     val $batch: Signal[RequestBatch[Req]] =
       $commands.events.fold(RequestBatch[Req](Map.empty)) {
         case (_, Reset) => RequestBatch[Req](Map.empty)
-        case (batch, AddReq(id, r: Req)) => batch.add(id, r)
+        case (batch, AddReq(id, r: Req)) => batch.add(id, r) // FIXME unchecked
         case (batch, RemoveReq(id)) => batch.remove(id)
       }
     div(
@@ -233,27 +235,5 @@ object ActionSelection {
       modifiers
     )
   }
-
-  def bebBroadcast(processes: List[ProcessId], beb: WriteBus[(ProcessId, BebBcast)]) = {
-    val process = new EventBus[Option[ProcessId]]
-    val payload = new EventBus[Option[String]]
-    val comb = process.events.combineWith(payload.events)
-      .map { case (o1, o2) => for {
-        pid <- o1
-        pay <- o2
-      } yield (pid, BebBcast(Payload(pay), null))
-      }.filter(_.isDefined).map(_.get)
-
-    val elem = div(
-      "BebBcast",
-      selectProcess(processes, process.writer),
-      input(
-        inContext(thisNode => onChange.mapTo(thisNode.ref.value).map(v => Option(v).filterNot(_.isEmpty)) --> payload)
-      )
-    )
-    beb.addSource(comb)(elem)
-    elem
-  }
-
 
 }
