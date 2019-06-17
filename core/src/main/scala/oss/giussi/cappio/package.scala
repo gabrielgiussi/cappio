@@ -15,7 +15,9 @@ package object cappio {
 
   case class ProcessId(id: Int)
 
-  case class Processes(ids: Set[ProcessId])
+  case class Processes(ids: Set[ProcessId]) {
+    val all = ids.toList.sortBy(_.id)
+  }
 
   sealed trait ProcessStatus
 

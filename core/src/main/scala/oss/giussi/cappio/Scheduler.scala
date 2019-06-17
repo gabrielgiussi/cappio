@@ -11,9 +11,28 @@ object Scheduler {
   def init[In,State,Out](processes: List[Process[In,State,Out]]) = Scheduler(processes.map(p => p.id -> p).toMap, Network.init(), 0)
 }
 
-case class RequestBatch[Req](requests: Map[ProcessId,Req])
+case class RequestBatch[Req](requests: Map[ProcessId,Req]) {
+  def add(processId: ProcessId, req: Req): RequestBatch[Req] = copy(requests = requests + (processId -> req))
 
-case class DeliverBatch(ops: Map[ProcessId,Either[FLLDeliver,Drop]])
+  def remove(processId: ProcessId) = copy(requests = requests - processId)
+}
+
+object DeliverBatch {
+
+  val empty: DeliverBatch = DeliverBatch(Map.empty)
+}
+
+case class DeliverBatch(ops: Map[ProcessId,Either[FLLDeliver,Drop]]) {
+  def add(deliver: FLLDeliver) = copy(ops = ops + (deliver.packet.to -> Left(deliver)))
+
+  def add(drop: Drop) = copy(ops = ops + (drop.packet.to -> Right(drop)))
+
+  def remove(deliver: FLLDeliver) = copy(ops = ops - deliver.packet.to)
+
+  def remove(drop: Drop) = copy(ops = ops - drop.packet.to)
+
+  def clear() = copy()
+}
 
 sealed trait Step[Req,State,Ind] // TODO delete?
 

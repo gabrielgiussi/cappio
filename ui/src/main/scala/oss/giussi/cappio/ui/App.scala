@@ -8,7 +8,7 @@ import org.scalajs.dom.{document, html}
 import scala.util.Try
 
 
-object SampleMain {
+object App {
 
   case class Route(path: String)
 

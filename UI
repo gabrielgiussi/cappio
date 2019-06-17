@@ -23,7 +23,8 @@ Problemas
 
 Must implement
 - i18n
-- type class StateDiv that shows state as a div!
+- show grouped actions (e.g. n sends from same process at same index)
+- download icons and fonts
 
 Could implement
 - que aparezca el scroll solo cuando hay rounds para ver. Para esto voy a necesitar el current round (ya sea para pintar mas rounds o para
@@ -40,6 +41,7 @@ Could implement
 - hide left menu
 - cambiar el estilo o el color de la linea de tiempo cuando se cae el nodo (rojo o dashed)
 - cambiar el estilo de la linea a medida que "avanza" el tick
+- un primer nivel dummy con modals que indiquen como usar la app
 
 Investigate
 - EventStream[GridConf]
@@ -49,5 +51,13 @@ Investigate
   o conviene que GridConf devuela roundWidth como un Stream[Int] en lugar de un Int?
 
 
-
+Laminar questions
+- contramap
+- router (como updatear el hash si el q viene no es valido!)
+- como resetear un form dsp de submitear? (se puede dentro del map?)
+- throttle input changes
+- como funciona la magica de inContext + addObserver a una signal + onClick signal.now
+- writeBus vs observer?
+- var update vs set vs setCurrentValue
+- Observer.apply[String](l => someVar.update(_ ::: List(l))) es valido para setear el valor de las Vars ?
 

@@ -3,8 +3,9 @@ package oss.giussi.cappio.ui
 import java.util.UUID
 
 import com.raquo.laminar.api.L._
+import oss.giussi.cappio.Network.InTransitPacket
 import oss.giussi.cappio.ui.core.{Action, Crashed, Delivered, Dropped, Index, Indication, Request, Undelivered}
-import oss.giussi.cappio.{NextStateScheduler, ProcessId, ProcessStatus, Processes, Scheduler, Up}
+import oss.giussi.cappio.{DeliverBatch, Drop, FLLDeliver, Instance, NextStateScheduler, Packet, ProcessId, ProcessStatus, Processes, RequestBatch, Scheduler, Up}
 
 object Levels {
 
@@ -36,6 +37,8 @@ trait Level {
   // que definir es como mostrar un state!, dsp va a ser un split por processId
   // tal vez tiene mas sentido que provea un stream de List[(ProcessId,Div)]
   def states: Div
+
+  def conditions: Div
 
 }
 
@@ -88,6 +91,7 @@ abstract class AbstractLevel[R, S, I](x: Int, processes: Processes) extends Leve
 
 
   override def actionSelection: Div = {
+    /*
     val prevButton = button(
       "Prev",
       onClick.preventDefault.mapToValue("Prev") --> clicks
@@ -97,6 +101,35 @@ abstract class AbstractLevel[R, S, I](x: Int, processes: Processes) extends Leve
       onClick.preventDefault.mapToValue("Next") --> clicks
     )
     div(prevButton, nextButton)
+     */
+    /*
+    val d = div(
+      ActionSelection.reqBatchInput[String,String](processes,b.writer , obs => i => input(
+        `type` := "text",
+        // TODO how to throttle key press?
+        inContext(thisNode => onChange.mapTo(Option(thisNode.ref.value).filterNot(_.isEmpty)) --> obs),
+      ))
+    )
+    d
+     */
+    val l = (2 to 4).map(i => new InTransitPacket {
+      override val packet: Packet = Packet(i,1,"",Instance(""))
+
+      override def deliver: FLLDeliver = FLLDeliver(packet)
+
+      override def drop: Drop = Drop(packet)
+    }).toList ++ (1 to 3).map(i => new InTransitPacket {
+      override val packet: Packet = Packet(i,4,"",Instance(""))
+
+      override def deliver: FLLDeliver = FLLDeliver(packet)
+
+      override def drop: Drop = Drop(packet)
+    }).toList
+    val b = new EventBus[DeliverBatch]
+    val d = div(
+      ActionSelection.networkInput(l,b.writer)
+    )
+    d
   }
 
   def renderState(id: ProcessId, initial: ProcessState, $states: Signal[ProcessState]) = div(
@@ -112,10 +145,12 @@ abstract class AbstractLevel[R, S, I](x: Int, processes: Processes) extends Leve
 
   def renderStateI(id: ProcessId, initial: ProcessState, $states: Signal[ProcessState]): Modifier[Div] = id.toString
 
-  def states: Div = div(
+  override def states: Div = div(
     cls := "row wow fadeIn",
     children <-- $states.split(_.id)(renderState)
   )
+
+  override def conditions: Div = div()
 
 
 

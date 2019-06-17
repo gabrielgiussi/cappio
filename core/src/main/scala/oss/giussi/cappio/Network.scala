@@ -23,7 +23,8 @@ case class Drop(packet: Packet)
 
 object Network {
 
-  sealed trait InTransitPacket {
+  //sealed trait InTransitPacket { TODO
+  trait InTransitPacket {
 
     val packet: Packet
 
@@ -42,15 +43,7 @@ object Network {
 
 case class FLLDeliver(packet: Packet)
 
-sealed abstract case class Nat protected (toInt: Int)
-object Nat {
-  def fromInt(n: Int): Option[Nat] =
-    if (n >= 0) Some(new Nat(n) {}) else None
-}
-
 case class Network(packets: Set[Packet]) {
-
-  val n = new Nat(10){}
 
   private def remove(delivered: Set[Packet]): Network = copy(packets -- delivered)
 
