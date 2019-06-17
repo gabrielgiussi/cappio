@@ -1,20 +1,16 @@
 package oss.giussi.cappio.ui
 
-import java.util.UUID
-
 import com.raquo.laminar.api.L._
-import com.raquo.laminar.nodes.ReactiveHtmlElement
-import org.scalajs.dom.html
-import oss.giussi.cappio.Network.InTransitPacket
+import oss.giussi.cappio.impl.net.FairLossLink.FLLSend
 import oss.giussi.cappio.impl.net.StubbornLink
 import oss.giussi.cappio.impl.net.StubbornLink.{SLDeliver, SLSend}
-import oss.giussi.cappio.ui.core.{Action, Crashed, Delivered, Dropped, Index, Indication, Request, Undelivered}
-import oss.giussi.cappio.{DeliverBatch, Drop, FLLDeliver, Instance, NextStateScheduler, Packet, Process, ProcessId, ProcessStatus, Processes, RequestBatch, Scheduler, Step, TickScheduler, Up, WaitingDeliver, WaitingRequest}
+import oss.giussi.cappio.ui.core._
+import oss.giussi.cappio._
 
 object Levels {
 
   val processes = (0 to 2).map { id =>
-    Process(ProcessId(id), StubbornLink.init(3))
+    Process(ProcessId(id), StubbornLink.init(20))
   }.toList
 
   def level(i: Int) = LevelFactory(i, () => LevelImpl(i, Processes(Set(ProcessId(0), ProcessId(1), ProcessId(2))), Scheduler.init(processes), s => SLSend(Packet(0,1,s,Instance("")))
@@ -73,16 +69,28 @@ abstract class AbstractLevel[R, S, I](x: Int, processes: Processes, scheduler: S
   val $snapshots = $next.events.fold[Snapshot](Snapshot(0,List.empty,WaitingRequest(TickScheduler(scheduler)))){
     // TODO remove duplicated code
     case (Snapshot(current,actions,wr@WaitingRequest(_)),Left(req)) =>
-      val (ind,wd) = wr.request(req)
-      val sends = List.empty[Action] // wr.
-      val requests = req.requests.values.map(toRequest(_,Index(current)))
+      val index = Index(current)
+      val (sent,ind,wd) = wr.request(req)
+      val sends = sent.map { case FLLSend(Packet(id,payload,from,to,_)) => Undelivered(from,to,id,payload.toString,index) }
+      val requests = req.requests.values.map(toRequest(_,index))
       val indications = ind.map(toIndication(_,Index(current)))
       Snapshot(current + 1,actions ++ indications ++ requests ++ sends,wd)
     case (Snapshot(current,actions,wd@WaitingDeliver(_)),Right(del)) =>
-      val (ind,wr) = wd.deliver(del)
-      val delivers = List.empty[Action] // TODO
-      val indications = ind.map(toIndication(_,Index(current)))
-      Snapshot(current + 1, actions ++ indications ++ delivers,wr)
+      val index = Index(current)
+      val (sent,ind,wr) = wd.deliver(del)
+      val sends = sent.map { case FLLSend(Packet(id,payload,from,to,_)) => Undelivered(from,to,id,payload.toString,index) }
+      val delivers = del.ops.values.flatMap {
+        case Left(FLLDeliver(Packet(id,payload,from,to,_))) => Some(Delivered(from,to,id,payload.toString,actions.collect {
+          case Undelivered(_,_,`id`,_,s) => s
+        }.head,index)) // FIXME esto es solo para pruebas porque es un asco
+        case _ => None
+      }
+      val indications = ind.map(toIndication(_,index))
+      val filtered = actions.filter {
+        case Undelivered(_,_,id,_,_) if delivers.map(_.uuid).toList.contains(id) => false
+        case _ => true
+      }
+      Snapshot(current + 1, filtered ++ indications ++ delivers ++ sends,wr)
     case (s,_) => s // TODO log error in console
   }
   val $steps = $snapshots.map(_.step)

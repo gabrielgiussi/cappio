@@ -1,5 +1,7 @@
 package oss.giussi.cappio.ui
 
+import java.util.UUID
+
 import com.raquo.laminar.api.L._
 import oss.giussi.cappio.{Network, ProcessId}
 import oss.giussi.cappio.ui.core.{Crashed, Delivered, Dropped, Indication, NetworkAction, Request, Undelivered}
@@ -98,7 +100,9 @@ object Arrows {
     val p = gridConf.point(action.sent, action.from)
     val py = gridConf.y(action.to)
     val orientation = if (p.y > py) Up else Down
-    shortArrow(p, orientation, gridConf, arrowHead)
+    val a = shortArrow(p, orientation, gridConf, arrowHead)
+    a.events(onClick).mapToValue(action.uuid).foreach(println)(a)
+    a
   }
 
   def undelivered(action: Undelivered, gridConf: GridConf) = shortArrowNetwork(action,gridConf,Markers.ArrowHead)

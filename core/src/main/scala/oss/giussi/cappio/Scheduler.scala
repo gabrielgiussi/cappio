@@ -38,34 +38,34 @@ sealed trait Step[Req,State,Ind] // TODO delete? esta bien hacer traits con gene
 
 case class WaitingRequest[Req,State,Ind](scheduler: TickScheduler[Req,State,Ind]) extends Step[Req,State,Ind] {
   def request(batch: RequestBatch[Req]) = {
-    val NextStateTickScheduler(ind,sch) = scheduler.request(batch)
-    (ind,WaitingDeliver(sch))
+    val NextStateTickScheduler(sent,ind,sch) = scheduler.request(batch)
+    (sent, ind,WaitingDeliver(sch))
   }
 }
 case class WaitingDeliver[Req,State,Ind](scheduler: TickScheduler[Req,State,Ind]) extends Step[Req,State,Ind] {
   def deliver(packets: DeliverBatch) = {
-    val NextStateTickScheduler(ind,sch) = scheduler.deliver(packets)
-    (ind,WaitingRequest(sch))
+    val NextStateTickScheduler(sent,ind,sch) = scheduler.deliver(packets)
+    (sent,ind,WaitingRequest(sch))
   }
 }
 
 // FIXME estas dos clases son un asco
-case class NextStateScheduler[Req,State,Ind](indications: Set[Ind], scheduler: Scheduler[Req,State,Ind])
+case class NextStateScheduler[Req,State,Ind](sent: Set[FLLSend], indications: Set[Ind], scheduler: Scheduler[Req,State,Ind])
 
-case class NextStateTickScheduler[Req,State,Ind](indications: Set[Ind], scheduler: TickScheduler[Req,State,Ind])
+case class NextStateTickScheduler[Req,State,Ind](sent: Set[FLLSend], indications: Set[Ind], scheduler: TickScheduler[Req,State,Ind])
 
 case class TickScheduler[IN, State, Out](scheduler: Scheduler[IN,State,Out]){
 
   def request(batch: RequestBatch[IN]) = {
-    val NextStateScheduler(ind0,sch0) = scheduler.request(batch)
-    val NextStateScheduler(ind1,sch1) = sch0.tick()
-    NextStateTickScheduler(ind0 ++ ind1,copy(sch1))
+    val NextStateScheduler(sent0,ind0,sch0) = scheduler.request(batch)
+    val NextStateScheduler(sent1,ind1,sch1) = sch0.tick()
+    NextStateTickScheduler(sent0 ++ sent1, ind0 ++ ind1,copy(sch1))
   }
 
   def deliver(delivers: DeliverBatch) = {
-    val NextStateScheduler(ind0,sch0) = scheduler.deliver(delivers)
-    val NextStateScheduler(ind1,sch1) = sch0.tick()
-    NextStateTickScheduler(ind0 ++ ind1,copy(sch1))
+    val NextStateScheduler(sent0,ind0,sch0) = scheduler.deliver(delivers)
+    val NextStateScheduler(sent1,ind1,sch1) = sch0.tick()
+    NextStateTickScheduler(sent0 ++ sent1, ind0 ++ ind1,copy(sch1))
   }
 }
 
@@ -87,7 +87,7 @@ case class Scheduler[IN, State, Out](processes: Map[ProcessId, Process[IN, State
         (ind ++ i,send ++ s,ps + ns)
     }
 
-    NextStateScheduler(fi,copy(processes = processes ++ fp.map(p => p.id -> p), network = network.send(fs)))
+    NextStateScheduler(fs, fi,copy(processes = processes ++ fp.map(p => p.id -> p), network = network.send(fs)))
   }
 
   def tick(): Next = {
@@ -96,7 +96,7 @@ case class Scheduler[IN, State, Out](processes: Map[ProcessId, Process[IN, State
         val NextStateProcess(i,s,ns) = p.tick
         (ind ++ i,send ++ s,ps + ns)
     }
-    NextStateScheduler(fi,copy(processes = fp.map(p => p.id -> p).toMap, network = network.send(fs), step = step + 1))
+    NextStateScheduler(fs, fi,copy(processes = fp.map(p => p.id -> p).toMap, network = network.send(fs), step = step + 1))
   }
 
   def deliver(ds: DeliverBatch) = {
@@ -111,7 +111,7 @@ case class Scheduler[IN, State, Out](processes: Map[ProcessId, Process[IN, State
         val NextStateProcess(i,s,ns) = deliver(d)
         (ind ++ i,send ++ s,ps + ns)
     }
-    NextStateScheduler(fi,copy(processes = processes ++ fp.map(p => p.id -> p).toMap, network = nn.send(fs)))
+    NextStateScheduler(fs, fi,copy(processes = processes ++ fp.map(p => p.id -> p).toMap, network = nn.send(fs)))
   }
 
 }

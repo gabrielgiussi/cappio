@@ -202,6 +202,7 @@ object ActionSelection {
   }
 
   // TODO esto depende de cada nivel
+  // auto trigger and disable if there is only one option
   def selectReqType(types: List[String], obs: Observer[Option[String]], modifiers: Modifier[Select]*) = {
     //val request: Var[Option[String]] = Var(None)
     select(

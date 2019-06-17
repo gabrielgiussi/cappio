@@ -61,3 +61,11 @@ Laminar questions
 - var update vs set vs setCurrentValue
 - Observer.apply[String](l => someVar.update(_ ::: List(l))) es valido para setear el valor de las Vars ?
 
+
+
+Proximos pasos
+- Implementar correctamente la transformacion de Undelivered a Delivered (parece que hay un paso anterior a que sean actions)
+- Implementar requestType por level
+- Implementar request build por level
+- Implementar status show por level
+- Implementar conditions

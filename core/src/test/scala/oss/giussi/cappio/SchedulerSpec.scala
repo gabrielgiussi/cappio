@@ -28,7 +28,7 @@ class SchedulerSpec extends WordSpec with Matchers {
       val packet = Packet(0,1,"pal",Instance("o"))
       WaitingRequest(TickScheduler(Scheduler.init(processes)))
         .request(RequestBatch(Map(ProcessId(0) -> SLSend(packet))))
-        ._2
+        ._3
         .deliver(DeliverBatch(Map(ProcessId(1) -> Left(FLLDeliver(packet)))))
         ._1 should contain theSameElementsAs List(SLDeliver(packet))
     }
@@ -37,11 +37,11 @@ class SchedulerSpec extends WordSpec with Matchers {
       val packet = Packet(0,1,"pal",Instance("o"))
       WaitingRequest(TickScheduler(Scheduler.init(processes)))
         .request(RequestBatch(Map(ProcessId(0) -> SLSend(packet))))
-        ._2
+        ._3
         .deliver(DeliverBatch(Map(ProcessId(1) -> Right(Drop(packet)))))
-        ._2
+        ._3
         .request(RequestBatch(Map.empty))
-        ._2
+        ._3
         .deliver(DeliverBatch(Map(ProcessId(1) -> Left(FLLDeliver(packet)))))
     }
   }
