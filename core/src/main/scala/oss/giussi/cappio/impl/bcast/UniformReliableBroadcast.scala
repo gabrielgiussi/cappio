@@ -68,6 +68,7 @@ object UniformReliableBroadcast {
     }
   }
 
+  // TODO move class
   object Payload {
     def apply(msg: Any): Payload = new Payload(UUID.randomUUID(),msg)
   }

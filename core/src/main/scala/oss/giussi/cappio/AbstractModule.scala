@@ -55,7 +55,7 @@ abstract class AbstractModule[R, S <: StateWithModule[UR, US, UI, S], I, UR, US,
   private def requestMsg(msgs: Seq[Msg]) = {
     val queue = Queue[Msg](msgs : _*)
     val (s,ind,sends) = processQueue(queue, state)
-    if (!ind.isEmpty) println(ind)
+    //if (!ind.isEmpty) println(ind)
     next(copyModule(s),ind,sends)
   }
 

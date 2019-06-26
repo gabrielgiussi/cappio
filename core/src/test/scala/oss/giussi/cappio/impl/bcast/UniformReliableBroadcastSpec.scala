@@ -1,10 +1,9 @@
 package oss.giussi.cappio.impl.bcast
 
-import org.scalatest.{Matchers, WordSpec}
 import oss.giussi.cappio.impl.net.FairLossLink.FLLSend
-import oss.giussi.cappio.{FLLDeliver, Packet, ProcessId}
+import oss.giussi.cappio.{CappIOSpec, Packet, ProcessId}
 
-class UniformReliableBroadcastSpec extends WordSpec with Matchers {
+class UniformReliableBroadcastSpec extends CappIOSpec {
 
   val all = (0 to 2).map(ProcessId).toSet
   val timeout = 3
@@ -24,10 +23,10 @@ class UniformReliableBroadcastSpec extends WordSpec with Matchers {
       val payload = Payload("gaga")
       val urbPayload = Payload(payload.id,URBData(0,payload.msg))
       urb.request(URBBcast(payload))
-        .module.tail.deliver(FLLDeliver(Packet(urbPayload,1,0,BEB)))
-        .module.tail.deliver(FLLDeliver(Packet(urbPayload,2,0,BEB)))
-        .module.tail.deliver(FLLDeliver(Packet(urbPayload,0,0,BEB)))
-        .module.tick
+        .deliver(Packet(urbPayload,1,0,BEB))
+        .deliver(Packet(urbPayload,2,0,BEB))
+        .deliver(Packet(urbPayload,0,0,BEB))
+        .tick
         .indications should contain theSameElementsAs List(URBDeliver(0,payload.msg))
     }
   }

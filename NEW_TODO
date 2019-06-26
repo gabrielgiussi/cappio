@@ -369,10 +369,18 @@
 
 
 
+- Such that events conditions. Puedo procesar el evento y si no se da la condicion no hacer nada?
 
 
+¡¡¡CORREGIR EL SHADOWING DE STATE QUE TENGO EN processLocal (ve el estate de la case class y el q recibe el metodo, error prone) !!!
+
+puedo tipar los payloads? Cuando construyo el stack de modulos se q tipo de mensajes voy a estar mandando!
 
 
+- Quisiera sacar la logica de processar un request/LocalIndication/LocalRequest a una funcion para que sea mas facil de testear
+  (ademas me evitaria el problema del shadowing), aunque la funcion tendria q empezar a retornar el state y no el module (no puede hacer copy).
+  El otro problema mas grave es q por el momento no puedo hacerlo porque no tengo acceso a las clases internas de AbstractModule
+ (Msg,LocalMsg,PublicRequest,etc)
 
 ############ Definir reglas
 Ejemplo.

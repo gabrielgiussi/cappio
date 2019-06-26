@@ -105,6 +105,7 @@ case class Scheduler[IN, State, Out](processes: Map[ProcessId, Process[IN, State
     val drops = ds.ops.values.collect { case Right(value) => value }
 
     val nn = network.deliver(d).flatMap(_.drop(drops.map(_.packet).toSet)).get
+    println(d)
 
     val (fi,fs,fp) = d.foldLeft[(Set[Out],Set[FLLSend],Set[P])]((Set.empty,Set.empty,Set.empty)) {
       case ((ind,send,ps),d) =>
