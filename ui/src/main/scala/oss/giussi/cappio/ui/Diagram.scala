@@ -2,7 +2,7 @@ package oss.giussi.cappio.ui
 
 import oss.giussi.cappio.Processes
 import com.raquo.laminar.api.L.{svg => s, _}
-import oss.giussi.cappio.ui.core.{Action, Crashed, Delivered, Dropped, Indication, Request, Undelivered}
+import oss.giussi.cappio.ui.core.{Action, Crashed, Delivered, Dropped, Indication, PendingRead, PendingWrite, ReadReturned, Request, Undelivered, WriteReturned}
 
 object Diagram {
 
@@ -37,6 +37,10 @@ object Diagram {
         case (r: Request,gridConf) => Arrows.request(r,gridConf)
         case (i: Indication,gridConf) => Arrows.indication(i,gridConf)
         case (d: Dropped,gridConf) => Arrows.dropped(d,gridConf)
+        case (r: PendingRead,gridConf) => Arrows.pendingRead(r,gridConf)
+        case (r: ReadReturned,gridConf) => Arrows.readReturned(r,gridConf)
+        case (r: PendingWrite,gridConf) => Arrows.pendingWrite(r,gridConf)
+        case (r: WriteReturned,gridConf) => Arrows.writeReturned(r,gridConf)
       }
     )
   }

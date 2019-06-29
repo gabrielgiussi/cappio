@@ -16,7 +16,7 @@ trait StateWithModule[R, S, I, Self <: StateWithModule[R,S,I,Self]] { this: Self
   final def tail = module().tail
 }
 
-abstract class AbstractModule[R, S <: StateWithModule[UR, US, UI, S], I, UR, US, UI] extends Module[R, S, I] {
+abstract class AbstractModule[R, S <: StateWithModule[UR, US, UI, S], I, UR, US, UI]  extends Module[R, S, I] {
   sealed trait Msg
 
   sealed trait LocalMsg extends Msg

@@ -30,9 +30,9 @@ case class Request(process: ProcessId, index: Index, payload: String) extends Ac
   override def id: String = s"request-$process-$index"
 }
 
-sealed abstract class NetworkAction(val _from: ProcessId,val _to: ProcessId, _uuid: UUID, _payload: String, _sent: Index) extends Action {
+sealed abstract class NetworkAction(val _from: ProcessId,val _to: ProcessId,val _uuid: UUID,val _payload: String,val _sent: Index) extends Action {
 
-  override val id = s"network-f:$from-t:$to-$uuid-$sent"
+  override val id = s"network-f:${_from}-t:${_to}-${_uuid}-${_sent}"
 
   def from: ProcessId
 
@@ -55,3 +55,20 @@ case class Undelivered(from: ProcessId, to: ProcessId, uuid: UUID, payload: Stri
 case class Delivered(from: ProcessId, to:ProcessId, uuid: UUID, payload: String, sent: Index, received: Index) extends NetworkAction(from,to,uuid,payload,sent)
 
 case class Dropped(from: ProcessId, to: ProcessId, uuid: UUID, payload: String, sent: Index, dropped: Index) extends NetworkAction(from,to,uuid,payload,sent)
+
+sealed abstract class ReadAction(process: ProcessId, index: Index) extends Action {
+  override def id: String = s"rd-p:$process-i:$index"
+}
+
+sealed abstract class WriteAction(process: ProcessId, index: Index) extends Action {
+  override def id: String = s"wr-p:$process-i:$index"
+}
+
+case class PendingRead(process: ProcessId, start: Index) extends ReadAction(process,start)
+
+// typed value
+case class ReadReturned(process: ProcessId, start: Index,returned: Index, value: String) extends ReadAction(process,start)
+
+case class PendingWrite(process: ProcessId, start: Index, value: String) extends WriteAction(process,start)
+
+case class WriteReturned(process: ProcessId, start: Index, returned: Index, value: String) extends WriteAction(process,start)

@@ -97,7 +97,7 @@ object OneNRegularRegister {
 
 }
 
-
+// Majority voting regular register pag 147
 case class OneNRegularRegister[V](self: ProcessId, N: Int, state: ONRRState[V]) extends AbstractModule[ONRRReq[V], ONRRState[V], ONRRInd[V], ModuleReq, ModuleState, ModuleInd] {
   override def copyModule(s: ONRRState[V]) = copy(state = s)
 

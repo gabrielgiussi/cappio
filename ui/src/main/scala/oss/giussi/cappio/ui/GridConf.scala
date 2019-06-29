@@ -19,6 +19,8 @@ case class GridConfImpl(roundWidth: Double, p: Processes) extends GridConf {
 
   override def crossSize: Double = roundWidth * 0.2
 
+  override def pointSize: Double = roundWidth * 0.2
+
   override def processes: List[ProcessId] = p.all
 }
 
@@ -37,5 +39,7 @@ sealed trait GridConf {
   def y(process: ProcessId): Double
 
   def processes: List[ProcessId]
+
+  def pointSize: Double
 
 }

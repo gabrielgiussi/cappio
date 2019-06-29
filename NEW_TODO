@@ -376,6 +376,11 @@
 
 puedo tipar los payloads? Cuando construyo el stack de modulos se q tipo de mensajes voy a estar mandando!
 
+- COMO SE TRADUCE "AL MUNDO REAL" LA RESTRICCION DE QUE UN PROCESO NO REALIZA UNA SEGUNDA OPERACION HASTA QUE LA PRIMERA NO TERMINE???
+
+- Donde poner la validacion de la restriccion de los registers? (wait return)
+  Parece q deberia ir en el scheduler.
+
 
 - Quisiera sacar la logica de processar un request/LocalIndication/LocalRequest a una funcion para que sea mas facil de testear
   (ademas me evitaria el problema del shadowing), aunque la funcion tendria q empezar a retornar el state y no el module (no puede hacer copy).

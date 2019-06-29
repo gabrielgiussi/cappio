@@ -1,24 +1,52 @@
 package oss.giussi.cappio.impl.register
 
+import java.util.UUID
+
 import oss.giussi.cappio.impl.bcast.UniformReliableBroadcast.Payload
 import oss.giussi.cappio.impl.net.FairLossLink.FLLSend
-import oss.giussi.cappio.impl.register.OneNRegularRegister.{ONREAD, ONRRRead}
-import oss.giussi.cappio.{CappIOSpec, Packet, ProcessId}
+import oss.giussi.cappio.impl.register.OneNRegularRegister.{ONACK, ONREAD, ONRRRead, ONRRReadReturn, ONRRWrite, ONRRWriteReturn, ONVALUE, ONWRITE}
+import oss.giussi.cappio.{CappIOSpec, NextState, Packet, ProcessId}
 
 class OneNRegularRegisterSpec extends CappIOSpec {
 
 
-  val all = (0 to 2).map(ProcessId)
+  val p0 = ProcessId(0)
+  val p1 = ProcessId(1)
+  val p2 = ProcessId(2)
+  val all = Set(p0,p1,p2)
   val timeout = 100
   val N = all.size
-  val ps = all.map(id => id.id -> OneNRegularRegister.init[Int](id, N, timeout, all.toSet)).toMap
+  val ps = all.map(id => id.id -> OneNRegularRegister.init[Int](id, N, timeout, all)).toMap
 
   "A" should {
     "B" in {
-      ps(0).request(ONRRRead).send.map { case FLLSend(Packet(_, ONREAD(1), ProcessId(0), to, OneNRegularRegister.BEB)) => to } shouldBe all.toSet
+      ps(0).request(ONRRRead).send.map { case FLLSend(Packet(_, ONREAD(1), ProcessId(0), to, OneNRegularRegister.BEB)) => to } shouldBe all
     }
 
     "C" in {
+      ps(0).request(ONRRWrite(1)).send.map { case FLLSend(Packet(_,ONWRITE(1,1),ProcessId(0),to,OneNRegularRegister.BEB)) => to } shouldBe all
+    }
+
+    "D" in {
+      ps(0).request(ONRRWrite(1))
+        // aca estoy salteando el bcast(WRITE)
+        .deliver(Packet(p1,p0,ONACK(1),OneNRegularRegister.PL)) // Estos paquetes tienen ids distintos a los q se enviaron.
+        .deliver(Packet(p2,p0,ONACK(1),OneNRegularRegister.PL))
+        .indications shouldBe Set(ONRRWriteReturn)
+    }
+
+    "E" in {
+      ps(0).request(ONRRWrite(1))
+        .deliver(Packet(p0,p0,ONACK(1),OneNRegularRegister.PL))
+        .deliver(Packet(p1,p0,ONACK(1),OneNRegularRegister.PL))
+        .request(ONRRRead)
+        .deliver(Packet(p0,p0,ONVALUE(1,1,Some(1)),OneNRegularRegister.PL))
+        .deliver(Packet(p1,p0,ONVALUE(1,2,Some(5)),OneNRegularRegister.PL))
+        .indications shouldBe Set(ONRRReadReturn(5))
+    }
+
+    "C" in {
+
     }
   }
 

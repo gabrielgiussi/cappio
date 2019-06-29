@@ -4,7 +4,7 @@ import java.util.UUID
 
 import com.raquo.laminar.api.L._
 import oss.giussi.cappio.{Network, ProcessId}
-import oss.giussi.cappio.ui.core.{Crashed, Delivered, Dropped, Indication, NetworkAction, Request, Undelivered}
+import oss.giussi.cappio.ui.core.{Crashed, Delivered, Dropped, Index, Indication, NetworkAction, PendingRead, PendingWrite, ReadReturned, Request, Undelivered, WriteReturned}
 
 
 /*
@@ -53,13 +53,13 @@ object Arrows {
   def request(req: Request, gridConf: GridConf) = {
     val p2 = gridConf.point(req.index, req.process)
     val p1 = Point(p2.x - (gridConf.roundWidth / 2), p2.y - (gridConf.roundWidth / 2))
-    arrow(p1, p2, gridConf)
+    arrow(p1, p2)
   }
 
   def crashed(crashed: Crashed, gridConf: GridConf) = cross(gridConf.point(crashed.index, crashed.process), gridConf.crossSize)
 
   // TODO arrowHead
-  def arrow(p1: Point, p2: Point, grid: GridConf, arrowHead: String = "arrowhead") = {
+  def arrow(p1: Point, p2: Point, arrowHead: String = "arrowhead") = {
     val Point(x1, y1) = p1
     //val Point(x,y) = p2
     val Point(x2, y2) = p2
@@ -73,6 +73,20 @@ object Arrows {
       svg.stroke := "black",
       svg.strokeWidth := "2",
       svg.markerEnd := s"url(#${arrowHead})"
+    )
+  }
+
+  // FIXME duplicated with arrow
+  def arrow2(p1: Point, p2: Point) = {
+    val Point(x1, y1) = p1
+    val Point(x2, y2) = p2
+    svg.line(
+      svg.x1 := x1.toString,
+      svg.x2 := x2.toString,
+      svg.y1 := y1.toString,
+      svg.y2 := y2.toString,
+      svg.stroke := "black",
+      svg.strokeWidth := "2"
     )
   }
 
@@ -93,7 +107,7 @@ object Arrows {
       case Up => p.y - (gridConf.roundHeight / 2)
       case Down => p.y + (gridConf.roundHeight / 2)
     }
-    arrow(p, Point(p.x + (gridConf.roundWidth / 2), y), gridConf, arrowHead)
+    arrow(p, Point(p.x + (gridConf.roundWidth / 2), y), arrowHead)
   }
 
   private def shortArrowNetwork(action: NetworkAction, gridConf: GridConf, arrowHead: String) = {
@@ -101,7 +115,7 @@ object Arrows {
     val py = gridConf.y(action.to)
     val orientation = if (p.y > py) Up else Down
     val a = shortArrow(p, orientation, gridConf, arrowHead)
-    a.events(onClick).mapToValue(action.uuid).foreach(println)(a)
+    a.events(onClick).mapToValue(action.uuid).foreach(println)(a) // TODO
     a
   }
 
@@ -109,10 +123,34 @@ object Arrows {
 
   def dropped(action: Dropped, gridConf: GridConf) = shortArrowNetwork(action,gridConf,Markers.ArrowHeadX)
 
+
+  private def rdwrReturned(start: Index, returned: Index, process: ProcessId, gridConf: GridConf) = svg.svg(
+    circle(gridConf.point(start,process),gridConf.pointSize),
+    arrow2(gridConf.point(start,process),gridConf.point(returned,process)),
+    circle(gridConf.point(returned,process),gridConf.pointSize)
+  )
+  def pendingRead(action: PendingRead, gridConf: GridConf) = circle(gridConf.point(action.start,action.process),gridConf.pointSize)
+
+  def readReturned(action: ReadReturned, gridConf: GridConf) = rdwrReturned(action.start,action.returned,action.process,gridConf)
+
+  def pendingWrite(action: PendingWrite, gridConf: GridConf) = circle(gridConf.point(action.start,action.process),gridConf.pointSize)
+
+  // FIXME duplicated code with readReturned
+  def writeReturned(action: WriteReturned, gridConf: GridConf) = rdwrReturned(action.start,action.returned,action.process,gridConf)
+
   def delivered(action: Delivered, gridConf: GridConf) = {
     val p1 = gridConf.point(action.sent, action.from)
     val p2 = gridConf.point(action.received, action.to)
-    arrow(p1, p2, gridConf)
+    arrow(p1, p2)
+  }
+
+  def circle(p: Point, size: Double) = {
+    svg.circle(
+      svg.cx := p.x.toString,
+      svg.cy := p.y.toString,
+      svg.r := size.toString,
+      svg.fill := "black"
+    )
   }
 
 }
