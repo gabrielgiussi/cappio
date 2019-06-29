@@ -1,11 +1,11 @@
 package oss.giussi.cappio.impl.time
 
 import oss.giussi.cappio.Messages.ProcessLocal
+import oss.giussi.cappio._
 import oss.giussi.cappio.impl.net.PerfectLink.{PLDeliver, PLSend}
 import oss.giussi.cappio.impl.net.PerfectLinkBeta
 import oss.giussi.cappio.impl.net.PerfectLinkBeta.PerfectLinkBetaState
 import oss.giussi.cappio.impl.time.PerfectFailureDetector.{Crashed, PFDState}
-import oss.giussi.cappio._
 
 object PerfectFailureDetector {
 

@@ -1,14 +1,13 @@
 package oss.giussi.cappio.impl.register
 
-import oss.giussi.cappio.Messages.ProcessLocal
 import oss.giussi.cappio.impl.bcast.BestEffortBroadcast
-import oss.giussi.cappio.{AbstractModule, CombinedModule, Instance, Module, Packet, ProcessId, StateWithModule}
 import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.{BEBState, BebBcast, BebDeliver}
 import oss.giussi.cappio.impl.bcast.UniformReliableBroadcast.Payload
 import oss.giussi.cappio.impl.net.PerfectLink.{PLDeliver, PLSend}
 import oss.giussi.cappio.impl.net.PerfectLinkBeta
 import oss.giussi.cappio.impl.net.PerfectLinkBeta.PerfectLinkBetaState
-import oss.giussi.cappio.impl.register.OneNRegularRegister.{ModuleInd, ModuleReq, ModuleState, ONACK, ONREAD, ONRRInd, ONRRRead, ONRRReadReturn, ONRRReq, ONRRState, ONRRWrite, ONRRWriteReturn, ONVALUE, ONWRITE}
+import oss.giussi.cappio.impl.register.OneNRegularRegister._
+import oss.giussi.cappio._
 
 object OneNRegularRegister {
 

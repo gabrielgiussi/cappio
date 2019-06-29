@@ -1,9 +1,8 @@
 package oss.giussi.cappio.impl.time
 
-import oss.giussi.cappio.impl.net.Socket
+import oss.giussi.cappio._
 import oss.giussi.cappio.impl.time.EventualLeaderElection.{ELEState, Trust}
 import oss.giussi.cappio.impl.time.EventuallyPerfectFailureDetector.{EPFDIndication, EPFDState, Restore, Suspect}
-import oss.giussi.cappio._
 
 object EventualLeaderElection {
   case class Trust(id: ProcessId)

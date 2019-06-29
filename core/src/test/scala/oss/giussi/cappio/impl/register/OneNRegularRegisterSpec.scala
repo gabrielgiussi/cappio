@@ -1,13 +1,11 @@
 package oss.giussi.cappio.impl.register
 
-import java.util.UUID
-
 import oss.giussi.cappio.Messages.{LocalRequest, LocalStep, PublicRequest}
 import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.BebBcast
 import oss.giussi.cappio.impl.bcast.UniformReliableBroadcast.Payload
 import oss.giussi.cappio.impl.net.FairLossLink.FLLSend
-import oss.giussi.cappio.impl.register.OneNRegularRegister.{ONACK, ONREAD, ONRRRead, ONRRReadReturn, ONRRState, ONRRStateI, ONRRWrite, ONRRWriteReturn, ONVALUE, ONWRITE}
-import oss.giussi.cappio.{CappIOSpec, NextState, Packet, ProcessId}
+import oss.giussi.cappio.impl.register.OneNRegularRegister._
+import oss.giussi.cappio.{CappIOSpec, Packet, ProcessId}
 
 class OneNRegularRegisterSpec extends CappIOSpec {
 

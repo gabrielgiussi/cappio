@@ -1,10 +1,10 @@
 package oss.giussi.cappio.impl.bcast
 
 import org.scalatest.{Matchers, WordSpec}
-import oss.giussi.cappio.{Packet, ProcessId}
 import oss.giussi.cappio.impl.bcast.ReliableBroadcast.{RBBcast, RBData, RBDeliver}
 import oss.giussi.cappio.impl.bcast.UniformReliableBroadcast.Payload
 import oss.giussi.cappio.impl.net.FairLossLink.FLLSend
+import oss.giussi.cappio.{Packet, ProcessId}
 
 class ReliableBroadcastSpec extends WordSpec with Matchers {
 

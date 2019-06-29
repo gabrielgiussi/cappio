@@ -1,10 +1,10 @@
 package oss.giussi.cappio.impl.net
 
 import oss.giussi.cappio.Messages.ProcessLocal
-import oss.giussi.cappio.{AbstractModule, Module, NextState, Packet, StateWithModule}
 import oss.giussi.cappio.impl.net.PerfectLink.{PLDeliver, PLSend, PerfectLinkState}
 import oss.giussi.cappio.impl.net.PerfectLinkBeta.PerfectLinkBetaState
 import oss.giussi.cappio.impl.net.StubbornLink.{SLDeliver, SLSend, StubbornLinkState}
+import oss.giussi.cappio.{AbstractModule, Module, Packet, StateWithModule}
 
 object PerfectLinkBeta {
 

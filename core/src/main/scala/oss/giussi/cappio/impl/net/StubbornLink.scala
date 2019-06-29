@@ -1,8 +1,8 @@
 package oss.giussi.cappio.impl.net
 
-import oss.giussi.cappio.{Module, _}
 import oss.giussi.cappio.impl.net.FairLossLink.FLLSend
 import oss.giussi.cappio.impl.net.StubbornLink.{SLDeliver, SLSend, StubbornLinkState}
+import oss.giussi.cappio.{Module, _}
 
 object StubbornLink {
 

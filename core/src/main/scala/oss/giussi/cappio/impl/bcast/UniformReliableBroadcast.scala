@@ -3,11 +3,11 @@ package oss.giussi.cappio.impl.bcast
 import java.util.UUID
 
 import oss.giussi.cappio.Messages.ProcessLocal
+import oss.giussi.cappio._
 import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.{BEBState, BebBcast, BebDeliver}
 import oss.giussi.cappio.impl.bcast.UniformReliableBroadcast._
 import oss.giussi.cappio.impl.time.PerfectFailureDetector
 import oss.giussi.cappio.impl.time.PerfectFailureDetector.{Crashed, PFDState}
-import oss.giussi.cappio._
 
 import scala.util.Random
 
@@ -107,7 +107,6 @@ object UniformReliableBroadcast {
 
 case class UniformReliableBroadcast(self: ProcessId, state: URBState) extends AbstractModule[URBBcast,URBState,URBDeliver,ModuleReq,ModuleState,ModuleInd] {
   import UniformReliableBroadcast._
-  import Messages._
 
   override def copyModule(s: URBState): AbstractModule[URBBcast, URBState, URBDeliver, ModuleReq, (PFDState, BEBState), ModuleInd] = copy(state = s)
 

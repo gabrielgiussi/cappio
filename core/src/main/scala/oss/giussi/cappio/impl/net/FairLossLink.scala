@@ -1,6 +1,6 @@
 package oss.giussi.cappio.impl.net
 
-import oss.giussi.cappio.{FLLDeliver, Module, NextState, Packet}
+import oss.giussi.cappio.{FLLDeliver, NextState, Packet}
 
 object FairLossLink {
 

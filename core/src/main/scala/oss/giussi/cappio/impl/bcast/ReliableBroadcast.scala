@@ -2,13 +2,12 @@ package oss.giussi.cappio.impl.bcast
 
 import java.util.UUID
 
-import oss.giussi.cappio.Messages.ProcessLocal
-import oss.giussi.cappio.{AbstractModule, CombinedModule, Instance, Module, NoRequest, ProcessId, StateWithModule}
 import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.{BEBState, BebBcast, BebDeliver}
-import oss.giussi.cappio.impl.bcast.ReliableBroadcast.{ModuleInd, ModuleReq, ModuleState, RBBcast, RBData, RBDeliver, RBcastState}
+import oss.giussi.cappio.impl.bcast.ReliableBroadcast._
 import oss.giussi.cappio.impl.bcast.UniformReliableBroadcast.Payload
 import oss.giussi.cappio.impl.time.PerfectFailureDetector
 import oss.giussi.cappio.impl.time.PerfectFailureDetector.{Crashed, PFDState}
+import oss.giussi.cappio._
 
 object ReliableBroadcast {
 

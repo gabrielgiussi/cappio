@@ -2,11 +2,11 @@ package oss.giussi.cappio.impl.time
 
 import oss.giussi.cappio.Messages.ProcessLocal
 import oss.giussi.cappio.impl.net.PerfectLink.{PLDeliver, PLSend}
+import oss.giussi.cappio.impl.net.PerfectLinkBeta
 import oss.giussi.cappio.impl.net.PerfectLinkBeta.PerfectLinkBetaState
-import oss.giussi.cappio.impl.net.{PerfectLinkBeta, Socket}
-import oss.giussi.cappio.impl.time.EventuallyPerfectFailureDetector.{EPFDIndication, EPFDState, Restore, Suspect}
+import oss.giussi.cappio.impl.time.EventuallyPerfectFailureDetector.{EPFDIndication, EPFDState}
 import oss.giussi.cappio.impl.time.PerfectFailureDetector.{HeartbeatReply, HeartbeatRequest}
-import oss.giussi.cappio.{AbstractModule, Instance, Module, NoRequest, Packet, ProcessId, StateWithModule}
+import oss.giussi.cappio._
 
 object EventuallyPerfectFailureDetector {
   sealed trait EPFDIndication
@@ -51,7 +51,6 @@ object EventuallyPerfectFailureDetector {
 }
 
 case class EventuallyPerfectFailureDetector(self: ProcessId, all: Set[ProcessId], state: EPFDState, instance: Instance) extends AbstractModule[NoRequest,EPFDState,EPFDIndication,PLSend,PerfectLinkBetaState,PLDeliver] {
-  import oss.giussi.cappio.Messages._
   override def copyModule(ns: EPFDState): AbstractModule[NoRequest, EPFDState, EPFDIndication, PLSend, PerfectLinkBetaState, PLDeliver] = copy(state = ns)
 
   override val processLocal: PLocal = EventuallyPerfectFailureDetector.processLocal(self,all,instance)

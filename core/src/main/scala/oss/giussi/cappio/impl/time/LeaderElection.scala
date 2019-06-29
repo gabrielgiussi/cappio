@@ -1,9 +1,9 @@
 package oss.giussi.cappio.impl.time
 
 import oss.giussi.cappio.Messages.ProcessLocal
+import oss.giussi.cappio._
 import oss.giussi.cappio.impl.time.LeaderElection.{LEState, Leader}
 import oss.giussi.cappio.impl.time.PerfectFailureDetector.{Crashed, PFDState}
-import oss.giussi.cappio._
 
 object LeaderElection {
   case class Leader(p: ProcessId)

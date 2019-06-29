@@ -1,9 +1,9 @@
 package oss.giussi.cappio.impl.time
 
 import org.scalatest.{Matchers, WordSpec}
+import oss.giussi.cappio._
 import oss.giussi.cappio.impl.time.LeaderElection.{LEState, Leader}
 import oss.giussi.cappio.impl.time.PerfectFailureDetector.HeartbeatReply
-import oss.giussi.cappio._
 
 class LeaderElectionSpec extends WordSpec with Matchers {
 

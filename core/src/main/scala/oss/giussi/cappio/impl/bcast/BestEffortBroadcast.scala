@@ -1,11 +1,11 @@
 package oss.giussi.cappio.impl.bcast
 
 import oss.giussi.cappio.Messages.ProcessLocal
-import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.{BEBState, BebBcast, BebDeliver}
-import oss.giussi.cappio.impl.net.PerfectLink.{PLDeliver, PLSend, PerfectLinkState}
-import oss.giussi.cappio.impl.net.{PerfectLink, Socket}
 import oss.giussi.cappio._
+import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.{BEBState, BebBcast, BebDeliver}
 import oss.giussi.cappio.impl.bcast.UniformReliableBroadcast.Payload
+import oss.giussi.cappio.impl.net.PerfectLink
+import oss.giussi.cappio.impl.net.PerfectLink.{PLDeliver, PLSend, PerfectLinkState}
 
 object BestEffortBroadcast {
 

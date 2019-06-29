@@ -1,7 +1,5 @@
 package oss.giussi.cappio.impl
 
-import scala.reflect.ClassTag
-
 /*
 https://medium.com/anyjunk/union-types-ffde15fd335
  */
