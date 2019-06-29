@@ -1,5 +1,6 @@
 package oss.giussi.cappio.impl.time
 
+import oss.giussi.cappio.Messages.ProcessLocal
 import oss.giussi.cappio.impl.net.PerfectLink.{PLDeliver, PLSend}
 import oss.giussi.cappio.impl.net.PerfectLinkBeta.PerfectLinkBetaState
 import oss.giussi.cappio.impl.net.{PerfectLinkBeta, Socket}
@@ -33,21 +34,25 @@ object EventuallyPerfectFailureDetector {
   }
 
   def init(self: ProcessId, all: Set[ProcessId], delay: Int): EventuallyPerfectFailureDetector = EventuallyPerfectFailureDetector(self,all - self,EPFDState.init(all - self,delay),new Instance("")) // TODO
+
+  def processLocal(self: ProcessId, all: Set[ProcessId], instance: Instance): ProcessLocal[NoRequest,EPFDState,EPFDIndication,PLSend,PLDeliver] = {
+    import oss.giussi.cappio.Messages._
+    (msg,state) => msg match {
+      case Tick if (state.timer + 1 == state.currentDelay) =>
+        val (ns,suspected,revived) = state.timeout()
+        val ind: Set[EPFDIndication] = suspected.map(Suspect) ++ revived.map(Restore)
+        val heartbeats = all.map(to => LocalRequest(PLSend(Packet(self,to,HeartbeatRequest,instance))))
+        LocalStep.withRequestsAndIndications(ind,heartbeats,ns)
+      case Tick => LocalStep.withState(state.tick)
+      case LocalIndication(PLDeliver(Packet(_,HeartbeatReply,from,_,_))) => LocalStep.withState(state.hearbeat(from))
+      case LocalIndication(PLDeliver(Packet(_,HeartbeatRequest,from,_,_))) => LocalStep.withRequests(Set(LocalRequest(PLSend(Packet(self,from,HeartbeatReply,instance)))),state)
+    }
+  }
 }
 
 case class EventuallyPerfectFailureDetector(self: ProcessId, all: Set[ProcessId], state: EPFDState, instance: Instance) extends AbstractModule[NoRequest,EPFDState,EPFDIndication,PLSend,PerfectLinkBetaState,PLDeliver] {
+  import oss.giussi.cappio.Messages._
   override def copyModule(ns: EPFDState): AbstractModule[NoRequest, EPFDState, EPFDIndication, PLSend, PerfectLinkBetaState, PLDeliver] = copy(state = ns)
 
-  override def processLocal(l: LocalMsg, state: EPFDState): LocalStep = l match {
-    case Tick if (state.timer + 1 == state.currentDelay) =>
-      val (ns,suspected,revived) = state.timeout()
-      val ind: Set[EPFDIndication] = suspected.map(Suspect) ++ revived.map(Restore)
-      val heartbeats = all.map(to => LocalRequest(PLSend(Packet(self,to,HeartbeatRequest,instance))))
-      LocalStep.prueba(ind,heartbeats,ns)
-    case Tick => LocalStep(state.tick)
-    case LocalIndication(PLDeliver(Packet(_,HeartbeatReply,from,_,_))) => LocalStep(state.hearbeat(from))
-    case LocalIndication(PLDeliver(Packet(_,HeartbeatRequest,from,_,_))) => LocalStep.localRequest(Set(LocalRequest(PLSend(Packet(self,from,HeartbeatReply,instance)))),state)
-
-  }
-
+  override val processLocal: PLocal = EventuallyPerfectFailureDetector.processLocal(self,all,instance)
 }

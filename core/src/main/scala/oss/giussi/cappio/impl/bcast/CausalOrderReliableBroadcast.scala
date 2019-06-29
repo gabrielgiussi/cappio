@@ -2,7 +2,8 @@ package oss.giussi.cappio.impl.bcast
 
 import java.util.UUID
 
-import oss.giussi.cappio.impl.bcast.CausalOrderReliableBroadcast.{CRBBroadcast, CRBData, CRBDeliver, CRBState}
+import oss.giussi.cappio.Messages.ProcessLocal
+import oss.giussi.cappio.impl.bcast.CausalOrderReliableBroadcast.{CRBBroadcast, CRBDeliver, CRBState}
 import oss.giussi.cappio.impl.bcast.ReliableBroadcast.{RBBcast, RBDeliver, RBcastState}
 import oss.giussi.cappio.impl.bcast.UniformReliableBroadcast.Payload
 import oss.giussi.cappio.{AbstractModule, Module, ProcessId, StateWithModule}
@@ -43,26 +44,29 @@ object CausalOrderReliableBroadcast {
   }
 
   def init(self: ProcessId, all: Set[ProcessId], timeout: Int) = CausalOrderReliableBroadcast(self,CRBState.init(self,all,timeout))
+
+  def processLocal(self: ProcessId): ProcessLocal[CRBBroadcast,CRBState,CRBDeliver,RBBcast,RBDeliver] = {
+    import oss.giussi.cappio.Messages._
+    (msg,state) => msg match {
+      case PublicRequest(CRBBroadcast(Payload(id,msg))) =>
+        val payload = Payload(id,CRBData(state.past,msg))
+        val bcast = LocalRequest(RBBcast(payload))
+        LocalStep.withRequests(Set(bcast),state.bcast(self,payload.id,msg))
+      case LocalIndication(RBDeliver(from,Payload(id,CRBData(mpast,msg)))) =>
+        state.deliver(from,mpast,id,msg) match {
+          case Some((ns,toDeliver)) =>
+            val ind = toDeliver.map { case (sender,_,m) => CRBDeliver(sender,m) }.toSet
+            LocalStep.withIndications(ind,ns)
+          case None => LocalStep.withState(state)
+        }
+      case _ => LocalStep.withState(state)
+    }
+  }
 }
 
 case class CausalOrderReliableBroadcast(self: ProcessId, state: CRBState) extends AbstractModule[CRBBroadcast,CRBState,CRBDeliver,RBBcast,RBcastState,RBDeliver] {
   override def copyModule(s: CRBState): AbstractModule[CRBBroadcast, CRBState, CRBDeliver, RBBcast, RBcastState, RBDeliver] = copy(state = s)
 
-  override def processLocal(l: LocalMsg, state: CRBState): LocalStep = l match {
-    case Tick => LocalStep(state)
-    case PublicRequest(CRBBroadcast(Payload(id,msg))) =>
-      val payload = Payload(id,CRBData(state.past,msg))
-      val bcast = LocalRequest(RBBcast(payload))
-      LocalStep.localRequest(Set(bcast),state.bcast(self,payload.id,msg))
-    case LocalIndication(RBDeliver(from,Payload(id,CRBData(mpast,msg)))) =>
-      state.deliver(from,mpast,id,msg) match {
-        case Some((ns,toDeliver)) =>
-          val ind = toDeliver.map { case (sender,_,m) => CRBDeliver(sender,m) }.toSet
-          LocalStep(ind,ns)
-        case None => LocalStep(state)
-      }
-
-
-  }
+  override val processLocal: PLocal = CausalOrderReliableBroadcast.processLocal(self)
 
 }

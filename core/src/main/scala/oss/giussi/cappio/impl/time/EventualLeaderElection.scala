@@ -24,18 +24,20 @@ object EventualLeaderElection {
 }
 
 case class EventualLeaderElection(self: ProcessId, state: ELEState) extends AbstractModule[NoRequest,ELEState,Trust,NoRequest,EPFDState,EPFDIndication] {
+  import Messages._
   override def copyModule(s: ELEState) = copy(state = s)
 
-  override def processLocal(l: LocalMsg, state: ELEState): LocalStep = l match {
-    case PublicRequest(_) => LocalStep(state)
-    case Tick => LocalStep(state) // TODO make LocalStep require another type (wrapper of state to avoid using the state of the Module)
+  def processLocal(l: LMsg, state: ELEState): LStep = l match {
+    case PublicRequest(_) => LocalStep.withState(state)
+    case Tick => LocalStep.withState(state) // TODO make LocalStep require another type (wrapper of state to avoid using the state of the Module)
     case LocalIndication(ind) =>
       val (ns,nl) = ind match {
         case Suspect(id) => state.suspect(id)
         case Restore(id) => state.restore(id)
       }
-      LocalStep(nl.map(Trust).toSet,ns)
+      LocalStep.withIndications(nl.map(Trust).toSet,ns)
 
   }
 
+  override val processLocal: PLocal = ???
 }

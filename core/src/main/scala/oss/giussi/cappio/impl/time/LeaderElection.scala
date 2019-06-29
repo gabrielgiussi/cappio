@@ -1,9 +1,9 @@
 package oss.giussi.cappio.impl.time
 
-import oss.giussi.cappio.impl.net.Socket
+import oss.giussi.cappio.Messages.ProcessLocal
 import oss.giussi.cappio.impl.time.LeaderElection.{LEState, Leader}
 import oss.giussi.cappio.impl.time.PerfectFailureDetector.{Crashed, PFDState}
-import oss.giussi.cappio.{AbstractModule, Module, NoRequest, ProcessId, StateWithModule}
+import oss.giussi.cappio._
 
 object LeaderElection {
   case class Leader(p: ProcessId)
@@ -32,21 +32,25 @@ object LeaderElection {
   }
 
   def init(self: ProcessId,all: Set[ProcessId],timeout: Int) = LeaderElection(LEState.init(all,PerfectFailureDetector.init(self,all,timeout)))
+
+  def processLocal(): ProcessLocal[NoRequest,LEState,Leader,NoRequest,Crashed] = {
+    import oss.giussi.cappio.Messages._
+    (msg,state) => msg match {
+      case PublicRequest(_) => LocalStep.withState(state) // TODO
+      case LocalIndication(Crashed(p)) =>
+        val (ns,nl) = state.suspect(p)
+        /*
+        TODO no tiene sentido en el mismo turno devolver dos Indications de Leader, podria poner un "hack" para quedarme con el de rango menor (que se supone que fue el ultimo)
+        pero lo tengo que hacer en una especie de hook beforeReturnNextState porque a esta altura no tengo todas las indications
+        */
+        LocalStep.withIndications(nl.map(Leader).toSet,ns)
+      case Tick => LocalStep.withState(state) //  TODO make process local a partial function ??
+    }
+  }
 }
 
 case class LeaderElection(state: LEState) extends AbstractModule[NoRequest,LEState,Leader,NoRequest,PFDState,Crashed] {
   override def copyModule(s: LEState): AbstractModule[NoRequest, LEState, Leader, NoRequest, PFDState, Crashed] = copy(state = s)
 
-  override def processLocal(l: LocalMsg, state: LEState): LocalStep = l match {
-    case PublicRequest(_) => LocalStep(state) // TODO
-    case LocalIndication(Crashed(p)) =>
-      val (ns,nl) = state.suspect(p)
-      /*
-      TODO no tiene sentido en el mismo turno devolver dos Indications de Leader, podria poner un "hack" para quedarme con el de rango menor (que se supone que fue el ultimo)
-      pero lo tengo que hacer en una especie de hook beforeReturnNextState porque a esta altura no tengo todas las indications
-      */
-      LocalStep(nl.map(Leader).toSet,ns)
-    case Tick => LocalStep(state) //  TODO make process local a partial function ??
-  }
-
+  override val processLocal: PLocal = LeaderElection.processLocal()
 }

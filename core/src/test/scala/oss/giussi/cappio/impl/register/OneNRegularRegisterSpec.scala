@@ -2,9 +2,11 @@ package oss.giussi.cappio.impl.register
 
 import java.util.UUID
 
+import oss.giussi.cappio.Messages.{LocalRequest, LocalStep, PublicRequest}
+import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.BebBcast
 import oss.giussi.cappio.impl.bcast.UniformReliableBroadcast.Payload
 import oss.giussi.cappio.impl.net.FairLossLink.FLLSend
-import oss.giussi.cappio.impl.register.OneNRegularRegister.{ONACK, ONREAD, ONRRRead, ONRRReadReturn, ONRRWrite, ONRRWriteReturn, ONVALUE, ONWRITE}
+import oss.giussi.cappio.impl.register.OneNRegularRegister.{ONACK, ONREAD, ONRRRead, ONRRReadReturn, ONRRState, ONRRStateI, ONRRWrite, ONRRWriteReturn, ONVALUE, ONWRITE}
 import oss.giussi.cappio.{CappIOSpec, NextState, Packet, ProcessId}
 
 class OneNRegularRegisterSpec extends CappIOSpec {
@@ -45,8 +47,15 @@ class OneNRegularRegisterSpec extends CappIOSpec {
         .indications shouldBe Set(ONRRReadReturn(5))
     }
 
-    "C" in {
-
+    "F" in {
+      val f = OneNRegularRegister.processLocal[Int](all.size,p0)
+      val init = ONRRState.init[Int](p0,all,Int.MaxValue)
+      val LocalStep(indications,events,requests,sends,ONRRState(state,_)) = f(PublicRequest(ONRRRead),init)
+      indications should be(empty)
+      events should be(empty)
+      sends should be(empty)
+      requests.toList should matchPattern { case LocalRequest(Left(BebBcast(Payload(_, ONREAD(1)), OneNRegularRegister.BEB))) :: Nil =>  }
+      state shouldBe ONRRStateI(None, 0, 0, 0, 1, Map.empty)
     }
   }
 

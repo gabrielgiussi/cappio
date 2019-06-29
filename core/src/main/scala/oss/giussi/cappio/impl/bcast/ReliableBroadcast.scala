@@ -2,6 +2,7 @@ package oss.giussi.cappio.impl.bcast
 
 import java.util.UUID
 
+import oss.giussi.cappio.Messages.ProcessLocal
 import oss.giussi.cappio.{AbstractModule, CombinedModule, Instance, Module, NoRequest, ProcessId, StateWithModule}
 import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.{BEBState, BebBcast, BebDeliver}
 import oss.giussi.cappio.impl.bcast.ReliableBroadcast.{ModuleInd, ModuleReq, ModuleState, RBBcast, RBData, RBDeliver, RBcastState}
@@ -53,26 +54,27 @@ object ReliableBroadcast {
 
   def init(self: ProcessId, all: Set[ProcessId], timeout: Int) = ReliableBroadcast(self,RBcastState.init(self,all,timeout))
 
+  import oss.giussi.cappio.Messages._
+  def processLocal(self: ProcessId): ProcessLocal[RBBcast, RBcastState, RBDeliver, ModuleReq, ModuleInd] = (msg,state) => msg match {
+    case PublicRequest(RBBcast(p)) => LocalStep.withRequests(Set(LocalRequest(Right(BebBcast(Payload(p.id,RBData(self,p.msg)), ReliableBroadcast.BEB)))), state)
+    case LocalIndication(Left(Crashed(id))) =>
+      val (ns, toBcast) = state.crashed(id)
+      val requests: Set[LocalRequest[ModuleReq]] = toBcast.map { case (uuid,msg) => LocalRequest[ModuleReq](Right(BebBcast(Payload(uuid,RBData(id, msg)), ReliableBroadcast.BEB))) }
+      LocalStep.withRequests(requests, ns)
+    case LocalIndication(Right(BebDeliver(_, Payload(id, RBData(sender, msg))))) =>
+      state.deliver(sender, id, msg) match {
+        case Some((ns, bcast)) =>
+          val ind = Set(RBDeliver(sender,Payload(id,msg)))
+          val req: Set[LocalRequest[ModuleReq]] = bcast.map { case (uuid,p) => LocalRequest[ModuleReq](Right(BebBcast(Payload(uuid,p), ReliableBroadcast.BEB))) } // TODO el p lo tengo que poner en un RBData?
+          LocalStep.withRequestsAndIndications(ind,req, ns)
+        case None => LocalStep.withState(state)
+      }
+    case _ => LocalStep.withState(state)
+  }
 }
 
 case class ReliableBroadcast(self: ProcessId, state: RBcastState) extends AbstractModule[RBBcast, RBcastState, RBDeliver, ModuleReq, ModuleState, ModuleInd] {
   override def copyModule(s: RBcastState): AbstractModule[RBBcast, RBcastState, RBDeliver, ModuleReq, (PFDState, BEBState), ModuleInd] = copy(state = s)
 
-  override def processLocal(l: LocalMsg, state: RBcastState): LocalStep = l match {
-    case Tick => LocalStep(state)
-    case PublicRequest(RBBcast(p)) => LocalStep.localRequest(Set(LocalRequest(Right(BebBcast(Payload(p.id,RBData(self,p.msg)), ReliableBroadcast.BEB)))), state)
-    case LocalIndication(Left(Crashed(id))) =>
-      val (ns, toBcast) = state.crashed(id)
-      val requests = toBcast.map { case (uuid,msg) => LocalRequest(Right(BebBcast(Payload(uuid,RBData(id, msg)), ReliableBroadcast.BEB))) }
-      LocalStep.localRequest(requests, ns)
-    case LocalIndication(Right(BebDeliver(_, Payload(id, RBData(sender, msg))))) =>
-      state.deliver(sender, id, msg) match {
-        case Some((ns, bcast)) =>
-          val ind = Set(RBDeliver(sender,Payload(id,msg)))
-          val req = bcast.map { case (uuid,p) => LocalRequest(Right(BebBcast(Payload(uuid,p), ReliableBroadcast.BEB))) } // TODO el p lo tengo que poner en un RBData?
-          LocalStep.prueba(ind,req, ns)
-        case None => LocalStep(state)
-      }
-  }
-
+  override val processLocal = ReliableBroadcast.processLocal(self)
 }

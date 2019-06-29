@@ -1,11 +1,10 @@
 package oss.giussi.cappio.impl.bcast
 
-import org.scalatest.{Matchers, WordSpec}
-import oss.giussi.cappio.{CappIOSpec, Packet, ProcessId}
 import oss.giussi.cappio.impl.bcast.CausalOrderReliableBroadcast.{CRBBroadcast, CRBData, CRBDeliver}
 import oss.giussi.cappio.impl.bcast.ReliableBroadcast.RBData
 import oss.giussi.cappio.impl.bcast.UniformReliableBroadcast.Payload
 import oss.giussi.cappio.impl.net.FairLossLink.FLLSend
+import oss.giussi.cappio.{CappIOSpec, Packet, ProcessId}
 
 class CausalOrderReliableBroadcastSpec extends CappIOSpec {
 

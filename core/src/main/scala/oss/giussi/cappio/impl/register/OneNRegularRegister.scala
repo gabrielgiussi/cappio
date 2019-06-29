@@ -1,5 +1,6 @@
 package oss.giussi.cappio.impl.register
 
+import oss.giussi.cappio.Messages.ProcessLocal
 import oss.giussi.cappio.impl.bcast.BestEffortBroadcast
 import oss.giussi.cappio.{AbstractModule, CombinedModule, Instance, Module, Packet, ProcessId, StateWithModule}
 import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.{BEBState, BebBcast, BebDeliver}
@@ -95,43 +96,46 @@ object OneNRegularRegister {
 
   def init[V](self: ProcessId, N: Int, timeout: Int, all: Set[ProcessId]) = OneNRegularRegister[V](self, N, ONRRState.init(self,all,timeout))
 
-}
-
-// Majority voting regular register pag 147
-case class OneNRegularRegister[V](self: ProcessId, N: Int, state: ONRRState[V]) extends AbstractModule[ONRRReq[V], ONRRState[V], ONRRInd[V], ModuleReq, ModuleState, ModuleInd] {
-  override def copyModule(s: ONRRState[V]) = copy(state = s)
-
-  override def processLocal(l: LocalMsg, state: ONRRState[V]): LocalStep = l match {
+  import oss.giussi.cappio.Messages._
+  def processLocal[V](N: Int, self: ProcessId): ProcessLocal[ONRRReq[V],ONRRState[V], ONRRInd[V], ModuleReq, ModuleInd] = (msg,state) => msg match {
     case PublicRequest(ONRRWrite(v)) =>
       val ns = state.write()
-      val beb = Set(LocalRequest(Left(BebBcast(Payload(ONWRITE(ns.state.wts, v)), OneNRegularRegister.BEB))))
-      LocalStep.localRequest(beb, ns)
+      val beb: Set[LocalRequest[ModuleReq]] = Set(LocalRequest(Left(BebBcast(Payload(ONWRITE(ns.state.wts, v)), OneNRegularRegister.BEB))))
+      LocalStep.withRequests(beb, ns)
     case LocalIndication(Left(BebDeliver(p, Payload(_, ONWRITE(ts, v: V))))) => // FIXME type T is erased. Also Payload can be Anything!
       val ns = state.deliver(ts, v)
-      val ack = Set(LocalRequest(Right(PLSend(Packet(self, p, Payload(ONACK(ts)), OneNRegularRegister.PL)))))
-      LocalStep.localRequest(ack, ns)
+      val ack: Set[LocalRequest[ModuleReq]] = Set(LocalRequest(Right(PLSend(Packet(self, p, Payload(ONACK(ts)), OneNRegularRegister.PL)))))
+      LocalStep.withRequests(ack, ns)
     case LocalIndication(Right(PLDeliver(Packet(_, ONACK(ts), _, _, _)))) =>
       if (state.state.wts == ts) { // TODO such that condition
         val (ns, res) = state.acked(N)
         val ind: Set[ONRRInd[V]] = if (res) Set(ONRRWriteReturn) else Set.empty
-        LocalStep(ind, ns)
+        LocalStep.withIndications(ind, ns)
       }
-      else LocalStep(state)
+      else LocalStep.withState(state)
     case PublicRequest(ONRRRead) =>
       val ns = state.read()
-      val beb = Set(LocalRequest(Left(BebBcast(Payload(ONREAD(ns.state.rid)), OneNRegularRegister.BEB))))
-      LocalStep.localRequest(beb, ns)
+      val beb: Set[LocalRequest[ModuleReq]] = Set(LocalRequest(Left(BebBcast(Payload(ONREAD(ns.state.rid)), OneNRegularRegister.BEB))))
+      LocalStep.withRequests(beb, ns)
     case LocalIndication(Left(BebDeliver(p, Payload(_, ONREAD(rid))))) =>
-      val send = Set(LocalRequest(Right(PLSend(Packet(self, p, Payload(ONVALUE(rid, state.state.ts, state.state.value)), OneNRegularRegister.PL)))))
-      LocalStep.localRequest(send, state)
+      val send: Set[LocalRequest[ModuleReq]] = Set(LocalRequest(Right(PLSend(Packet(self, p, Payload(ONVALUE(rid, state.state.ts, state.state.value)), OneNRegularRegister.PL)))))
+      LocalStep.withRequests(send, state)
     case LocalIndication(Right(PLDeliver(Packet(_, ONVALUE(r, ts, v: Option[V]), q, _, _)))) =>
       if (r == state.state.rid && v.isDefined) { // TODO v.isDefined?
         val (maybeValue,ns) = state.value(N, ts, v.get, q)
         val rr: Set[ONRRInd[V]] = maybeValue.map(ONRRReadReturn(_)).toSet
-        LocalStep(rr,ns)
+        LocalStep.withIndications(rr,ns)
       }
-      else LocalStep(state)
+      else LocalStep.withState(state)
+    case _ => LocalStep.withState(state) // TODO shouldn't happen.
   }
+}
 
-  // SI esta usando BEB, puede pasar que un READ nunca retorne? revisar las garantias del beb, o si el proceso esta activo le asegura q le va a llegar?! por el stubborn?
+// Majority voting regular register pag 147
+case class OneNRegularRegister[V](self: ProcessId, N: Int, state: ONRRState[V]) extends AbstractModule[ONRRReq[V], ONRRState[V], ONRRInd[V], ModuleReq, ModuleState, ModuleInd] {
+
+  override def copyModule(s: ONRRState[V]) = copy(state = s)
+
+  override val processLocal = OneNRegularRegister.processLocal[V](N,self)
+
 }

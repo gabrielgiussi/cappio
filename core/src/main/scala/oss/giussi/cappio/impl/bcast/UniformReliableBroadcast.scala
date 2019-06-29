@@ -2,6 +2,7 @@ package oss.giussi.cappio.impl.bcast
 
 import java.util.UUID
 
+import oss.giussi.cappio.Messages.ProcessLocal
 import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.{BEBState, BebBcast, BebDeliver}
 import oss.giussi.cappio.impl.bcast.UniformReliableBroadcast._
 import oss.giussi.cappio.impl.time.PerfectFailureDetector
@@ -82,28 +83,33 @@ object UniformReliableBroadcast {
   case class URBDeliver(from: ProcessId, payload: Any)
 
   def init(self: ProcessId, all: Set[ProcessId], timeout: Int) = UniformReliableBroadcast(self,URBState.init(self,all,timeout))
+
+  def processLocal(self: ProcessId): ProcessLocal[URBBcast,URBState,URBDeliver,ModuleReq,ModuleInd] = {
+    import Messages._
+    (msg,state) => msg match {
+      case PublicRequest(URBBcast(p)) =>
+        val req: Set[LocalRequest[ModuleReq]] = Set(LocalRequest(Right(BebBcast(Payload(p.id,URBData(self,p.msg)),BEB))))
+        LocalStep.withRequests(req,state.addPending(self, p.id,p.msg))
+      case LocalIndication(Left(Crashed(id))) => LocalStep.withState(state.crashed(id))
+      case LocalIndication(Right(BebDeliver(from, Payload(id,URBData(sender,msg))))) =>
+        val (ns,triggers) = state.ack(from,sender,id,msg)
+        val req: Set[LocalRequest[ModuleReq]] = triggers.map { case (pid,uuid,msg) => LocalRequest[ModuleReq](Right(BebBcast(Payload(uuid,URBData(pid,msg)),BEB))) }.toSet // aca el Self se lo va a estar poniendo la abstracion PerfectLink
+        LocalStep.withRequests(req,ns)
+      case Tick =>
+        state.evaluateCondition() match {
+          case Some((ns,(sender,msg))) => LocalStep.withIndications(Set(URBDeliver(sender,msg)),ns)
+          case None => LocalStep.withState(state)
+        }
+      case LocalIndication(_) => LocalStep.withState(state)
+    }
+  }
 }
 
 case class UniformReliableBroadcast(self: ProcessId, state: URBState) extends AbstractModule[URBBcast,URBState,URBDeliver,ModuleReq,ModuleState,ModuleInd] {
   import UniformReliableBroadcast._
+  import Messages._
 
   override def copyModule(s: URBState): AbstractModule[URBBcast, URBState, URBDeliver, ModuleReq, (PFDState, BEBState), ModuleInd] = copy(state = s)
 
-  override def processLocal(l: LocalMsg, state: URBState): LocalStep = l match {
-    case PublicRequest(URBBcast(p)) =>
-      val req = Set(LocalRequest(Right(BebBcast(Payload(p.id,URBData(self,p.msg)),BEB))))
-      LocalStep.localRequest(req,state.addPending(self, p.id,p.msg))
-    case LocalIndication(Left(Crashed(id))) => LocalStep(state.crashed(id))
-    case LocalIndication(Right(BebDeliver(from, Payload(id,URBData(sender,msg))))) =>
-      val (ns,triggers) = state.ack(from,sender,id,msg)
-      val req = triggers.map { case (pid,uuid,msg) => LocalRequest(Right(BebBcast(Payload(uuid,URBData(pid,msg)),BEB))) }.toSet // aca el Self se lo va a estar poniendo la abstracion PerfectLink
-      LocalStep.localRequest(req,ns)
-    case Tick =>
-      state.evaluateCondition() match {
-        case Some((ns,(sender,msg))) => LocalStep(Set(URBDeliver(sender,msg)),ns)
-        case None => LocalStep(state)
-      }
-
-  }
-
+  override val processLocal: PLocal = UniformReliableBroadcast.processLocal(self)
 }

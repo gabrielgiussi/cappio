@@ -212,14 +212,6 @@
      Indications = output actions?
      Local events = internal actions?
 
-(53) Puedo pensar a la impl beb-broadcast como una abstraction
-     request Broadcast
-     request FLLDeliver
-     indication FLLSend
-     indication BebDeliver
-
-     Esto me permitiria tener req(req: Req: Set[Ind] donde Ind podria ser una FLLSend, y ya no tener que tener un objeto especial Send
-
 (54) Como me gustaria escribir las implementaciones? igual que en el libro
      on event (event.type) { event => // requests
         if (state == some state)
@@ -258,23 +250,6 @@
      Entonces request FLLSend no es lo mismo que Send (esto va a la network)
      FLLSend puede ser un request o un local event! Esto lo determina la composicion de las abstracciones.
 
-
-(58) Como haces que un SLDeliver llegue al PerfectLink?
-     ST <- FLL (FLL conoce a ST)
-     PL  x  SL <- FLL (SL no conoce a PL)
-     PL  x  ST <- FLL <- Tail (Tail tendria la logica de llamar al deliver y dsp con el resultado llamar a PL.request()
-
-(59) FLL Es una abstraction especial
-     EL request FLLSend no va a ser consumido por las abstracciones (el proceso se encarga de mandarlos a la network)
-     La indication FLLDeliver se mete a traves del deliver de la tail!
-
-(60) Una abstraction ante un req
-     - Trigger local event
-     - Trigger indication
-
-     ante una indication ???
-
-(61) La otra abstraction que es especial es StubbornLink (o cualquiera q dispare FLLSend y consuma FLLDeliver)
 
 (62) Local Event => puede ser un request o una indication, dependiendo de para adonde va
 
@@ -369,7 +344,7 @@
 
 
 
-- Such that events conditions. Puedo procesar el evento y si no se da la condicion no hacer nada?
+- "Such that" events conditions. Puedo procesar el evento y si no se da la condicion no hacer nada?
 
 
 ¡¡¡CORREGIR EL SHADOWING DE STATE QUE TENGO EN processLocal (ve el estate de la case class y el q recibe el metodo, error prone) !!!

@@ -1,10 +1,11 @@
 package oss.giussi.cappio.impl.time
 
+import oss.giussi.cappio.Messages.ProcessLocal
 import oss.giussi.cappio.impl.net.PerfectLink.{PLDeliver, PLSend}
-import oss.giussi.cappio.impl.net.{PerfectLinkBeta, Socket}
+import oss.giussi.cappio.impl.net.PerfectLinkBeta
 import oss.giussi.cappio.impl.net.PerfectLinkBeta.PerfectLinkBetaState
-import oss.giussi.cappio.impl.time.PerfectFailureDetector.{Crashed, HeartbeatReply, HeartbeatRequest, PFDState}
-import oss.giussi.cappio.{AbstractModule, Instance, Module, NoRequest, Packet, ProcessId, StateWithModule}
+import oss.giussi.cappio.impl.time.PerfectFailureDetector.{Crashed, PFDState}
+import oss.giussi.cappio._
 
 object PerfectFailureDetector {
 
@@ -35,21 +36,25 @@ object PerfectFailureDetector {
   }
 
   def init(self: ProcessId, all: Set[ProcessId], timeout: Int) = PerfectFailureDetector(self,PFDState.init(all - self,timeout),timeout,new Instance("TODO")) // TODO
+
+  def processLocal(self: ProcessId, timeout: Int, instance: Instance): ProcessLocal[NoRequest,PFDState,Crashed,PLSend,PLDeliver] = {
+    import oss.giussi.cappio.Messages._
+    (msg,state) => msg match {
+      case PublicRequest(_) => LocalStep.withState(state)
+      case Tick if state.timer + 1 == timeout =>
+        val (ns, crashed, alive) = state.timeout()
+        val ind = crashed.map(Crashed)
+        val heartbeats = alive.map(id => LocalRequest(PLSend(Packet(self, id, HeartbeatRequest, instance))))
+        LocalStep.withRequestsAndIndications(ind, heartbeats, ns)
+      case Tick => LocalStep.withState(state.tick())
+      case LocalIndication(PLDeliver(Packet(_, HeartbeatReply, from, _, _))) => LocalStep.withState(state.hearbeat(from))
+      case LocalIndication(PLDeliver(Packet(_, HeartbeatRequest, from, _, _))) => LocalStep.withRequests(Set(LocalRequest(PLSend(Packet(self, from, HeartbeatReply, instance)))), state)
+    }
+  }
 }
 
 case class PerfectFailureDetector(self: ProcessId, state: PFDState, timeout: Int, instance: Instance) extends AbstractModule[NoRequest,PFDState,Crashed,PLSend,PerfectLinkBetaState,PLDeliver] {
   override def copyModule(ns: PFDState): AbstractModule[NoRequest, PFDState, Crashed, PLSend, PerfectLinkBetaState, PLDeliver] = copy(state = ns)
 
-  override def processLocal(l: LocalMsg, state: PFDState): LocalStep = l match {
-    case PublicRequest(_) => LocalStep(state)
-    case Tick if state.timer + 1 == timeout =>
-      val (ns, crashed, alive) = state.timeout()
-      val ind = crashed.map(Crashed)
-      val heartbeats = alive.map(id => LocalRequest(PLSend(Packet(self, id, HeartbeatRequest, instance))))
-      LocalStep.prueba(ind, heartbeats, ns)
-    case Tick => LocalStep(state.tick())
-    case LocalIndication(PLDeliver(Packet(_, HeartbeatReply, from, _, _))) => LocalStep(state.hearbeat(from))
-    case LocalIndication(PLDeliver(Packet(_, HeartbeatRequest, from, _, _))) => LocalStep.localRequest(Set(LocalRequest(PLSend(Packet(self, from, HeartbeatReply, instance)))), state)
-  }
-
+  override val processLocal: PLocal = PerfectFailureDetector.processLocal(self,timeout,instance)
 }
