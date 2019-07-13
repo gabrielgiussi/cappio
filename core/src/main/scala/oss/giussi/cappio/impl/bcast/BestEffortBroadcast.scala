@@ -21,7 +21,7 @@ object BestEffortBroadcast {
     override def updateModule(m: Module[PLSend, PerfectLinkState, PLDeliver]): BEBState = copy(m)
   }
 
-  def init(self: ProcessId,all:Set[ProcessId], timeout: Int) = BestEffortBroadcast(self,all,BEBState.init(timeout))
+  def init(self: ProcessId,all:Set[ProcessId], timeout: Int): BestEffortBroadcast = BestEffortBroadcast(self,all,BEBState.init(timeout))
 
   def processLocal(self: ProcessId, all: Set[ProcessId]): ProcessLocal[BebBcast, BEBState, BebDeliver, PLSend, PLDeliver] = {
     import Messages._

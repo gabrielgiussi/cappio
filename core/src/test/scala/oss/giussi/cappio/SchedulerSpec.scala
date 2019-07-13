@@ -7,7 +7,7 @@ import oss.giussi.cappio.impl.net.StubbornLink.{SLDeliver, SLSend}
 class SchedulerSpec extends WordSpec with Matchers {
 
   "Scheduler" should {
-    "A" ignore  {
+    "A" in {
       val processes = (0 to 2).map { id =>
         Process(ProcessId(id),StubbornLink.init(3))
       }.toList
@@ -17,7 +17,7 @@ class SchedulerSpec extends WordSpec with Matchers {
         .request(actions)
         .scheduler
         .deliver(DeliverBatch(Map(ProcessId(1) -> Left(FLLDeliver(packet)))))
-        .indications.head shouldBe SLDeliver(packet)
+        .indications.head shouldBe IndicationFrom(ProcessId(1), SLDeliver(packet))
 
     }
   }
@@ -30,9 +30,9 @@ class SchedulerSpec extends WordSpec with Matchers {
         .request(RequestBatch(Map(ProcessId(0) -> SLSend(packet))))
         ._3
         .deliver(DeliverBatch(Map(ProcessId(1) -> Left(FLLDeliver(packet)))))
-        ._2 should contain theSameElementsAs List(SLDeliver(packet))
+        ._2.head shouldBe IndicationFrom(ProcessId(1),SLDeliver(packet))
     }
-    "C" ignore  {
+    "C" in  {
       val processes = (0 to 2).map(id => Process(ProcessId(id),StubbornLink.init(3))).toList
       val packet = Packet(0,1,"pal",Instance("o"))
       WaitingRequest(TickScheduler(Scheduler.init(processes)))

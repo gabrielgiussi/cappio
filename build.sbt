@@ -15,7 +15,7 @@ lazy val core = (project in file("core"))
     commonSettings,
     libraryDependencies ++= Seq(
     )
-  ) // enablePlugins (ScalaJSPlugin) disabled for testing
+  ) enablePlugins (ScalaJSPlugin) // disabled for testing
 
 
 lazy val ui = (project in file("ui"))

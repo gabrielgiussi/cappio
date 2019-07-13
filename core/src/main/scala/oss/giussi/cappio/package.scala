@@ -13,7 +13,9 @@ package object cappio {
 
   case class Tick()
 
-  case class ProcessId(id: Int)
+  case class ProcessId(id: Int) {
+    override def toString: String = s"P$id"
+  }
 
   case class Processes(ids: Set[ProcessId]) {
     val all = ids.toList.sortBy(_.id)
@@ -24,6 +26,10 @@ package object cappio {
   case object Up extends ProcessStatus
 
   case object Down extends ProcessStatus
+
+  object Instance {
+    def ANY = Instance("any")
+  }
 
   case class Instance(name: String)
 

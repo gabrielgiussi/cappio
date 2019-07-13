@@ -50,9 +50,9 @@ case class WaitingDeliver[Req,State,Ind](scheduler: TickScheduler[Req,State,Ind]
 }
 
 // FIXME estas dos clases son un asco
-case class NextStateScheduler[Req,State,Ind](sent: Set[FLLSend], indications: Set[Ind], scheduler: Scheduler[Req,State,Ind])
+case class NextStateScheduler[Req,State,Ind](sent: Set[FLLSend], indications: Set[IndicationFrom[Ind]], scheduler: Scheduler[Req,State,Ind])
 
-case class NextStateTickScheduler[Req,State,Ind](sent: Set[FLLSend], indications: Set[Ind], scheduler: TickScheduler[Req,State,Ind])
+case class NextStateTickScheduler[Req,State,Ind](sent: Set[FLLSend], indications: Set[IndicationFrom[Ind]], scheduler: TickScheduler[Req,State,Ind])
 
 case class TickScheduler[IN, State, Out](scheduler: Scheduler[IN,State,Out]){
 
@@ -67,9 +67,10 @@ case class TickScheduler[IN, State, Out](scheduler: Scheduler[IN,State,Out]){
     val NextStateScheduler(sent1,ind1,sch1) = sch0.tick()
     NextStateTickScheduler(sent0 ++ sent1, ind0 ++ ind1,copy(sch1))
   }
+
 }
 
-
+case class IndicationFrom[I](p: ProcessId, i: I)
 
 case class Scheduler[IN, State, Out](processes: Map[ProcessId, Process[IN, State, Out]], network: Network, step: Int) {
 
@@ -81,20 +82,22 @@ case class Scheduler[IN, State, Out](processes: Map[ProcessId, Process[IN, State
 
   // TODO aca mandar los crash?, o un step para crashes?
   def request(batch: RequestBatch[IN]) = {
-    val (fi,fs,fp) = batch.requests.foldLeft[(Set[Out],Set[FLLSend],Set[P])]((Set.empty,Set.empty,Set.empty)){
+    val (fi,fs,fp) = batch.requests.foldLeft[(Set[IndicationFrom[Out]],Set[FLLSend],Set[P])]((Set.empty,Set.empty,Set.empty)){
       case ((ind,send,ps),(pid,req)) =>
         val NextStateProcess(i,s,ns) = processes(pid).request(req)
-        (ind ++ i,send ++ s,ps + ns)
+        val a = i.map(IndicationFrom(pid,_))
+        (ind ++ a,send ++ s,ps + ns)
     }
 
     NextStateScheduler(fs, fi,copy(processes = processes ++ fp.map(p => p.id -> p), network = network.send(fs)))
   }
 
   def tick(): Next = {
-    val (fi,fs,fp) = processes.values.foldLeft[(Set[Out],Set[FLLSend],Set[P])]((Set.empty,Set.empty,Set.empty)) {
+    val (fi,fs,fp) = processes.values.foldLeft[(Set[IndicationFrom[Out]],Set[FLLSend],Set[P])]((Set.empty,Set.empty,Set.empty)) {
       case ((ind,send,ps),p) =>
         val NextStateProcess(i,s,ns) = p.tick
-        (ind ++ i,send ++ s,ps + ns)
+        val a = i.map(IndicationFrom(p.id,_))
+        (ind ++ a,send ++ s,ps + ns)
     }
     NextStateScheduler(fs, fi,copy(processes = fp.map(p => p.id -> p).toMap, network = network.send(fs), step = step + 1))
   }
@@ -105,12 +108,12 @@ case class Scheduler[IN, State, Out](processes: Map[ProcessId, Process[IN, State
     val drops = ds.ops.values.collect { case Right(value) => value }
 
     val nn = network.deliver(d).flatMap(_.drop(drops.map(_.packet).toSet)).get
-    println(d)
 
-    val (fi,fs,fp) = d.foldLeft[(Set[Out],Set[FLLSend],Set[P])]((Set.empty,Set.empty,Set.empty)) {
+    val (fi,fs,fp) = d.foldLeft[(Set[IndicationFrom[Out]],Set[FLLSend],Set[P])]((Set.empty,Set.empty,Set.empty)) {
       case ((ind,send,ps),d) =>
         val NextStateProcess(i,s,ns) = deliver(d)
-        (ind ++ i,send ++ s,ps + ns)
+        val a = i.map(IndicationFrom(d.packet.to,_))
+        (ind ++ a,send ++ s,ps + ns)
     }
     NextStateScheduler(fs, fi,copy(processes = processes ++ fp.map(p => p.id -> p).toMap, network = nn.send(fs)))
   }

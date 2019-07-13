@@ -4,6 +4,7 @@ import com.raquo.laminar.api.L._
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.scalajs.dom
 import org.scalajs.dom.{document, html}
+import oss.giussi.cappio.ui.levels.{Level, IndexedLevel, Levels}
 
 import scala.util.Try
 
@@ -25,7 +26,7 @@ object App {
       val hashes = EventStream.merge(EventStream.fromValue(dom.window.location.hash, true), windowEvents.onHashChange.map(_.newURL)).map(_.split("#")(1))
 
       // TODO how to update the hash if the current hash is not a valid number? contramap?
-      val levelSelection: EventStream[Level] = hashes.map(e => Try(e.toInt)).filter(_.isSuccess).map(_.get).filter(Levels.levels.map(_.x).contains).map(i => Levels.levels(i - 1).f())
+      val levelSelection: EventStream[IndexedLevel] = hashes.map(e => Try(e.toInt)).filter(_.isSuccess).map(_.get).filter(Levels.levels.map(_.x).contains).map(i => Levels.levels(i - 1))
 
       val levels = Levels.levels.map(l =>
         a(href := s"#${l.x}", className := "list-group-item waves-effect",
@@ -71,7 +72,7 @@ object App {
           container
         }
 
-        render(getElementById("main-container", true), router(levelSelection))
+        render(getElementById("main-container", true), router(levelSelection.map(_.createLevel())))
         render(getElementById("sidebar"), leftMenu)
 
       }(unsafeWindowOwner)

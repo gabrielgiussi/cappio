@@ -1,13 +1,10 @@
 package oss.giussi.cappio.ui
 
-import java.util.UUID
-
 import com.raquo.laminar.api.L._
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.scalajs.dom
-import org.scalajs.dom.html
 import oss.giussi.cappio.Network.InTransitPacket
-import oss.giussi.cappio.{DeliverBatch, Drop, FLLDeliver, Packet, ProcessId, Processes, RequestBatch}
+import oss.giussi.cappio._
 import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.BebBcast
 import oss.giussi.cappio.impl.bcast.UniformReliableBroadcast.Payload
 
@@ -25,10 +22,21 @@ object ActionSelection {
 
    */
 
+  def payloadInput(obs: Observer[Option[String]]) = div(
+    //cls := "md-form",
+    input(
+      `type` := "text",
+      cls := "form-control",
+      id := "payload-input",
+      // TODO how to throttle key press?
+      inContext(thisNode => onChange.mapTo(Option(thisNode.ref.value).filterNot(_.isEmpty)) --> obs),
+    )
+  )
+
   def networkInput(available: Set[InTransitPacket], $out: Observer[DeliverBatch]) = {
     val $batch = Var(DeliverBatch.empty)
 
-    def renderPacket(over: Var[Option[UUID]])(id: UUID, initial: PacketSelection, $changes: Signal[PacketSelection]) = {
+    def renderPacket(over: Var[Option[Packet]])(id: Packet, initial: PacketSelection, $changes: Signal[PacketSelection]) = {
       def renderAvailable(inTransit: InTransitPacket) = {
         div(
           hidden <-- over.signal.map(!_.contains(id)),
@@ -81,7 +89,7 @@ object ActionSelection {
     case class SelectedDeliver(d: FLLDeliver) extends PacketSelection {
       override def packet = d.packet
     }
-    val over: Var[Option[UUID]] = Var(None)
+    val over: Var[Option[Packet]] = Var(None)
     val $available = available.map(AvailablePacket)
     val $selected = $batch.signal.map(_.ops.values.map {
       case Right(d) => SelectedDrop(d)
@@ -92,7 +100,7 @@ object ActionSelection {
 
     div(
       ul(cls := "list-group list-group-flush",
-        children <-- $all.split(_.packet.id)(renderPacket(over)) // TODO siempre haciendo toList!
+        children <-- $all.split(_.packet)(renderPacket(over)) // TODO siempre haciendo toList!
       ),
       button(`type` := "reset", cls := "btn btn-primary", "Next",
         onClick.mapTo($batch.now()) --> $out
@@ -114,9 +122,9 @@ object ActionSelection {
   sel.events(onSelection) // pero q el onSelecion lo defina yo, no que sean dom events
 
    */
-  def reqInput[Req, Pay](processes: Processes, reqWriter: Observer[AddReq[Req]], inputPayload: Observer[Option[Req]] => ProcessId => String => ReactiveHtmlElement[dom.html.Element]) = {
+  def reqInput[Req, Pay, ReqType](reqTypes: List[ReqType], processes: Processes, reqWriter: Observer[AddReq[Req]], inputPayload: Observer[Option[Req]] => ProcessId => ReqType => ReactiveHtmlElement[dom.html.Element]) = {
     val process: Var[Option[ProcessId]] = Var(None) // TODO why use Var if I don't make use of set?
-    val request: Var[Option[String]] = Var(None)
+    val requestType: Var[Option[ReqType]] = Var(None)
     val payload: Var[Option[Req]] = Var(None)
     val iPayload = inputPayload(payload.writer)
     val req = process.signal
@@ -135,11 +143,11 @@ object ActionSelection {
         ),
         div(cls := "col-md-4 mb-3",
           label(forId := "reqType", "Request"),
-          selectReqType(List("beb"), request.writer, id := "requestType")
+          selectReqType(reqTypes, requestType.writer, id := "requestType")
         ),
         div(cls := "col-md-4 mb-3",
           label(forId := "payload", "Payload"), // TODO pass id
-          child <-- request.signal.changes.map { rtype =>
+          child <-- requestType.signal.changes.map { rtype =>
             (for {
               r <- rtype
               pid <- process.now()
@@ -172,14 +180,7 @@ object ActionSelection {
   case class RemoveReq(id: ProcessId) extends BatchCommand
 
 
-  def reqBatchInput[Req](processes: Processes, $obs: Observer[RequestBatch[Req]], inputPayload: Observer[Option[Req]] => ProcessId => String => ReactiveHtmlElement[dom.html.Element]) = {
-    def renderReq[Req]($rem: Observer[RemoveReq])(to: ProcessId, initial: (ProcessId, Req), $changes: Signal[(ProcessId, Req)]): Div = div(
-      initial.toString(),
-      button(`type` := "button", cls := "btn btn-danger btn-sm", i(cls := "fas fa-minus"),
-        onClick.mapToValue(RemoveReq(to)) --> $rem
-      )
-    )
-
+  def reqBatchInput[Req, ReqType](reqTypes: List[ReqType], processes: Processes, $obs: Observer[RequestBatch[Req]], inputPayload: Observer[Option[Req]] => ProcessId => ReqType => ReactiveHtmlElement[dom.html.Element]) = {
     val $commands = new EventBus[BatchCommand]
     val $batch: Signal[RequestBatch[Req]] =
       $commands.events.fold(RequestBatch[Req](Map.empty)) {
@@ -187,9 +188,35 @@ object ActionSelection {
         case (batch, AddReq(id, r: Req)) => batch.add(id, r) // FIXME unchecked
         case (batch, RemoveReq(id)) => batch.remove(id)
       }
+
+    def renderBatch() = {
+      def renderReq[Req](to: ProcessId, initial: (ProcessId, Req), $changes: Signal[(ProcessId, Req)]) = tr(
+        th(
+          //scope := "",
+          to.toString
+        ),
+        td(
+          child <-- $changes.map { case (_,r) => label(r.toString) }
+        ),
+        td(
+          button(`type` := "button", cls := "btn btn-danger btn-sm", i(cls := "fas fa-minus"),
+            onClick.mapToValue(RemoveReq(to)) --> $commands
+          )
+        )
+      )
+      table(
+        cls := "table",
+        tbody(
+          children <-- $batch.map(_.requests.toList).split(_._1)(renderReq),
+        )
+      )
+    }
+
+
+
     div(
-      children <-- $batch.map(_.requests.toList).split(_._1)(renderReq($commands.writer)),
-      reqInput(processes, $commands.writer, inputPayload),
+      renderBatch(),
+      reqInput(reqTypes, processes, $commands.writer, inputPayload),
       input(`type` := "submit", cls := "btn btn-primary", value := "Next", // TODO input or button?
         inContext { thisNode =>
           val a = $batch.observe(thisNode)
@@ -205,18 +232,20 @@ object ActionSelection {
 
   // TODO esto depende de cada nivel
   // auto trigger and disable if there is only one option
-  def selectReqType(types: List[String], obs: Observer[Option[String]], modifiers: Modifier[Select]*) = {
+  def selectReqType[ReqType](types: List[ReqType], obs: Observer[Option[ReqType]], modifiers: Modifier[Select]*) = {
     //val request: Var[Option[String]] = Var(None)
+    val indexed = types.zipWithIndex.map { case (rt, index) => index -> rt }.toMap
     select(
       cls := "browser-default custom-select mb-4",
-      inContext(thisNode => onInput.mapTo(thisNode.ref.value).map(Option(_).filterNot(_ == "unset")) --> obs),
+      inContext(thisNode => onInput.mapTo(thisNode.ref.value).map(v => indexed.get(v.toInt)) --> obs),
       option(
         "-",
-        value := "unset"
-      ) :: types.map(p => option(
-        p.toString,
-        value := p.toString,
-      )),
+        value := "-1"
+      ) :: indexed.map { case (i, rt) => option(
+        rt.toString,
+        value := i.toString,
+      )
+      }.toList,
       modifiers
     )
   }
