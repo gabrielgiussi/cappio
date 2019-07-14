@@ -1,0 +1,35 @@
+<?xml version="1.0" standalone="no" ?>
+<manifest identifier="com.scorm.golfsamples.runtime.basicruntime.12" version="1"
+          xmlns="http://www.imsproject.org/xsd/imscp_rootv1p1p2"
+          xmlns:adlcp="http://www.adlnet.org/xsd/adlcp_rootv1p2"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://www.imsproject.org/xsd/imscp_rootv1p1p2 schemas/imscp_rootv1p1p2.xsd
+                             http://www.imsglobal.org/xsd/imsmd_rootv1p2p1 schemas/imsmd_rootv1p2p1.xsd
+                             http://www.adlnet.org/xsd/adlcp_rootv1p2 schemas/adlcp_rootv1p2.xsd">
+
+    <!-- https://www.learnupon.com/blog/scorm-api/ -->
+    <metadata>
+        <schema>ADL SCORM</schema>
+        <schemaversion>1.2</schemaversion>
+    </metadata>
+    <organizations default="giussi_unlp">
+        <organization identifier="giussi_unlp">
+            <title>CappIO - Learning Distributed Systems</title>
+            <item identifier="item_1" identifierref="resource_1">
+                <title>Introduction</title>
+            </item>
+            <!--
+            <item identifier="item_2" identifierref="resource_2">
+                <adlcp:masteryscore></adlcp:masteryscore>
+                <title>Broadcast</title>
+            </item>
+            -->
+        </organization>
+    </organizations>
+    <resources>
+        <resource identifier="resource_1" type="webcontent" adlcp:scormtype="sco" href="shared/index.html">
+            <file href="shared/index.html"/>
+            <file href="assets/oa-opt-bundle.js"/>
+        </resource>
+    </resources>
+</manifest>

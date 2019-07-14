@@ -8,10 +8,6 @@ import oss.giussi.cappio.ui.levels.{IndexedLevel, Level, Levels}
 import scala.util.Try
 
 
-class App {
-
-}
-/*
 object App {
 
   case class Route(path: String)
@@ -88,5 +84,3 @@ object App {
   }
 
 }
-
- */

@@ -1,5 +1,5 @@
 
-ThisBuild / organization := "oss.ggiussi"
+ThisBuild / organization := "oss.giussi"
 ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion := "2.12.8"
 
@@ -8,31 +8,43 @@ lazy val commonSettings = Seq(
 )
 
 lazy val cappio = project.in(file("."))
-  .aggregate(core, ui)
+  .aggregate(core, ui, scalorm, oa)
+
+lazy val scalorm = (project in file("scalorm"))
+  .settings(npmDependencies in Compile += "@gamestdio/scorm" -> "0.1.3")
+  .enablePlugins(ScalaJSPlugin, ScalaJSBundlerPlugin)
+
+lazy val oa = (project in file("oa"))
+  .enablePlugins(ScalaJSPlugin, ScalaJSBundlerPlugin, UniversalPlugin)
+  .settings(
+    scalaJSUseMainModuleInitializer := true,
+    maintainer := "gabrielgiussi@gmail.com",
+    topLevelDirectory := None,
+    mappings.in(Universal) ++= webpack.in(Compile, fullOptJS).value.map { f =>
+      f.data -> s"assets/${f.data.getName()}"
+    }
+  )
+  .dependsOn(ui, scalorm)
+
+lazy val spa = (project in file("spa"))
+  .enablePlugins(ScalaJSPlugin)
+  .settings(
+    scalaJSUseMainModuleInitializer := true
+  )
+  .enablePlugins(ScalaJSPlugin)
+  .dependsOn(ui)
 
 lazy val core = (project in file("core"))
-  .settings(
-    commonSettings,
-    libraryDependencies ++= Seq(
-    )
-  ) enablePlugins (ScalaJSPlugin) // disabled for testing
+  .settings(commonSettings)
+  .enablePlugins(ScalaJSPlugin) // disabled for testing
 
 
 lazy val ui = (project in file("ui"))
   .settings(
-    //resolvers += "jitpack" at "https://jitpack.io",
-    scalaJSUseMainModuleInitializer := true,
-    //scalaJSUseMainModuleInitializer in Test := false,
-
-    //mainClass in Compile := Some("oss.giussi.cappio.ui.SampleMain"),
-    // other settings
     libraryDependencies ++= Seq(
-      //"com.github.outwatch" % "outwatch" % "676f94ab57"
       "com.raquo" %%% "laminar" % "0.7"
-    ),
-
+    )
   )
-
   .enablePlugins(ScalaJSPlugin)
   .dependsOn(core)
 
