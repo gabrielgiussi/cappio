@@ -3,13 +3,11 @@ package oss.giussi.scalorm
 import scala.scalajs.js
 import scala.scalajs.js.annotation.JSImport
 
-//https://scalacenter.github.io/scalajs-bundler/cookbook.html#facade
-//@JSImport("@gamestdio/scorm", JSImport.Namespace)
 @JSImport("@gamestdio/scorm", "scorm")
 @js.native
 object Scorm extends js.Object {
 
-  // https://scorm.com/scorm-explained/technical-scorm/run-time/run-time-reference/
+    // https://scorm.com/scorm-explained/technical-scorm/run-time/run-time-reference/
   def initialize(): Boolean = js.native
 
   def getLastError(): Int = js.native

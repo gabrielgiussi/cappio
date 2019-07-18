@@ -1,5 +1,5 @@
 <?xml version="1.0" standalone="no" ?>
-<manifest identifier="com.scorm.golfsamples.runtime.basicruntime.12" version="1"
+<manifest identifier="com.giussi.cappio.scorm.12" version="1"
           xmlns="http://www.imsproject.org/xsd/imscp_rootv1p1p2"
           xmlns:adlcp="http://www.adlnet.org/xsd/adlcp_rootv1p2"
           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -8,6 +8,8 @@
                              http://www.adlnet.org/xsd/adlcp_rootv1p2 schemas/adlcp_rootv1p2.xsd">
 
     <!-- https://www.learnupon.com/blog/scorm-api/ -->
+    <!-- https://scorm.com/wp-content/assets/cookbook/CookingUpASCORM_v1_2.pdf -->
+    <!-- https://support.scorm.com/hc/en-us/article_attachments/201865816/SCORM_1.2_CAM.pdf -->
     <metadata>
         <schema>ADL SCORM</schema>
         <schemaversion>1.2</schemaversion>
