@@ -3,8 +3,10 @@ package oss.giussi.cappio.ui
 import com.raquo.laminar.api.L._
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.scalajs.dom
+import org.scalajs.dom.ext.LocalStorage
 import org.scalajs.dom.{document, html}
 import oss.giussi.cappio.ui.levels.{IndexedLevel, Level, Levels}
+
 import scala.util.Try
 
 
@@ -22,7 +24,7 @@ object App {
     val routes: EventStream[Route] = ???
 */
 
-      val hashes = EventStream.merge(EventStream.fromValue(dom.window.location.hash, true), windowEvents.onHashChange.map(_.newURL)).map(_.split("#")(1))
+      val hashes = EventStream.merge(EventStream.fromValue(dom.window.location.hash, true), windowEvents.onHashChange.map(_.newURL)).filter(_.contains("#")).map(_.split("#")(1))
 
       // TODO how to update the hash if the current hash is not a valid number? contramap?
       val levelSelection: EventStream[IndexedLevel] = hashes.map(e => Try(e.toInt)).filter(_.isSuccess).map(_.get).filter(Levels.levels.map(_.x).contains).map(i => Levels.levels(i - 1))

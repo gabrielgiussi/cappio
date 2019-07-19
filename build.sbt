@@ -8,7 +8,7 @@ lazy val commonSettings = Seq(
 )
 
 lazy val cappio = project.in(file("."))
-  .aggregate(core, ui, scalorm, oa)
+  .aggregate(core, ui, scalorm, oa, spa)
 
 lazy val scalorm = (project in file("scalorm"))
   .settings(npmDependencies in Compile += "@gamestdio/scorm" -> "0.1.3")
