@@ -2,7 +2,7 @@ package oss.giussi.cappio.impl.time
 
 import org.scalatest.{Matchers, WordSpec}
 import oss.giussi.cappio.impl.net.FairLossLink.FLLSend
-import oss.giussi.cappio.impl.time.EventuallyPerfectFailureDetector.{EPFDIndication, EPFDState, Restore, Suspect}
+import oss.giussi.cappio.impl.time.EventuallyPerfectFailureDetector.{EPFDIndication, EPFDMod, EPFDState, Restore, Suspect}
 import oss.giussi.cappio.impl.time.PerfectFailureDetector.{HeartbeatReply, HeartbeatRequest}
 import oss.giussi.cappio._
 
@@ -12,7 +12,7 @@ class EventuallyPerfectFailureDetectorSpec extends WordSpec with Matchers {
     "b" in {
       val timeout = 3
       val all = (0 to 2).map(ProcessId).toSet
-      val epfd: Module[NoRequest,EPFDState,EPFDIndication] = EventuallyPerfectFailureDetector.init(ProcessId(0), all, timeout)
+      val epfd: Module[EPFDMod] = EventuallyPerfectFailureDetector.init(ProcessId(0), all, timeout)
 
       (1 to (timeout * 2) - 1).foldLeft(epfd)((a,_) => a.tick.module)
         .tick.indications should contain theSameElementsAs List(Suspect(ProcessId(1)),Suspect(ProcessId(2)))
@@ -20,7 +20,7 @@ class EventuallyPerfectFailureDetectorSpec extends WordSpec with Matchers {
     "c" in {
       val timeout = 3
       val all = (0 to 2).map(ProcessId).toSet
-      val epfd: Module[NoRequest,EPFDState,EPFDIndication] = EventuallyPerfectFailureDetector.init(ProcessId(0), all, timeout)
+      val epfd: Module[EPFDMod] = EventuallyPerfectFailureDetector.init(ProcessId(0), all, timeout)
 
       (1 to (timeout * 2) - 1).foldLeft(epfd)((a,_) => a.tick.module)
         .tail.deliver(FLLDeliver(Packet(1,0,HeartbeatReply,null))).module
@@ -29,7 +29,7 @@ class EventuallyPerfectFailureDetectorSpec extends WordSpec with Matchers {
     "d" in {
       val timeout = 3
       val all = (0 to 2).map(ProcessId).toSet
-      val epfd: Module[NoRequest,EPFDState,EPFDIndication] = EventuallyPerfectFailureDetector.init(ProcessId(0), all, timeout)
+      val epfd: Module[EPFDMod] = EventuallyPerfectFailureDetector.init(ProcessId(0), all, timeout)
 
       val epfd0 = (1 to (timeout * 2)).foldLeft(epfd)((a,_) => a.tick.module)
         .tail.deliver(FLLDeliver(Packet(1,0,HeartbeatReply,null))).module
@@ -41,7 +41,7 @@ class EventuallyPerfectFailureDetectorSpec extends WordSpec with Matchers {
     "e" in {
       val timeout = 3
       val all = (0 to 2).map(ProcessId).toSet
-      val epfd: Module[NoRequest,EPFDState,EPFDIndication] = EventuallyPerfectFailureDetector.init(ProcessId(0), all, timeout)
+      val epfd: Module[EPFDMod] = EventuallyPerfectFailureDetector.init(ProcessId(0), all, timeout)
       (1 to (timeout * 2) - 1).foldLeft(epfd)((a,_) => a.tick.module)
         .tick.send.map { case FLLSend(Packet(_,p,from,to,_)) => (p,from.id,to.id) } should contain theSameElementsAs List(1,2).map((HeartbeatRequest,0,_))
     }

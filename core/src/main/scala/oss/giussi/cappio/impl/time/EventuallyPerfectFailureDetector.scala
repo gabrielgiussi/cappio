@@ -1,12 +1,12 @@
 package oss.giussi.cappio.impl.time
 
 import oss.giussi.cappio.Messages.ProcessLocal
+import oss.giussi.cappio._
 import oss.giussi.cappio.impl.net.PerfectLink.{PLDeliver, PLSend}
 import oss.giussi.cappio.impl.net.PerfectLinkBeta
-import oss.giussi.cappio.impl.net.PerfectLinkBeta.PerfectLinkBetaState
-import oss.giussi.cappio.impl.time.EventuallyPerfectFailureDetector.{EPFDIndication, EPFDState}
+import oss.giussi.cappio.impl.net.PerfectLinkBeta.PLModule
+import oss.giussi.cappio.impl.time.EventuallyPerfectFailureDetector.{EPFDMod, EPFDState}
 import oss.giussi.cappio.impl.time.PerfectFailureDetector.{HeartbeatReply, HeartbeatRequest}
-import oss.giussi.cappio._
 
 object EventuallyPerfectFailureDetector {
   sealed trait EPFDIndication
@@ -14,12 +14,18 @@ object EventuallyPerfectFailureDetector {
 
   case class Restore(id: ProcessId) extends EPFDIndication
 
+  type EPFDMod = ModS[PLModule] {
+  type Req = NoRequest
+  type Ind = EPFDIndication
+  type S = EPFDState
+  }
+
   object EPFDState {
     def init(all: Set[ProcessId],delay: Int): EPFDState = EPFDState(0,all,Set.empty,all,delay,delay,PerfectLinkBeta.init(delay)) // TODO el delay es el mismo?
   }
 
-  case class EPFDState(timer: Int, alive: Set[ProcessId], suspected: Set[ProcessId], all: Set[ProcessId], currentDelay: Int, delay: Int, module: Module[PLSend,PerfectLinkBetaState,PLDeliver]) extends StateWithModule[PLSend,PerfectLinkBetaState,PLDeliver,EPFDState] {
-    override def updateModule(m: Module[PLSend, PerfectLinkBetaState, PLDeliver]): EPFDState = copy(module = m)
+  case class EPFDState(timer: Int, alive: Set[ProcessId], suspected: Set[ProcessId], all: Set[ProcessId], currentDelay: Int, delay: Int, module: Module[PLModule]) extends StateWithModule[PLModule,EPFDState] {
+    override def updateModule(m: Module[PLModule]): EPFDState = copy(module = m)
 
     def tick(): EPFDState = copy(timer = timer + 1)
 
@@ -50,8 +56,8 @@ object EventuallyPerfectFailureDetector {
   }
 }
 
-case class EventuallyPerfectFailureDetector(self: ProcessId, all: Set[ProcessId], state: EPFDState, instance: Instance) extends AbstractModule[NoRequest,EPFDState,EPFDIndication,PLSend,PerfectLinkBetaState,PLDeliver] {
-  override def copyModule(ns: EPFDState): AbstractModule[NoRequest, EPFDState, EPFDIndication, PLSend, PerfectLinkBetaState, PLDeliver] = copy(state = ns)
+case class EventuallyPerfectFailureDetector(self: ProcessId, all: Set[ProcessId], state: EPFDState, instance: Instance) extends AbstractModule[EPFDMod,PLModule] {
+  override def copyModule(ns: EPFDState) = copy(state = ns)
 
   override val processLocal: PLocal = EventuallyPerfectFailureDetector.processLocal(self,all,instance)
 }

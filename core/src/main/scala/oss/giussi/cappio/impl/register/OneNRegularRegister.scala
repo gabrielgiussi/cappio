@@ -1,13 +1,15 @@
 package oss.giussi.cappio.impl.register
 
 import oss.giussi.cappio.impl.bcast.BestEffortBroadcast
-import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.{BEBState, BebBcast, BebDeliver}
+import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.{BEBState, BebBcast, BebDeliver, BebMod}
 import oss.giussi.cappio.impl.bcast.UniformReliableBroadcast.Payload
 import oss.giussi.cappio.impl.net.PerfectLink.{PLDeliver, PLSend}
 import oss.giussi.cappio.impl.net.PerfectLinkBeta
-import oss.giussi.cappio.impl.net.PerfectLinkBeta.PerfectLinkBetaState
+import oss.giussi.cappio.impl.net.PerfectLinkBeta.{PLModule, PerfectLinkBetaState}
 import oss.giussi.cappio.impl.register.OneNRegularRegister._
 import oss.giussi.cappio._
+import oss.giussi.cappio.impl.bcast.ReliableBroadcast.processLocalHelper2
+import shapeless.ops.coproduct.Inject
 
 object OneNRegularRegister {
 
@@ -27,11 +29,17 @@ object OneNRegularRegister {
 
   case object ONRRWriteReturn extends ONRRInd[Nothing]
 
-  type ModuleReq = Either[BebBcast, PLSend]
+  type ONRRDep = Mod2 {
+    type Dep1 = BebMod
+    type Dep2 = PLModule
+    type State = (BEBState, PerfectLinkBetaState)
+  }
 
-  type ModuleState = (BEBState, PerfectLinkBetaState)
-
-  type ModuleInd = Either[BebDeliver, PLDeliver]
+  type ONRRMod[V] = ModS[ONRRDep] {
+    type Req = ONRRReq[V]
+    type S = ONRRState[V]
+    type Ind = ONRRInd[V]
+  }
 
   type ReadList[V] = Map[ProcessId, (Int, V)]
 
@@ -63,8 +71,8 @@ object OneNRegularRegister {
   }
 
 
-  case class ONRRState[V](state: ONRRStateI[V], module: Module[ModuleReq, ModuleState, ModuleInd]) extends StateWithModule[ModuleReq, ModuleState, ModuleInd, ONRRState[V]] {
-    override def updateModule(m: Module[ModuleReq, (BEBState, PerfectLinkBetaState), ModuleInd]): ONRRState[V] = copy(module = m)
+  case class ONRRState[V](state: ONRRStateI[V], module: Module[ONRRDep]) extends StateWithModule[ONRRDep, ONRRState[V]] {
+    override def updateModule(m: Module[ONRRDep]): ONRRState[V] = copy(module = m)
 
     def write() = copy(state = state.write())
 
@@ -88,53 +96,98 @@ object OneNRegularRegister {
     def init[V](self: ProcessId, all: Set[ProcessId], timeout: Int): ONRRState[V] = {
       val pl = PerfectLinkBeta.init(timeout)
       val beb = BestEffortBroadcast.init(self, all, timeout)
-      val cm = CombinedModule(OneNRegularRegister.BEB,beb,OneNRegularRegister.PL,pl,(s1: BEBState,s2: PerfectLinkBetaState) => (s1,s2))
+      val cm = CombinedModule.paired(OneNRegularRegister.BEB, beb, OneNRegularRegister.PL, pl)
       ONRRState(ONRRStateI(None, 0, 0, 0, 0, Map.empty), cm)
     }
   }
 
-  def init[V](self: ProcessId, N: Int, timeout: Int, all: Set[ProcessId]) = OneNRegularRegister[V](self, N, ONRRState.init(self,all,timeout))
+  def init[V](self: ProcessId, N: Int, timeout: Int, all: Set[ProcessId]) = OneNRegularRegister[V](self, N, ONRRState.init(self, all, timeout))
 
   import oss.giussi.cappio.Messages._
-  def processLocal[V](N: Int, self: ProcessId): ProcessLocal[ONRRReq[V],ONRRState[V], ONRRInd[V], ModuleReq, ModuleInd] = (msg,state) => msg match {
-    case PublicRequest(ONRRWrite(v)) =>
-      val ns = state.write()
-      val beb: Set[LocalRequest[ModuleReq]] = Set(LocalRequest(Left(BebBcast(Payload(ONWRITE(ns.state.wts, v)), OneNRegularRegister.BEB))))
-      LocalStep.withRequests(beb, ns)
-    case LocalIndication(Left(BebDeliver(p, Payload(_, ONWRITE(ts, v: V))))) => // FIXME type T is erased. Also Payload can be Anything!
-      val ns = state.deliver(ts, v)
-      val ack: Set[LocalRequest[ModuleReq]] = Set(LocalRequest(Right(PLSend(Packet(self, p, Payload(ONACK(ts)), OneNRegularRegister.PL)))))
-      LocalStep.withRequests(ack, ns)
-    case LocalIndication(Right(PLDeliver(Packet(_, ONACK(ts), _, _, _)))) =>
-      if (state.state.wts == ts) { // TODO such that condition
-        val (ns, res) = state.acked(N)
-        val ind: Set[ONRRInd[V]] = if (res) Set(ONRRWriteReturn) else Set.empty
-        LocalStep.withIndications(ind, ns)
-      }
-      else LocalStep.withState(state)
-    case PublicRequest(ONRRRead) =>
-      val ns = state.read()
-      val beb: Set[LocalRequest[ModuleReq]] = Set(LocalRequest(Left(BebBcast(Payload(ONREAD(ns.state.rid)), OneNRegularRegister.BEB))))
-      LocalStep.withRequests(beb, ns)
-    case LocalIndication(Left(BebDeliver(p, Payload(_, ONREAD(rid))))) =>
-      val send: Set[LocalRequest[ModuleReq]] = Set(LocalRequest(Right(PLSend(Packet(self, p, Payload(ONVALUE(rid, state.state.ts, state.state.value)), OneNRegularRegister.PL)))))
-      LocalStep.withRequests(send, state)
-    case LocalIndication(Right(PLDeliver(Packet(_, ONVALUE(r, ts, v: Option[V]), q, _, _)))) =>
-      if (r == state.state.rid && v.isDefined) { // TODO v.isDefined?
-        val (maybeValue,ns) = state.value(N, ts, v.get, q)
-        val rr: Set[ONRRInd[V]] = maybeValue.map(ONRRReadReturn(_)).toSet
-        LocalStep.withIndications(rr,ns)
-      }
-      else LocalStep.withState(state)
-    case _ => LocalStep.withState(state) // TODO shouldn't happen.
+
+  def processLocal[V](N: Int, self: ProcessId)(implicit inj1: Inject[ONRRDep#Req,ONRRDep#Dep1#Req], inj2: Inject[ONRRDep#Req,ONRRDep#Dep2#Req]): ProcessLocal[ONRRReq[V], ONRRState[V], ONRRInd[V], ONRRDep#Req, ONRRDep#Ind] = new processLocalHelper2[ONRRMod[V], ONRRDep] {
+    override def onPublicRequest(req: ONRRReq[V], state: State): Output = req match {
+      case ONRRWrite(v) =>
+        val ns = state.write()
+        val beb = Set(req1(BebBcast(Payload(ONWRITE(ns.state.wts, v)), OneNRegularRegister.BEB)))
+        LocalStep.withRequests(beb, ns)
+      case ONRRRead =>
+        val ns = state.read()
+        val beb = Set(req1(BebBcast(Payload(ONREAD(ns.state.rid)), OneNRegularRegister.BEB)))
+        LocalStep.withRequests(beb, ns)
+    }
+
+    override def onDependencyIndication1(ind: BebDeliver, state: State): Output = ind match {
+      case BebDeliver(p, Payload(_, ONREAD(rid))) =>
+        val send = Set(req2(PLSend(Packet(self, p, Payload(ONVALUE(rid, state.state.ts, state.state.value)), OneNRegularRegister.PL))))
+        LocalStep.withRequests(send, state)
+      case BebDeliver(p, Payload(_, ONWRITE(ts, v: V))) => // FIXME type T is erased. Also Payload can be Anything!
+        val ns = state.deliver(ts, v)
+        val ack = Set(req2(PLSend(Packet(self, p, Payload(ONACK(ts)), OneNRegularRegister.PL))))
+        LocalStep.withRequests(ack, ns)
+    }
+
+    override def onDependencyIndication2(ind: PLDeliver, state: State): Output = ind match {
+      case PLDeliver(Packet(_, ONACK(ts), _, _, _)) =>
+        if (state.state.wts == ts) { // TODO such that condition
+          val (ns, res) = state.acked(N)
+          val ind: Set[ONRRInd[V]] = if (res) Set(ONRRWriteReturn) else Set.empty
+          LocalStep.withIndications(ind, ns)
+        }
+        else LocalStep.withState(state)
+      case PLDeliver(Packet(_, ONVALUE(r, ts, v: Option[V]), q, _, _)) =>
+        if (r == state.state.rid && v.isDefined) { // TODO v.isDefined?
+          val (maybeValue, ns) = state.value(N, ts, v.get, q)
+          val rr: Set[ONRRInd[V]] = maybeValue.map(ONRRReadReturn(_)).toSet
+          LocalStep.withIndications(rr, ns)
+        }
+        else LocalStep.withState(state)
+    }
+  }
+
+  def processLocal2[V](N: Int, self: ProcessId): ProcessLocal[ONRRReq[V], ONRRState[V], ONRRInd[V], ONRRDep#Req, ONRRDep#Ind] = (msg, state) => msg match {
+    /*
+  case PublicRequest(ONRRWrite(v)) =>
+    val ns = state.write()
+    val beb: Set[LocalRequest[ModuleReq]] = Set(LocalRequest(Left(BebBcast(Payload(ONWRITE(ns.state.wts, v)), OneNRegularRegister.BEB))))
+    LocalStep.withRequests(beb, ns)
+  case LocalIndication(Left(BebDeliver(p, Payload(_, ONWRITE(ts, v: V))))) => // FIXME type T is erased. Also Payload can be Anything!
+    val ns = state.deliver(ts, v)
+    val ack: Set[LocalRequest[ModuleReq]] = Set(LocalRequest(Right(PLSend(Packet(self, p, Payload(ONACK(ts)), OneNRegularRegister.PL)))))
+    LocalStep.withRequests(ack, ns)
+  case LocalIndication(Right(PLDeliver(Packet(_, ONACK(ts), _, _, _)))) =>
+    if (state.state.wts == ts) { // TODO such that condition
+      val (ns, res) = state.acked(N)
+      val ind: Set[ONRRInd[V]] = if (res) Set(ONRRWriteReturn) else Set.empty
+      LocalStep.withIndications(ind, ns)
+    }
+    else LocalStep.withState(state)
+  case PublicRequest(ONRRRead) =>
+    val ns = state.read()
+    val beb: Set[LocalRequest[ModuleReq]] = Set(LocalRequest(Left(BebBcast(Payload(ONREAD(ns.state.rid)), OneNRegularRegister.BEB))))
+    LocalStep.withRequests(beb, ns)
+  case LocalIndication(Left(BebDeliver(p, Payload(_, ONREAD(rid))))) =>
+    val send: Set[LocalRequest[ModuleReq]] = Set(LocalRequest(Right(PLSend(Packet(self, p, Payload(ONVALUE(rid, state.state.ts, state.state.value)), OneNRegularRegister.PL)))))
+    LocalStep.withRequests(send, state)
+  case LocalIndication(Right(PLDeliver(Packet(_, ONVALUE(r, ts, v: Option[V]), q, _, _)))) =>
+    if (r == state.state.rid && v.isDefined) { // TODO v.isDefined?
+      val (maybeValue, ns) = state.value(N, ts, v.get, q)
+      val rr: Set[ONRRInd[V]] = maybeValue.map(ONRRReadReturn(_)).toSet
+      LocalStep.withIndications(rr, ns)
+    }
+    else LocalStep.withState(state)
+  case _ => LocalStep.withState(state) // TODO shouldn't happen.
+
+     */
+    case _ => ???
   }
 }
 
 // Majority voting regular register pag 147
-case class OneNRegularRegister[V](self: ProcessId, N: Int, state: ONRRState[V]) extends AbstractModule[ONRRReq[V], ONRRState[V], ONRRInd[V], ModuleReq, ModuleState, ModuleInd] {
+case class OneNRegularRegister[V](self: ProcessId, N: Int, state: ONRRState[V]) extends AbstractModule[ONRRMod[V], ONRRDep] {
 
   override def copyModule(s: ONRRState[V]) = copy(state = s)
 
-  override val processLocal = OneNRegularRegister.processLocal[V](N,self)
+  override val processLocal = OneNRegularRegister.processLocal[V](N, self)
 
 }

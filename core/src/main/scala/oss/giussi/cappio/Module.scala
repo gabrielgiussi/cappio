@@ -4,27 +4,35 @@ import oss.giussi.cappio.impl.net.FairLossLink.FLLSend
 import oss.giussi.cappio.impl.net.Socket
 
 object NextState {
-  def apply[Req,State,Ind](module: Module[Req,State,Ind]): NextState[Req,State,Ind] = NextState[Req,State,Ind](Set.empty[Ind], Set.empty[FLLSend],module)
+  //def apply[Req,State,Ind](module: Module[Req,State,Ind]): NextState[Req,State,Ind] = NextState[Req,State,Ind](Set.empty[Ind], Set.empty[FLLSend],module)
 
 }
 
 // TODO indications: Set[Ind], send: Set[FLLSend] -> Triggers para reusarlo
 
-case class NextState[Req,State,Ind](indications: Set[Ind], send: Set[FLLSend], module: Module[Req,State,Ind])
+case class NextState[M <: Mod](indications: Set[M#Ind], send: Set[FLLSend], module: Module[M])
 
-trait Module[Req,State,Ind] {
+trait Mod {
+  type Req
+  type State
+  type Ind
+}
 
-  type Self = Module[Req,State,Ind]
+trait Module[M <: Mod] { // TODO Mod as TypeMember??
 
-  type Next = NextState[Req,State,Ind]
+  //type SelfMod = M
 
-  def request(in: Req): Next
+  //type Self = Module[M] shapeless se va a la mierda con esto (stackoverflow)
 
-  def state: State
+  type Next = NextState[M]
 
-  protected def next(module: Module[Req,State,Ind],indications: Set[Ind] = Set.empty, send: Set[FLLSend] = Set.empty): Next = NextState(indications,send,module)
+  def request(in: M#Req): Next
 
-  def tail: Socket[Req,State,Ind]
+  def state: M#State
+
+  protected def next(module: Module[M],indications: Set[M#Ind] = Set.empty, send: Set[FLLSend] = Set.empty): Next = new NextState(indications,send,module)
+
+  def tail: Socket[M]
 
   def tick: Next
 

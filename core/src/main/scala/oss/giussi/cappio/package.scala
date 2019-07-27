@@ -11,7 +11,7 @@ package object cappio {
   type |-|[T, U] = { type λ[X] = ¬¬[X] <:< (T v U) }
    */
 
-  case class Tick()
+  //case class Tick()
 
   case class ProcessId(id: Int) {
     override def toString: String = s"P$id"

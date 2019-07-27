@@ -35,7 +35,10 @@ lazy val spa = (project in file("spa"))
   .dependsOn(ui)
 
 lazy val core = (project in file("core"))
-  .settings(commonSettings)
+  .settings(
+    commonSettings,
+    libraryDependencies +=  "com.chuusai" %%% "shapeless" % "2.3.3"
+  )
   .enablePlugins(ScalaJSPlugin) // disabled for testing
 
 

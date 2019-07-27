@@ -8,7 +8,7 @@ case class Crash(processId: ProcessId)
 
 object Scheduler {
 
-  def init[In,State,Out](processes: List[Process[In,State,Out]]) = Scheduler(processes.map(p => p.id -> p).toMap, Network.init(), 0)
+  def init[M <: Mod](processes: List[Process[M]]) = Scheduler(processes.map(p => p.id -> p).toMap, Network.init(), 0)
 }
 
 case class RequestBatch[Req](requests: Map[ProcessId,Req]) {
@@ -34,15 +34,15 @@ case class DeliverBatch(ops: Map[ProcessId,Either[FLLDeliver,Drop]]) {
   def clear() = DeliverBatch.empty
 }
 
-sealed trait Step[Req,State,Ind] // TODO delete? esta bien hacer traits con generics q no usa?
+sealed trait Step[M <: Mod] // TODO delete? esta bien hacer traits con generics q no usa?
 
-case class WaitingRequest[Req,State,Ind](scheduler: TickScheduler[Req,State,Ind]) extends Step[Req,State,Ind] {
-  def request(batch: RequestBatch[Req]) = {
+case class WaitingRequest[M <: Mod](scheduler: TickScheduler[M]) extends Step[M] {
+  def request(batch: RequestBatch[M#Req]) = {
     val NextStateTickScheduler(sent,ind,sch) = scheduler.request(batch)
     (sent, ind,WaitingDeliver(sch))
   }
 }
-case class WaitingDeliver[Req,State,Ind](scheduler: TickScheduler[Req,State,Ind]) extends Step[Req,State,Ind] {
+case class WaitingDeliver[M <: Mod](scheduler: TickScheduler[M]) extends Step[M] {
   def deliver(packets: DeliverBatch) = {
     val NextStateTickScheduler(sent,ind,sch) = scheduler.deliver(packets)
     (sent,ind,WaitingRequest(sch))
@@ -50,13 +50,13 @@ case class WaitingDeliver[Req,State,Ind](scheduler: TickScheduler[Req,State,Ind]
 }
 
 // FIXME estas dos clases son un asco
-case class NextStateScheduler[Req,State,Ind](sent: Set[FLLSend], indications: Set[IndicationFrom[Ind]], scheduler: Scheduler[Req,State,Ind])
+case class NextStateScheduler[M <: Mod](sent: Set[FLLSend], indications: Set[IndicationFrom[M#Ind]], scheduler: Scheduler[M])
 
-case class NextStateTickScheduler[Req,State,Ind](sent: Set[FLLSend], indications: Set[IndicationFrom[Ind]], scheduler: TickScheduler[Req,State,Ind])
+case class NextStateTickScheduler[M <: Mod](sent: Set[FLLSend], indications: Set[IndicationFrom[M#Ind]], scheduler: TickScheduler[M])
 
-case class TickScheduler[IN, State, Out](scheduler: Scheduler[IN,State,Out]){
+case class TickScheduler[M <: Mod](scheduler: Scheduler[M]){
 
-  def request(batch: RequestBatch[IN]) = {
+  def request(batch: RequestBatch[M#Req]) = {
     val NextStateScheduler(sent0,ind0,sch0) = scheduler.request(batch)
     val NextStateScheduler(sent1,ind1,sch1) = sch0.tick()
     NextStateTickScheduler(sent0 ++ sent1, ind0 ++ ind1,copy(sch1))
@@ -72,17 +72,17 @@ case class TickScheduler[IN, State, Out](scheduler: Scheduler[IN,State,Out]){
 
 case class IndicationFrom[I](p: ProcessId, i: I)
 
-case class Scheduler[IN, State, Out](processes: Map[ProcessId, Process[IN, State, Out]], network: Network, step: Int) {
+case class Scheduler[M <: Mod](processes: Map[ProcessId, Process[M]], network: Network, step: Int) {
 
-  type Self = Scheduler[IN, State, Out]
+  type Self = Scheduler[M]
 
-  type P = Process[IN, State, Out]
+  type P = Process[M]
 
-  type Next = NextStateScheduler[IN,State,Out]
+  type Next = NextStateScheduler[M]
 
   // TODO aca mandar los crash?, o un step para crashes?
-  def request(batch: RequestBatch[IN]) = {
-    val (fi,fs,fp) = batch.requests.foldLeft[(Set[IndicationFrom[Out]],Set[FLLSend],Set[P])]((Set.empty,Set.empty,Set.empty)){
+  def request(batch: RequestBatch[M#Req]) = {
+    val (fi,fs,fp) = batch.requests.foldLeft[(Set[IndicationFrom[M#Ind]],Set[FLLSend],Set[P])]((Set.empty,Set.empty,Set.empty)){
       case ((ind,send,ps),(pid,req)) =>
         val NextStateProcess(i,s,ns) = processes(pid).request(req)
         val a = i.map(IndicationFrom(pid,_))
@@ -93,7 +93,7 @@ case class Scheduler[IN, State, Out](processes: Map[ProcessId, Process[IN, State
   }
 
   def tick(): Next = {
-    val (fi,fs,fp) = processes.values.foldLeft[(Set[IndicationFrom[Out]],Set[FLLSend],Set[P])]((Set.empty,Set.empty,Set.empty)) {
+    val (fi,fs,fp) = processes.values.foldLeft[(Set[IndicationFrom[M#Ind]],Set[FLLSend],Set[P])]((Set.empty,Set.empty,Set.empty)) {
       case ((ind,send,ps),p) =>
         val NextStateProcess(i,s,ns) = p.tick
         val a = i.map(IndicationFrom(p.id,_))
@@ -109,7 +109,7 @@ case class Scheduler[IN, State, Out](processes: Map[ProcessId, Process[IN, State
 
     val nn = network.deliver(d).flatMap(_.drop(drops.map(_.packet).toSet)).get
 
-    val (fi,fs,fp) = d.foldLeft[(Set[IndicationFrom[Out]],Set[FLLSend],Set[P])]((Set.empty,Set.empty,Set.empty)) {
+    val (fi,fs,fp) = d.foldLeft[(Set[IndicationFrom[M#Ind]],Set[FLLSend],Set[P])]((Set.empty,Set.empty,Set.empty)) {
       case ((ind,send,ps),d) =>
         val NextStateProcess(i,s,ns) = deliver(d)
         val a = i.map(IndicationFrom(d.packet.to,_))

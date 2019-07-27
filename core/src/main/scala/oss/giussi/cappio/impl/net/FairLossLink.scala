@@ -1,6 +1,6 @@
 package oss.giussi.cappio.impl.net
 
-import oss.giussi.cappio.{FLLDeliver, NextState, Packet}
+import oss.giussi.cappio.{FLLDeliver, Mod, NextState, Packet}
 
 object FairLossLink {
 
@@ -11,6 +11,6 @@ object FairLossLink {
 
 }
 
-trait Socket[Req,State,In] {
-  def deliver(packet: FLLDeliver): NextState[Req,State,In]
+trait Socket[M <: Mod] {
+  def deliver(packet: FLLDeliver): NextState[M]
 }

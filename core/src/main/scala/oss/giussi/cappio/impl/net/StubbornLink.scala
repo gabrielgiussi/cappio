@@ -22,14 +22,20 @@ object StubbornLink {
   def init(timeout: Int): StubbornLink = StubbornLink(StubbornLinkState(Set.empty, 0, timeout))
 }
 
-case class StubbornLink(state: StubbornLinkState) extends Module[SLSend, StubbornLinkState, SLDeliver] with Socket[SLSend,StubbornLinkState,SLDeliver] {
+trait StubLink extends Mod {
+  override type Req = SLSend
+  override type State = StubbornLinkState
+  override type Ind = SLDeliver
+}
+
+case class StubbornLink(state: StubbornLinkState) extends Module[StubLink] with Socket[StubLink] {
 
   override def request(send: SLSend) = next(copy(state.add(send.packet)),send = Set(FLLSend(send.packet)))
 
-  override def tail: Socket[SLSend, StubbornLinkState, SLDeliver] = this
+  override def tail = this
 
   // TODO deberia tener el ProcessId aca asi puedo validar q el deliver sea correcto!
-  override def deliver(d: FLLDeliver): NextState[SLSend, StubbornLinkState, SLDeliver] = next( this, indications = Set(SLDeliver(d.packet)))
+  override def deliver(d: FLLDeliver) = next( this, indications = Set(SLDeliver(d.packet)))
 
   override def tick: Next = {
     if (state.timer + 1 == state.timeout) {

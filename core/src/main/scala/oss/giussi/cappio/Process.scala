@@ -2,22 +2,22 @@ package oss.giussi.cappio
 
 import oss.giussi.cappio.impl.net.FairLossLink.FLLSend
 
-case class NextStateProcess[Req,State,Ind](indications: Set[Ind], send: Set[FLLSend], process: Process[Req,State,Ind])
+case class NextStateProcess[M <: Mod](indications: Set[M#Ind], send: Set[FLLSend], process: Process[M])
 
 // TODO puedo poner la clase dentro de Process?
-case class Process[IN,State,Out](id: ProcessId, stack: Module[IN,State,Out], status: ProcessStatus = Up) {
+case class Process[M <: Mod](id: ProcessId, stack: Module[M], status: ProcessStatus = Up) {
 
-  type Self = Process[IN,State,Out]
+  type Self = Process[M]
 
-  type Next = NextStateProcess[IN,State,Out]
+  type Next = NextStateProcess[M]
 
-  def tick() = next(stack.tick)
+  def tick = next(stack.tick)
 
   def deliver(packet: FLLDeliver): Next = next(stack.tail.deliver(packet))
 
-  def request(r: IN): Next = next(stack.request(r))
+  def request(r: M#Req): Next = next(stack.request(r))
 
-  private def next(ns: NextState[IN,State,Out]): Next = NextStateProcess(ns.indications,ns.send,copy(stack = ns.module))
+  private def next(ns: NextState[M]): Next = NextStateProcess(ns.indications,ns.send,copy(stack = ns.module))
 
 
 }

@@ -1,14 +1,14 @@
 package oss.giussi.cappio.impl.time
 
 import oss.giussi.cappio._
-import oss.giussi.cappio.impl.time.EventualLeaderElection.{ELEState, Trust}
-import oss.giussi.cappio.impl.time.EventuallyPerfectFailureDetector.{EPFDIndication, EPFDState, Restore, Suspect}
+import oss.giussi.cappio.impl.time.EventualLeaderElection.{ELEMod, ELEState, Trust}
+import oss.giussi.cappio.impl.time.EventuallyPerfectFailureDetector.{EPFDIndication, EPFDMod, EPFDState, Restore, Suspect}
 
 object EventualLeaderElection {
   case class Trust(id: ProcessId)
 
-  case class ELEState(leader: ProcessId, suspected: Set[ProcessId], all: Set[ProcessId], module: Module[NoRequest,EPFDState,EPFDIndication]) extends StateWithModule[NoRequest,EPFDState,EPFDIndication,ELEState] {
-    override def updateModule(m: Module[NoRequest, EPFDState, EPFDIndication]): ELEState = copy(module = m)
+  case class ELEState(leader: ProcessId, suspected: Set[ProcessId], all: Set[ProcessId], module: Module[EPFDMod]) extends StateWithModule[EPFDMod, ELEState] {
+    override def updateModule(m: Module[EPFDMod]): ELEState = copy(module = m)
 
     private def findLeader(s: Set[ProcessId]) = {
       val nl = maxrank(all.diff(s))
@@ -20,9 +20,15 @@ object EventualLeaderElection {
     def suspect(p: ProcessId): (ELEState,Option[ProcessId]) = findLeader(suspected + p)
   }
 
+  type ELEMod = ModS[EPFDMod] {
+  type S = ELEState
+  type Req = NoRequest
+  type Ind = Trust
 }
 
-case class EventualLeaderElection(self: ProcessId, state: ELEState) extends AbstractModule[NoRequest,ELEState,Trust,NoRequest,EPFDState,EPFDIndication] {
+}
+
+case class EventualLeaderElection(self: ProcessId, state: ELEState) extends AbstractModule[ELEMod,EPFDMod] {
   import Messages._
   override def copyModule(s: ELEState) = copy(state = s)
 

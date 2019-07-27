@@ -6,6 +6,7 @@ import oss.giussi.cappio.impl.bcast.UniformReliableBroadcast.Payload
 import oss.giussi.cappio.impl.net.FairLossLink.FLLSend
 import oss.giussi.cappio.impl.register.OneNRegularRegister._
 import oss.giussi.cappio.{CappIOSpec, Packet, ProcessId}
+import shapeless.Inl
 
 class OneNRegularRegisterSpec extends CappIOSpec {
 
@@ -52,7 +53,7 @@ class OneNRegularRegisterSpec extends CappIOSpec {
       indications should be(empty)
       events should be(empty)
       sends should be(empty)
-      requests.toList should matchPattern { case LocalRequest(Left(BebBcast(Payload(_, ONREAD(1)), OneNRegularRegister.BEB))) :: Nil =>  }
+      requests.toList should matchPattern { case LocalRequest(Inl(BebBcast(Payload(_, ONREAD(1)), OneNRegularRegister.BEB))) :: Nil =>  }
       state shouldBe ONRRStateI(None, 0, 0, 0, 1, Map.empty)
     }
   }
