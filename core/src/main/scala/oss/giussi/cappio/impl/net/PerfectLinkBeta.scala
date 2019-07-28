@@ -8,22 +8,22 @@ import oss.giussi.cappio._
 
 object PerfectLinkBeta {
 
-  type PLModule = ModS[StubLink] {
-    type Req = PLSend
-    type Ind = PLDeliver
-    type S = PerfectLinkBetaState
+  type PLModule[P] = ModS[StubLink[P],P] {
+    type Req = PLSend[P]
+    type Ind = PLDeliver[P]
+    type S = PerfectLinkBetaState[P]
   }
 
-  case class PerfectLinkBetaState(state: PerfectLinkState, module: Module[StubLink]) extends StateWithModule[StubLink, PerfectLinkBetaState] {
-    override def updateModule(m: Module[StubLink]): PerfectLinkBetaState = copy(module = m)
+  case class PerfectLinkBetaState[P](state: PerfectLinkState[P], module: Module[StubLink[P]]) extends StateWithModule[StubLink[P], PerfectLinkBetaState[P]] {
+    override def updateModule(m: Module[StubLink[P]]) = copy(module = m)
 
-    def deliver(p: Packet) = copy(state = state.deliver(p))
+    def deliver(p: Packet[P]) = copy(state = state.deliver(p))
   }
 
-  def init(timeout: Int): PerfectLinkBeta = PerfectLinkBeta(PerfectLinkBetaState(PerfectLinkState(Set.empty), StubbornLink.init(timeout)))
+  def init[P](timeout: Int): PerfectLinkBeta[P] = PerfectLinkBeta(PerfectLinkBetaState(PerfectLinkState(Set.empty), StubbornLink.init(timeout)))
 
 
-  def processLocal(): ProcessLocal[PLSend, PerfectLinkBetaState, PLDeliver, SLSend, SLDeliver] = {
+  def processLocal[P]: ProcessLocal[PLSend[P], PerfectLinkBetaState[P], PLDeliver[P], SLSend[P], SLDeliver[P], P] = {
     import oss.giussi.cappio.Messages._
     (msg, state) =>
       msg match {
@@ -35,11 +35,11 @@ object PerfectLinkBeta {
   }
 }
 
-case class PerfectLinkBeta(state: PerfectLinkBetaState) extends AbstractModule[PLModule,StubLink] {
+case class PerfectLinkBeta[P](state: PerfectLinkBetaState[P]) extends AbstractModule[PLModule[P],StubLink[P],P] {
 
   //override type S = PerfectLinkBetaState
 
-  override def copyModule(ns: PerfectLinkBetaState): AbstractModule[PLModule,StubLink] = copy(state = ns)
+  override def copyModule(ns: PerfectLinkBetaState[P]) = copy(state = ns)
 
-  override val processLocal: PLocal = PerfectLinkBeta.processLocal()
+  override val processLocal: PLocal = PerfectLinkBeta.processLocal
 }

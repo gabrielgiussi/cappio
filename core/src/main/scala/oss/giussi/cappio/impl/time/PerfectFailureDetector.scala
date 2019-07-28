@@ -9,13 +9,15 @@ import oss.giussi.cappio.impl.time.PerfectFailureDetector.{Crashed, PFDMod, PFDS
 
 object PerfectFailureDetector {
 
-  case object HeartbeatRequest
+  sealed trait HeartbeatMsg
 
-  case object HeartbeatReply
+  case object HeartbeatRequest extends HeartbeatMsg
+
+  case object HeartbeatReply extends HeartbeatMsg
 
   case class Crashed(id: ProcessId)
 
-  type PFDMod = ModS[PLModule] {
+  type PFDMod = ModS[PLModule[HeartbeatMsg],HeartbeatMsg] {
     type Req = NoRequest
     type Ind = Crashed
     type S = PFDState
@@ -25,8 +27,8 @@ object PerfectFailureDetector {
     def init(all: Set[ProcessId], timeout: Int) = PFDState(0,all,Set.empty,all,PerfectLinkBeta.init(timeout))
   }
 
-  case class PFDState(timer: Int, alive: Set[ProcessId], detected: Set[ProcessId], all: Set[ProcessId], module: Module[PLModule]) extends StateWithModule[PLModule,PFDState] {
-    override def updateModule(m: Module[PLModule]): PFDState = copy(module = m)
+  case class PFDState(timer: Int, alive: Set[ProcessId], detected: Set[ProcessId], all: Set[ProcessId], module: Module[PFDMod#Dep]) extends StateWithModule[PFDMod#Dep,PFDState] {
+    override def updateModule(m: Module[PFDMod#Dep]): PFDState = copy(module = m)
 
     protected[time] def tick() = copy(timer = timer + 1)
 
@@ -43,14 +45,14 @@ object PerfectFailureDetector {
 
   def init(self: ProcessId, all: Set[ProcessId], timeout: Int) = PerfectFailureDetector(self,PFDState.init(all - self,timeout),timeout,new Instance("TODO")) // TODO
 
-  def processLocal(self: ProcessId, timeout: Int, instance: Instance): ProcessLocal[NoRequest,PFDState,Crashed,PLSend,PLDeliver] = {
+  def processLocal(self: ProcessId, timeout: Int, instance: Instance): ProcessLocal[NoRequest,PFDState,Crashed,PLSend[HeartbeatMsg],PLDeliver[HeartbeatMsg],HeartbeatMsg] = {
     import oss.giussi.cappio.Messages._
     (msg,state) => msg match {
       case PublicRequest(_) => LocalStep.withState(state)
       case Tick if state.timer + 1 == timeout =>
         val (ns, crashed, alive) = state.timeout()
         val ind = crashed.map(Crashed)
-        val heartbeats = alive.map(id => LocalRequest(PLSend(Packet(self, id, HeartbeatRequest, instance))))
+        val heartbeats = alive.map(id => LocalRequest(PLSend[HeartbeatMsg](Packet(self, id, HeartbeatRequest, instance))))
         LocalStep.withRequestsAndIndications(ind, heartbeats, ns)
       case Tick => LocalStep.withState(state.tick())
       case LocalIndication(PLDeliver(Packet(_, HeartbeatReply, from, _, _))) => LocalStep.withState(state.hearbeat(from))
@@ -59,7 +61,7 @@ object PerfectFailureDetector {
   }
 }
 
-case class PerfectFailureDetector(self: ProcessId, state: PFDState, timeout: Int, instance: Instance) extends AbstractModule[PFDMod,PLModule] {
+case class PerfectFailureDetector(self: ProcessId, state: PFDState, timeout: Int, instance: Instance) extends AbstractModule[PFDMod,PFDMod#Dep, PFDMod#Dep#Payload] {
   override def copyModule(ns: PFDState) = copy(state = ns)
 
   override val processLocal: PLocal = PerfectFailureDetector.processLocal(self,timeout,instance)

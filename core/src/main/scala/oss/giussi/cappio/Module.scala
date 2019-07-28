@@ -10,12 +10,13 @@ object NextState {
 
 // TODO indications: Set[Ind], send: Set[FLLSend] -> Triggers para reusarlo
 
-case class NextState[M <: Mod](indications: Set[M#Ind], send: Set[FLLSend], module: Module[M])
+case class NextState[M <: Mod](indications: Set[M#Ind], send: Set[FLLSend[M#Payload]], module: Module[M])
 
 trait Mod {
   type Req
   type State
   type Ind
+  type Payload
 }
 
 trait Module[M <: Mod] { // TODO Mod as TypeMember??
@@ -30,7 +31,7 @@ trait Module[M <: Mod] { // TODO Mod as TypeMember??
 
   def state: M#State
 
-  protected def next(module: Module[M],indications: Set[M#Ind] = Set.empty, send: Set[FLLSend] = Set.empty): Next = new NextState(indications,send,module)
+  protected def next(module: Module[M],indications: Set[M#Ind] = Set.empty, send: Set[FLLSend[M#Payload]] = Set.empty): Next = new NextState(indications,send,module)
 
   def tail: Socket[M]
 

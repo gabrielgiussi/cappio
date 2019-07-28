@@ -3,15 +3,15 @@ import oss.giussi.cappio.Packet
 
 object PerfectLink {
 
-  case class PLSend(packet: Packet)
+  case class PLSend[P](packet: Packet[P])
 
-  case class PLDeliver(packet: Packet)
+  case class PLDeliver[P](packet: Packet[P])
 
 
-  case class PerfectLinkState(delivered: Set[Packet]) {
-    def alreadyDelivered(d: Packet): Boolean = delivered contains d
+  case class PerfectLinkState[P](delivered: Set[Packet[P]]) {
+    def alreadyDelivered(d: Packet[P]): Boolean = delivered contains d
 
-    def deliver(p: Packet): PerfectLinkState = copy(delivered + p)
+    def deliver(p: Packet[P]) = copy(delivered + p)
   }
 
 

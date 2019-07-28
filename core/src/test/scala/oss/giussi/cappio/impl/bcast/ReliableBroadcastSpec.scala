@@ -1,5 +1,5 @@
 package oss.giussi.cappio.impl.bcast
-
+/*
 import org.scalatest.{Matchers, WordSpec}
 import oss.giussi.cappio.impl.bcast.ReliableBroadcast.{RBBcast, RBData, RBDeliver}
 import oss.giussi.cappio.impl.bcast.UniformReliableBroadcast.Payload
@@ -30,3 +30,6 @@ class ReliableBroadcastSpec extends WordSpec with Matchers {
   }
 
 }
+
+
+ */

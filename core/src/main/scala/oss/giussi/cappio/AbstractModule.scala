@@ -1,15 +1,21 @@
 package oss.giussi.cappio
 
+import oss.giussi.cappio.Messages.{LocalIndication, LocalMsg, LocalRequest, LocalStep, PublicRequest, Tick}
 import oss.giussi.cappio.impl.net.FairLossLink.FLLSend
 import oss.giussi.cappio.impl.net.Socket
-import shapeless.{:+:, CNil, Coproduct}
+import shapeless.ops.coproduct.Inject
+import shapeless.{:+:, CNil, Coproduct, Inl, Inr}
 
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 
-trait ModS[M <: Mod] extends Mod {
+trait ModS[M <: Mod { type Payload = P},P] extends Mod {
   type S <: StateWithModule[M, S]
   final override type State = S
+  // TODO no puedo evitar el parametro P y decir final override type Payload = M#Payload? hay q ver si esta restriccion es necesaria porque en PFD
+  // no tengo payload pero mi depndencia si
+  final override type Payload = P
+  type Dep = M
 
 }
 
@@ -44,17 +50,17 @@ object Messages {
   case class LocalRequest[UR](r: UR) extends OtherMsg[UR, Nothing, Nothing]
 
   object LocalStep {
-    def withState[S, I, UR, UI](s: S): LocalStep[S, I, UR, UI] = LocalStep(Set.empty, Set.empty, Set.empty, Set.empty, s)
+    def withState[S, I, UR, UI,P](s: S): LocalStep[S, I, UR, UI,P] = LocalStep(Set.empty, Set.empty, Set.empty, Set.empty, s)
 
-    def withRequests[S, I, UR, UI](requests: Set[LocalRequest[UR]], ns: S): LocalStep[S, I, UR, UI] = LocalStep(Set.empty, Set.empty, requests, Set.empty, ns)
+    def withRequests[S, I, UR, UI,P](requests: Set[LocalRequest[UR]], ns: S): LocalStep[S, I, UR, UI,P] = LocalStep(Set.empty, Set.empty, requests, Set.empty, ns)
 
-    def withEvents[S, I, UR, UI](events: Set[LocalIndication[UI]], sends: Set[FLLSend], ns: S): LocalStep[S, I, UR, UI] = new LocalStep(Set.empty, events, Set.empty, sends, ns)
+    def withEvents[S, I, UR, UI,P](events: Set[LocalIndication[UI]], sends: Set[FLLSend[P]], ns: S): LocalStep[S, I, UR, UI,P] = new LocalStep(Set.empty, events, Set.empty, sends, ns)
 
-    def withIndications[S, I, UR, UI](indications: Set[I], ns: S): LocalStep[S, I, UR, UI] = new LocalStep(indications, Set.empty, Set.empty, Set.empty, ns)
+    def withIndications[S, I, UR, UI,P](indications: Set[I], ns: S): LocalStep[S, I, UR, UI,P] = new LocalStep(indications, Set.empty, Set.empty, Set.empty, ns)
 
-    def withRequestsAndIndications[S, I, UR, UI](indications: Set[I], requests: Set[LocalRequest[UR]], ns: S): LocalStep[S, I, UR, UI] = new LocalStep(indications, Set.empty, requests, Set.empty, ns)
+    def withRequestsAndIndications[S, I, UR, UI,P](indications: Set[I], requests: Set[LocalRequest[UR]], ns: S): LocalStep[S, I, UR, UI,P] = new LocalStep(indications, Set.empty, requests, Set.empty, ns)
 
-    def withModule[I, S <: StateWithModule[M, S], M <: Mod](s: S, ns: NextState[M]): LocalStep[S, I, M#Req, M#Ind] = {
+    def withModule[I, S <: StateWithModule[M, S], M <: Mod](s: S, ns: NextState[M]): LocalStep[S, I, M#Req, M#Ind,M#Payload] = {
       val indications = ns.indications.map(LocalIndication(_))
       new LocalStep(Set.empty, indications, Set.empty, ns.send, s.updateModule(ns.module))
     }
@@ -62,13 +68,44 @@ object Messages {
   }
 
   // o es mejor un sealed trait y los distintos tipos?
-  case class LocalStep[S, I, UR, UI](indications: Set[I], events: Set[LocalIndication[UI]], requests: Set[LocalRequest[UR]], sends: Set[FLLSend], ns: S)
+  case class LocalStep[S, I, UR, UI,P](indications: Set[I], events: Set[LocalIndication[UI]], requests: Set[LocalRequest[UR]], sends: Set[FLLSend[P]], ns: S)
 
-  type ProcessLocal[R, S, I, UR, UI] = (LocalMsg[R, UI], S) => LocalStep[S, I, UR, UI]
+  type ProcessLocal[R, S, I, UR, UI,P] = (LocalMsg[R, UI], S) => LocalStep[S, I, UR, UI,P]
 
 }
 
-trait AbstractModule[M1 <: ModS[M2], M2 <: Mod] extends Module[M1] {
+// como evitar estos injectors?
+// debreia usar M <: ModS? en lugar de M y Dep?
+abstract class processLocalHelper2[M <: Mod, Dep <: Mod2](implicit inj1: Inject[Dep#Req, Dep#Dep1#Req], inj2: Inject[Dep#Req, Dep#Dep2#Req]) extends Function2[LocalMsg[M#Req,Dep#Ind],M#State,LocalStep[M#State,M#Ind,Dep#Req,Dep#Ind,Dep#Payload]] {
+  import shapeless.Coproduct
+
+  type Output = LocalStep[M#State,M#Ind,Dep#Req,Dep#Ind,Dep#Payload]
+  type State = M#State
+
+  override def apply(v1: LocalMsg[M#Req,Dep#Ind], state: State): Output = v1 match {
+    case PublicRequest(req) => onPublicRequest(req,state)
+    case LocalIndication(Inl(ind)) => onDependencyIndication1(ind,state)
+    case LocalIndication(Inr(Inl(ind))) => onDependencyIndication2(ind,state)
+    case LocalIndication(Inr(Inr(_))) => LocalStep.withState(state)
+    case Tick => onTick(state)
+  }
+
+  def onPublicRequest(req: M#Req, state: State): Output
+
+  def onDependencyIndication1(ind: Dep#Dep1#Ind, state: State): Output
+
+  def onDependencyIndication2(ind: Dep#Dep2#Ind, state: State): Output
+
+  def onTick(state: State): Output = LocalStep.withState(state)
+
+  def req1(r: Dep#Dep1#Req) : LocalRequest[Dep#Req] = LocalRequest(Coproduct[Dep#Req](r)(inj1))
+
+  // una opcion es que el LocalStep tenga un apply q haga estas conversiones asi no tengo que usar este metodo
+  def req2(r: Dep#Dep2#Req): LocalRequest[Dep#Req] = LocalRequest(Coproduct[Dep#Req](r)(inj2))
+}
+
+// TODO puedo obviar M2 aca y usar M1#Dep?
+trait AbstractModule[M1 <: ModS[M2,P], M2 <: Mod { type Payload = P},P] extends Module[M1] {
 
   import Messages._
 
@@ -82,10 +119,10 @@ trait AbstractModule[M1 <: ModS[M2], M2 <: Mod] extends Module[M1] {
   type Msg = Message[R, UR, US, UI]
 
   type LMsg = LocalMsg[R, UI]
-  type LStep = LocalStep[S, I, UR, UI]
+  type LStep = LocalStep[S, I, UR, UI,P]
   type LReq = LocalRequest[UR]
   type LInd = LocalIndication[UI]
-  type PLocal = ProcessLocal[R, S, I, UR, UI]
+  type PLocal = ProcessLocal[R, S, I, UR, UI,P]
 
   override def request(in: R): Next = requestMsg(Seq(PublicRequest(in)))
 
@@ -96,11 +133,11 @@ trait AbstractModule[M1 <: ModS[M2], M2 <: Mod] extends Module[M1] {
     next(copyModule(s), ind, sends)
   }
 
-  def copyModule(state: S): AbstractModule[M1, M2]
+  def copyModule(state: S): AbstractModule[M1, M2, P]
 
   def processQueue(queue: Queue[Msg], state: S) = {
     @tailrec
-    def pq(queue: Queue[Msg], indications: Set[I], sends: Set[FLLSend], state: S): (S, Set[I], Set[FLLSend]) = {
+    def pq(queue: Queue[Msg], indications: Set[I], sends: Set[FLLSend[P]], state: S): (S, Set[I], Set[FLLSend[P]]) = {
       if (queue.isEmpty) (state, indications, sends)
       else {
         // save all events and indications, it may be useful for UI! (e.g. PFD.Crashed)
@@ -128,7 +165,8 @@ trait AbstractModule[M1 <: ModS[M2], M2 <: Mod] extends Module[M1] {
   // or process(r: R) to avoid pattern match over PublicRequest, LocalEvent, etc.
   val processLocal: PLocal
 
-  override def tail: Socket[M1] = (packet: FLLDeliver) => requestMsg(Seq(LocalNextState(t.deliver(packet))))
+
+  override def tail: Socket[M1] = (packet: FLLDeliver[P]) => requestMsg(Seq(LocalNextState(t.deliver(packet))))
 
   final def t: Socket[M2] = state.tail
 
@@ -137,7 +175,7 @@ trait AbstractModule[M1 <: ModS[M2], M2 <: Mod] extends Module[M1] {
 }
 
 object CombinedModule {
-  def paired[M1 <: Mod, M2 <: Mod](i1: Instance, m1: Module[M1], i2: Instance, m2: Module[M2]) = new CombinedModule[M1, M2, (M1#State, M2#State)](i1, m1, i2, m2, Tuple2.apply)
+  def paired[M1 <: Mod, M2 <: Mod](i1: Instance, m1: Module[M1], i2: Instance, m2: Module[M2]) = new CombinedModule[M1,M2, (M1#State, M2#State)](i1, m1, i2, m2, Tuple2.apply)
 
 }
 
@@ -146,6 +184,7 @@ trait Mod2 extends Mod {
   type Dep2 <: Mod
   final override type Req = Dep1#Req :+: Dep2#Req :+: CNil
   final override type Ind = Dep1#Ind :+: Dep2#Ind :+: CNil
+  final override type Payload = Dep1#Payload :+: Dep2#Payload :+: CNil
 }
 
 // lo puedo hacer q se banque N modulos con HList?
@@ -165,22 +204,31 @@ case class CombinedModule[M1 <: Mod, M2 <: Mod, S](i1: Instance, m1: Module[M1],
 
   private def p1(ns: NextState[M1]): Next = {
     val i: Self = copy(m1 = ns.module)
-    next(i, ns.indications.map(Coproduct[SelfMod#Ind](_)), ns.send)
+    val send = ns.send.map { case FLLSend(p) => FLLSend(p.copy(payload = Coproduct[SelfMod#Payload](p.payload))) } // TODO
+    next(i, ns.indications.map(Coproduct[SelfMod#Ind](_)), send)
   }
 
   private def p2(ns: NextState[M2]): Next = {
     val i: Self = copy(m2 = ns.module)
-    next(i, ns.indications.map(Coproduct[SelfMod#Ind](_)), ns.send) // TODO duplicated code
+    val send = ns.send.map { case FLLSend(p) => FLLSend(p.copy(payload = Coproduct[SelfMod#Payload](p.payload))) }
+    next(i, ns.indications.map(Coproduct[SelfMod#Ind](_)), send) // TODO duplicated code
   }
 
   override def state: S = fs(m1.state, m2.state)
 
-  override def tail: Socket[SelfMod] = (packet: FLLDeliver) => {
+  override def tail: Socket[SelfMod] = (d: FLLDeliver[SelfMod#Payload]) => d.packet match {
+    case p@Packet(_, Inl(payload), _, _, _) => p1(m1.tail.deliver(FLLDeliver(p.copy(payload = payload))))
+    case p@Packet(_, Inr(Inl(payload)), _, _, _) => p2(m2.tail.deliver(FLLDeliver(p.copy(payload = payload))))
+    case _ => throw new RuntimeException("can't happen")
+      /*
     if (packet.packet.instance == i1)
       p1(m1.tail.deliver(packet))
     else if (packet.packet.instance == i2) p2(m2.tail.deliver(packet))
     else throw new RuntimeException("No instance match")
+
+       */
   }
+
 
   override def tick: Next = {
     val NextState(ind1, send1, ns1) = m1.tick
@@ -188,7 +236,9 @@ case class CombinedModule[M1 <: Mod, M2 <: Mod, S](i1: Instance, m1: Module[M1],
     val lind = ind1.map(Coproduct[SelfMod#Ind](_))
     val rind = ind2.map(Coproduct[SelfMod#Ind](_))
     val s: Self = copy(m1 = ns1, m2 = ns2)
-    next(s, lind ++ rind, send1 ++ send2)
+    // send = send1 ++ send2
+    val send: Set[FLLSend[SelfMod#Payload]] = Set.empty
+    next(s, lind ++ rind, send)
   }
 
   object req extends shapeless.Poly1 {
@@ -199,4 +249,5 @@ case class CombinedModule[M1 <: Mod, M2 <: Mod, S](i1: Instance, m1: Module[M1],
 
   // https://stackoverflow.com/questions/34107849/pattern-matching-with-shapeless-coproduct
   override def request(in: SelfMod#Req): Next = in.fold(req)
+
 }
