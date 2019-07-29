@@ -1,23 +1,24 @@
 package oss.giussi.cappio.impl.bcast
-/*
 import org.scalatest.{Matchers, WordSpec}
 import oss.giussi.cappio.impl.bcast.ReliableBroadcast.{RBBcast, RBData, RBDeliver}
-import oss.giussi.cappio.impl.bcast.UniformReliableBroadcast.Payload
 import oss.giussi.cappio.impl.net.FairLossLink.FLLSend
-import oss.giussi.cappio.{Packet, ProcessId}
+import oss.giussi.cappio.{CappIOSpec, Packet, Payload, ProcessId}
+import shapeless.{Inl, Inr}
 
-class ReliableBroadcastSpec extends WordSpec with Matchers {
+class ReliableBroadcastSpec extends CappIOSpec {
 
   val all = (0 to 2).map(ProcessId)
   val self = all.head
-  val rb = ReliableBroadcast.init(self,all.toSet,3)
+  val rb = ReliableBroadcast.init[String](self,all.toSet,3)
 
   "A" should {
     "a" in {
       val payload = Payload("gaga")
       val uuid = payload.id
       rb.request(RBBcast(payload))
-        .send.map { case FLLSend(Packet(`uuid`,RBData(_,"gaga"),ProcessId(0),to,_)) => to.id } should contain theSameElementsAs Set(0,1,2)
+        .send
+        .filter(_.packet.payload == Inr(Inl(RBData(0.id,"gaga"))))
+        .map { case FLLSend(Packet(`uuid`,_,ProcessId(0),to,_)) => to.id } should contain theSameElementsAs Set(0,1,2)
 
     }
     "b" in {
@@ -30,6 +31,3 @@ class ReliableBroadcastSpec extends WordSpec with Matchers {
   }
 
 }
-
-
- */
