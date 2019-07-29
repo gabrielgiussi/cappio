@@ -1,6 +1,6 @@
 package oss.giussi.cappio
 
-import oss.giussi.cappio.Messages.{LocalIndication, LocalMsg, LocalRequest, LocalStep, PublicRequest, Tick}
+import oss.giussi.cappio.Messages.{LocalIndication, LocalMsg, LocalRequest, LocalStep, ProcessLocalM, PublicRequest, Tick}
 import oss.giussi.cappio.impl.net.FairLossLink.FLLSend
 import oss.giussi.cappio.impl.net.Socket
 import shapeless.ops.coproduct.Inject
@@ -25,6 +25,10 @@ trait StateWithModule[M <: Mod, Self <: StateWithModule[M, Self]] {
   def module: Module[M]
 
   final def tail = module.tail
+}
+
+case class BasicState[M <: Mod](module: Module[M]) extends StateWithModule[M,BasicState[M]]{
+  override def updateModule(m: Module[M]): BasicState[M] = copy(m)
 }
 
 object Messages {
@@ -70,6 +74,8 @@ object Messages {
 
   type ProcessLocal[R, S, I, UR, UI,P] = (LocalMsg[R, UI], S) => LocalStep[S, I, UR, UI,P]
 
+  type ProcessLocalM[M <: ModS[Dep],Dep <: Mod] = ProcessLocal[M#Req,M#State,M#Ind,Dep#Req,Dep#Ind, Dep#Payload]
+
 }
 
 trait ProcessLocalHelper1[M <: ModS[Dep], Dep <: Mod] extends Function2[LocalMsg[M#Req,Dep#Ind],M#State,LocalStep[M#State,M#Ind,Dep#Req,Dep#Ind,Dep#Payload]] {
@@ -112,29 +118,43 @@ abstract class ProcessLocalHelper2[M <: ModS[Dep], Dep <: Mod2](implicit inj1: I
   def req2(r: Dep#Dep2#Req): LocalRequest[Dep#Req] = LocalRequest(Coproduct[Dep#Req](r)(inj2))
 }
 
+object AbstractModule {
+
+  def mod[M <: ModS[Dep], Dep <: Mod](initial: M#S, p: ProcessLocalM[M,Dep]): Module[M] = {
+    case class InternalModule(s: M#S) extends AbstractModule[M,Dep]{
+      override def copyModule(state: M#S): AbstractModule[M, Dep] = copy(state)
+
+      override val processLocal: PLocal = p
+
+      override def state: M#S = s
+    }
+    InternalModule(initial)
+  }
+}
+
 trait AbstractModule[M1 <: ModS[M2], M2 <: Mod] extends Module[M1] {
 
   import Messages._
 
-  type R = M1#Req
-  type UR = M2#Req
-  type S = M1#State
-  type US = M2#State
-  type I = M1#Ind
-  type UI = M2#Ind
-  type P = M2#Payload
+  final type R = M1#Req
+  final type UR = M2#Req
+  final type S = M1#State
+  final type US = M2#State
+  final type I = M1#Ind
+  final type UI = M2#Ind
+  final type P = M2#Payload
 
-  type Msg = Message[R, UR, US, UI]
+  final type Msg = Message[R, UR, US, UI]
 
-  type LMsg = LocalMsg[R, UI]
-  type LStep = LocalStep[S, I, UR, UI,P]
-  type LReq = LocalRequest[UR]
-  type LInd = LocalIndication[UI]
-  type PLocal = ProcessLocal[R, S, I, UR, UI,P]
+  final type LMsg = LocalMsg[R, UI]
+  final type LStep = LocalStep[S, I, UR, UI,P]
+  final type LReq = LocalRequest[UR]
+  final type LInd = LocalIndication[UI]
+  final type PLocal = ProcessLocal[R, S, I, UR, UI,P]
 
-  override def request(in: R): Next = requestMsg(Seq(PublicRequest(in)))
+  final override def request(in: R): Next = requestMsg(Seq(PublicRequest(in)))
 
-  private def requestMsg(msgs: Seq[Msg]) = {
+  final private def requestMsg(msgs: Seq[Msg]) = {
     val queue = Queue[Msg](msgs: _*)
     val (s, ind, sends) = processQueue(queue, state)
     //if (!ind.isEmpty) println(ind)
@@ -143,7 +163,7 @@ trait AbstractModule[M1 <: ModS[M2], M2 <: Mod] extends Module[M1] {
 
   def copyModule(state: S): AbstractModule[M1, M2]
 
-  def processQueue(queue: Queue[Msg], state: S) = {
+  final private def processQueue(queue: Queue[Msg], state: S) = {
     @tailrec
     def pq(queue: Queue[Msg], indications: Set[I], sends: Set[FLLSend[P]], state: S): (S, Set[I], Set[FLLSend[P]]) = {
       if (queue.isEmpty) (state, indications, sends)
@@ -163,7 +183,7 @@ trait AbstractModule[M1 <: ModS[M2], M2 <: Mod] extends Module[M1] {
     new LocalStep(Set.empty, indications, Set.empty, ns.send, s.updateModule(ns.module))
   }
 
-  def processMsg(msg: Msg, state: S): LStep = msg match {
+  final def processMsg(msg: Msg, state: S): LStep = msg match {
     case l: LMsg => processLocal(l, state)
     case DelegateTick => withModule(state, state.module.tick)
     case LocalRequest(r) => withModule(state, state.module.request(r))
@@ -174,11 +194,11 @@ trait AbstractModule[M1 <: ModS[M2], M2 <: Mod] extends Module[M1] {
   val processLocal: PLocal
 
 
-  override def tail: Socket[M1] = (packet: FLLDeliver[P]) => requestMsg(Seq(LocalNextState(t.deliver(packet))))
+  final override def tail: Socket[M1] = (packet: FLLDeliver[P]) => requestMsg(Seq(LocalNextState(t.deliver(packet))))
 
   final def t: Socket[M2] = state.tail
 
-  override def tick: Next = requestMsg(Seq(Messages.Tick, DelegateTick)) // TODO order matters
+  final override def tick: Next = requestMsg(Seq(Messages.Tick, DelegateTick)) // TODO order matters
 
 }
 

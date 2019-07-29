@@ -10,7 +10,7 @@ class BestEffortBroadcastSpec extends WordSpec with Matchers {
 
   val instance = Instance("beb")
   val all = Set(0, 1, 2).map(ProcessId)
-  val beb = BestEffortBroadcast.init[String](ProcessId(0), all, 3)
+  val beb = BestEffortBroadcast.beb[String](ProcessId(0), all) //BestEffortBroadcast.init[String](ProcessId(0), all, 3)
 
   "BestEfforBroadcast" must {
     "A" in {
