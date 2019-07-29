@@ -343,6 +343,9 @@
               2. Logical index -> no tiene ningun efecto funcional, solo es para dibujar. Puede haber 1 req por cada proceso en el mismo indice!
 
 
+(75) No puedo hacer que los packets sean creados solo por la network porque las abstracciones que crean los paquetes tienen que pasarle
+el packet a PLSend.
+El problema es q le pueden estar mandando como from cualquier process Id en lugar del "propio". Estaria bueno corregirlo
 
 - "Such that" events conditions. Puedo procesar el evento y si no se da la condicion no hacer nada?
 

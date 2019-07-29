@@ -40,8 +40,8 @@ object BestEffortBroadcast {
 
   }
 
-  def beb[T](self: ProcessId, all: Set[ProcessId]): Module[BebMod[T]] = {
-    AbstractModule.mod[BebMod[T],BebMod[T]#Dep](BasicState(PerfectLinkBeta.init[T](4)),BestEffortBroadcast.processLocal[T](self,all))
+  def apply[T](self: ProcessId, all: Set[ProcessId], timeout: Int): Module[BebMod[T]] = {
+    AbstractModule.mod[BebMod[T],BebMod[T]#Dep](BasicState(PerfectLinkBeta.init[T](timeout)),BestEffortBroadcast.processLocal[T](self,all))
   }
 
 }

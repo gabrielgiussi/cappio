@@ -1,7 +1,5 @@
 package oss.giussi.cappio.impl.bcast
 
-import java.util.UUID
-
 import oss.giussi.cappio._
 import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.{BebBcast, BebDeliver, BebMod}
 import oss.giussi.cappio.impl.bcast.ReliableBroadcast._
@@ -25,7 +23,7 @@ object ReliableBroadcast {
     override type Req = RBBcast[P]
   }
 
-  case class RBBcast[P](payload: Payload[P]) // TODO or Payload? revisar bien este tema a ver si lo estoy haciendo bien
+  case class RBBcast[P](payload: Payload[P])
 
   case class RBDeliver[P](from: ProcessId, payload: Payload[P])
 
@@ -35,21 +33,20 @@ object ReliableBroadcast {
     def init[P](self: ProcessId, all: Set[ProcessId], timeout: Int) = {
       val pfdm = PerfectFailureDetector.init(self, all, timeout)
       val bebm = BestEffortBroadcast.init[RBData[P]](self, all, timeout)
-      RBcastState(all.map(_ -> Set.empty[(UUID, P)]).toMap, all, CombinedModule.paired(PFD, pfdm, BEB, bebm))
+      RBcastState(all.map(_ -> Set.empty[Payload[P]]).toMap, all, CombinedModule.paired(PFD, pfdm, BEB, bebm))
     }
   }
 
-  // TODO use type for (UUID,Any)
-  case class RBcastState[P](delivered: Map[ProcessId, Set[(UUID, P)]], correct: Set[ProcessId], module: Module[RBDep[P]]) extends StateWithModule[RBDep[P], RBcastState[P]] {
+  case class RBcastState[P](delivered: Map[ProcessId, Set[Payload[P]]], correct: Set[ProcessId], module: Module[RBDep[P]]) extends StateWithModule[RBDep[P], RBcastState[P]] {
     override def updateModule(m: Module[RBDep[P]]) = copy(module = m)
 
-    def crashed(id: ProcessId): (RBcastState[P], Set[(UUID, P)]) = (copy(correct = correct - id), delivered(id))
+    def crashed(id: ProcessId): (RBcastState[P], Set[Payload[P]]) = (copy(correct = correct - id), delivered(id))
 
-    def deliver(sender: ProcessId, id: UUID, msg: P) = {
-      if (delivered(sender).contains((id, msg))) None
+    def deliver(sender: ProcessId, payload: Payload[P]) = {
+      if (delivered(sender).contains(payload)) None
       else {
-        val ns = copy(delivered = delivered.updated(sender, delivered(sender) + (id -> msg)))
-        val toBcast = if (correct.contains(sender)) Set.empty else Set((id, msg))
+        val ns = copy(delivered = delivered.updated(sender, delivered(sender) + payload))
+        val toBcast = if (correct.contains(sender)) Set.empty else Set(payload)
         Some((ns, toBcast))
       }
     }
@@ -65,16 +62,16 @@ object ReliableBroadcast {
 
     override def onDependencyIndication1(ind: Crashed, state: State): Output = {
       val (ns, toBcast) = state.crashed(ind.id)
-      val requests = toBcast.map { case (uuid, msg) => req2(BebBcast(Payload(uuid, RBData(ind.id, msg)), ReliableBroadcast.BEB)) }
+      val requests = toBcast.map { case Payload(uuid, msg) => req2(BebBcast(Payload(uuid, RBData(ind.id, msg)), ReliableBroadcast.BEB)) }
       LocalStep.withRequests(requests, ns)
     }
 
     override def onDependencyIndication2(ind: BebDeliver[RBData[P]], state: State): Output = {
       val BebDeliver(_, Payload(id, RBData(sender, msg))) = ind
-      state.deliver(sender, id, msg) match {
+      state.deliver(sender, Payload(id,msg)) match {
         case Some((ns, bcast)) =>
           val ind = Set(RBDeliver(sender, Payload(id, msg)))
-          val req = bcast.map { case (uuid, p) => req2(BebBcast(Payload(uuid, RBData(self,p)), ReliableBroadcast.BEB)) }
+          val req = bcast.map { case Payload(uuid, p) => req2(BebBcast(Payload(uuid, RBData(self,p)), ReliableBroadcast.BEB)) }
           LocalStep.withRequestsAndIndications(ind, req, ns)
         case None => LocalStep.withState(state)
       }

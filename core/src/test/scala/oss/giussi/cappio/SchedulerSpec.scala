@@ -4,7 +4,7 @@ import org.scalatest.{Matchers, WordSpec}
 import oss.giussi.cappio.impl.net.StubbornLink
 import oss.giussi.cappio.impl.net.StubbornLink.{SLDeliver, SLSend}
 
-class SchedulerSpec extends WordSpec with Matchers {
+class SchedulerSpec extends CappIOSpec {
 
   "Scheduler" should {
     "A" in {

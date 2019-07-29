@@ -14,5 +14,8 @@ trait CappIOSpec extends WordSpec with Matchers {
     def deliver(p: Packet[M#Payload]): NextState[M] = ns.module.tail.deliver(FLLDeliver(p))
 
     def request(req: M#Req): NextState[M] = ns.module.request(req)
+
+    def packets: Set[Packet[M#Payload]] = ns.send.map(_.packet)
   }
+
 }
