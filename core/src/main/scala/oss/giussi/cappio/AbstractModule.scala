@@ -72,8 +72,27 @@ object Messages {
 
 }
 
+trait ProcessLocalHelper1[M <: ModS[Dep], Dep <: Mod] extends Function2[LocalMsg[M#Req,Dep#Ind],M#State,LocalStep[M#State,M#Ind,Dep#Req,Dep#Ind,Dep#Payload]] {
+
+  type Output = LocalStep[M#State,M#Ind,Dep#Req,Dep#Ind,Dep#Payload]
+  type State = M#State // Or M#S?
+
+  override def apply(msg: LocalMsg[M#Req, Dep#Ind], state: State): Output = msg match {
+    case PublicRequest(req) => onPublicRequest(req,state)
+    case LocalIndication(ind) => onIndication(ind,state)
+    case Tick => onTick(state)
+  }
+
+  def onPublicRequest(req: M#Req, state: State): Output
+
+  def onIndication(ind: Dep#Ind, state: State): Output
+
+  def onTick(state: State): Output = LocalStep.withState(state)
+}
+
 // como evitar estos injectors?
 // debreia usar M <: ModS? en lugar de M y Dep?
+// rewrite using trait ProcessLocalHelper1
 abstract class processLocalHelper2[M <: Mod, Dep <: Mod2](implicit inj1: Inject[Dep#Req, Dep#Dep1#Req], inj2: Inject[Dep#Req, Dep#Dep2#Req]) extends Function2[LocalMsg[M#Req,Dep#Ind],M#State,LocalStep[M#State,M#Ind,Dep#Req,Dep#Ind,Dep#Payload]] {
   import shapeless.Coproduct
 
