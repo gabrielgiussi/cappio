@@ -17,7 +17,7 @@ object PerfectFailureDetector {
 
   case class Crashed(id: ProcessId)
 
-  type PFDMod = ModS[PLModule[HeartbeatMsg],HeartbeatMsg] {
+  type PFDMod = ModS[PLModule[HeartbeatMsg]] {
     type Req = NoRequest
     type Ind = Crashed
     type S = PFDState
@@ -61,7 +61,7 @@ object PerfectFailureDetector {
   }
 }
 
-case class PerfectFailureDetector(self: ProcessId, state: PFDState, timeout: Int, instance: Instance) extends AbstractModule[PFDMod,PFDMod#Dep, PFDMod#Dep#Payload] {
+case class PerfectFailureDetector(self: ProcessId, state: PFDState, timeout: Int, instance: Instance) extends AbstractModule[PFDMod,PFDMod#Dep] {
   override def copyModule(ns: PFDState) = copy(state = ns)
 
   override val processLocal: PLocal = PerfectFailureDetector.processLocal(self,timeout,instance)

@@ -6,7 +6,6 @@ import oss.giussi.cappio.impl.time.PerfectFailureDetector.{Crashed, HeartbeatRep
 import oss.giussi.cappio._
 
 class PerfectFailureDetectorSpec extends WordSpec with Matchers {
-
   "A" should {
     "a" in {
       val all = (0 to 2).map(ProcessId).toSet
@@ -15,7 +14,7 @@ class PerfectFailureDetectorSpec extends WordSpec with Matchers {
         .tick.module
         .tick.module
         .tick.send.map {
-        case FLLSend(Packet(_, payload, from, to, _)) => (payload, from.id, to.id)
+        case FLLSend(p@Packet(_, _, from, to, _)) => (p.payload, from.id, to.id)
       } should contain theSameElementsAs List((HeartbeatRequest,0,1),(HeartbeatRequest,0,2))
     }
     "b" in {
@@ -34,5 +33,4 @@ class PerfectFailureDetectorSpec extends WordSpec with Matchers {
         .tick.indications should contain theSameElementsAs List(Crashed(ProcessId(2)))
     }
   }
-
 }

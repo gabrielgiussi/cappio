@@ -9,12 +9,10 @@ import shapeless.{:+:, CNil, Coproduct, Inl, Inr}
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 
-trait ModS[M <: Mod { type Payload = P},P] extends Mod {
+trait ModS[M <: Mod] extends Mod {
   type S <: StateWithModule[M, S]
   final override type State = S
-  // TODO no puedo evitar el parametro P y decir final override type Payload = M#Payload? hay q ver si esta restriccion es necesaria porque en PFD
-  // no tengo payload pero mi depndencia si
-  final override type Payload = P
+  final override type Payload = M#Payload
   type Dep = M
 
 }
@@ -105,7 +103,7 @@ abstract class processLocalHelper2[M <: Mod, Dep <: Mod2](implicit inj1: Inject[
 }
 
 // TODO puedo obviar M2 aca y usar M1#Dep?
-trait AbstractModule[M1 <: ModS[M2,P], M2 <: Mod { type Payload = P},P] extends Module[M1] {
+trait AbstractModule[M1 <: ModS[M2], M2 <: Mod] extends Module[M1] {
 
   import Messages._
 
@@ -115,6 +113,7 @@ trait AbstractModule[M1 <: ModS[M2,P], M2 <: Mod { type Payload = P},P] extends 
   type US = M2#State
   type I = M1#Ind
   type UI = M2#Ind
+  type P = M2#Payload
 
   type Msg = Message[R, UR, US, UI]
 
@@ -133,7 +132,7 @@ trait AbstractModule[M1 <: ModS[M2,P], M2 <: Mod { type Payload = P},P] extends 
     next(copyModule(s), ind, sends)
   }
 
-  def copyModule(state: S): AbstractModule[M1, M2, P]
+  def copyModule(state: S): AbstractModule[M1, M2]
 
   def processQueue(queue: Queue[Msg], state: S) = {
     @tailrec
@@ -188,6 +187,7 @@ trait Mod2 extends Mod {
 }
 
 // lo puedo hacer q se banque N modulos con HList?
+// No estoy usando las instances!
 case class CombinedModule[M1 <: Mod, M2 <: Mod, S](i1: Instance, m1: Module[M1], i2: Instance, m2: Module[M2], fs: (M1#State, M2#State) => S) extends Module[Mod2 {
   type Dep1 = M1
   type Dep2 = M2
@@ -220,13 +220,6 @@ case class CombinedModule[M1 <: Mod, M2 <: Mod, S](i1: Instance, m1: Module[M1],
     case p@Packet(_, Inl(payload), _, _, _) => p1(m1.tail.deliver(FLLDeliver(p.copy(payload = payload))))
     case p@Packet(_, Inr(Inl(payload)), _, _, _) => p2(m2.tail.deliver(FLLDeliver(p.copy(payload = payload))))
     case _ => throw new RuntimeException("can't happen")
-      /*
-    if (packet.packet.instance == i1)
-      p1(m1.tail.deliver(packet))
-    else if (packet.packet.instance == i2) p2(m2.tail.deliver(packet))
-    else throw new RuntimeException("No instance match")
-
-       */
   }
 
 
@@ -236,9 +229,9 @@ case class CombinedModule[M1 <: Mod, M2 <: Mod, S](i1: Instance, m1: Module[M1],
     val lind = ind1.map(Coproduct[SelfMod#Ind](_))
     val rind = ind2.map(Coproduct[SelfMod#Ind](_))
     val s: Self = copy(m1 = ns1, m2 = ns2)
-    // send = send1 ++ send2
-    val send: Set[FLLSend[SelfMod#Payload]] = Set.empty
-    next(s, lind ++ rind, send)
+    val s1 = send1.map { case FLLSend(p@Packet(_, payload, _, _, _)) => FLLSend(p.copy(payload = Coproduct[SelfMod#Payload](payload))) }
+    val s2 = send2.map { case FLLSend(p@Packet(_, payload, _, _, _)) => FLLSend(p.copy(payload = Coproduct[SelfMod#Payload](payload))) }
+    next(s, lind ++ rind, s1 ++ s2)
   }
 
   object req extends shapeless.Poly1 {
@@ -247,7 +240,6 @@ case class CombinedModule[M1 <: Mod, M2 <: Mod, S](i1: Instance, m1: Module[M1],
     implicit val request2: Case.Aux[M2#Req, Next] = at(r => p2(m2.request(r)))
   }
 
-  // https://stackoverflow.com/questions/34107849/pattern-matching-with-shapeless-coproduct
   override def request(in: SelfMod#Req): Next = in.fold(req)
 
 }

@@ -9,7 +9,7 @@ import oss.giussi.cappio.impl.net.PerfectLinkBeta.PLModule
 
 object BestEffortBroadcast {
 
-  type BebMod[P] = ModS[PLModule[P],P] {
+  type BebMod[P] = ModS[PLModule[P]] {
     type Req = BebBcast[P]
     type S = BEBState[P]
     type Ind = BebDeliver[P]
@@ -41,8 +41,8 @@ object BestEffortBroadcast {
   }
 }
 
-case class BestEffortBroadcast[P](self: ProcessId, all: Set[ProcessId], state: BEBState[P]) extends AbstractModule[BebMod[P],BebMod[P]#Dep,P] {
-  override def copyModule(s: BEBState[P]) = copy(state = s)
+case class BestEffortBroadcast[T](self: ProcessId, all: Set[ProcessId], state: BEBState[T]) extends AbstractModule[BebMod[T],PLModule[T]] {
+  override def copyModule(s: BEBState[T]) = copy(state = s)
 
   override val processLocal: PLocal = BestEffortBroadcast.processLocal(self,all)
 }

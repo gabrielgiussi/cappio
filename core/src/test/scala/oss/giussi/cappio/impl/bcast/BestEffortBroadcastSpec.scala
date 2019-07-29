@@ -2,8 +2,7 @@ package oss.giussi.cappio.impl.bcast
 
 import org.scalatest.{Matchers, WordSpec}
 import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.{BebBcast, BebDeliver}
-import oss.giussi.cappio.impl.net.FairLossLink.FLLSend
-import oss.giussi.cappio.{FLLDeliver, Instance, Packet, Payload, ProcessId}
+import oss.giussi.cappio._
 
 class BestEffortBroadcastSpec extends WordSpec with Matchers {
 
@@ -16,7 +15,7 @@ class BestEffortBroadcastSpec extends WordSpec with Matchers {
   "BestEfforBroadcast" must {
     "A" in {
       beb.request(BebBcast(Payload("something"), instance))
-        .send.map { case FLLSend(Packet(_, payload, from, to, _)) => (from.id, to.id, payload) } should contain theSameElementsAs Set(0, 1, 2).map(to => (0, to, "something"))
+        .send.map(_.packet).map(p => (p.from.id, p.to.id, p.payload)) should contain theSameElementsAs Set(0, 1, 2).map(to => (0, to, "something"))
     }
     "B" in {
       val packet = Packet(0,1,"s",instance)

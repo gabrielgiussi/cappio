@@ -8,7 +8,7 @@ import oss.giussi.cappio._
 
 object PerfectLinkBeta {
 
-  type PLModule[P] = ModS[StubLink[P],P] {
+  type PLModule[P] = ModS[StubLink[P]] {
     type Req = PLSend[P]
     type Ind = PLDeliver[P]
     type S = PerfectLinkBetaState[P]
@@ -35,11 +35,11 @@ object PerfectLinkBeta {
   }
 }
 
-case class PerfectLinkBeta[P](state: PerfectLinkBetaState[P]) extends AbstractModule[PLModule[P],StubLink[P],P] {
+case class PerfectLinkBeta[T](state: PerfectLinkBetaState[T]) extends AbstractModule[PLModule[T],StubLink[T]] {
 
   //override type S = PerfectLinkBetaState
 
-  override def copyModule(ns: PerfectLinkBetaState[P]) = copy(state = ns)
+  override def copyModule(ns: PerfectLinkBetaState[T]) = copy(state = ns)
 
   override val processLocal: PLocal = PerfectLinkBeta.processLocal
 }
