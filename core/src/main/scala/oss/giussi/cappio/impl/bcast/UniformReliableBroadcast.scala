@@ -87,7 +87,7 @@ object UniformReliableBroadcast {
 
   def init[P](self: ProcessId, all: Set[ProcessId], timeout: Int) = UniformReliableBroadcast(self, URBState.init[P](self, all, timeout))
 
-  def processLocal[P](self: ProcessId)(implicit inj1: Inject[URBDep[P]#Req, URBDep[P]#Dep1#Req], inj2: Inject[URBDep[P]#Req, URBDep[P]#Dep2#Req]): ProcessLocal[URBBcast[P], URBState[P], URBDeliver[P], URBDep[P]#Req, URBDep[P]#Ind,URBDep[P]#Payload] = new processLocalHelper2[URBMod[P],URBDep[P]]{
+  def processLocal[P](self: ProcessId)(implicit inj1: Inject[URBDep[P]#Req, URBDep[P]#Dep1#Req], inj2: Inject[URBDep[P]#Req, URBDep[P]#Dep2#Req]): ProcessLocal[URBBcast[P], URBState[P], URBDeliver[P], URBDep[P]#Req, URBDep[P]#Ind,URBDep[P]#Payload] = new ProcessLocalHelper2[URBMod[P],URBDep[P]]{
     override def onPublicRequest(req: URBBcast[P], state: State): Output = {
       val URBBcast(p) = req
       val reqs = Set(req2(BebBcast(Payload(p.id, URBData(self, p.msg)), BEB)))

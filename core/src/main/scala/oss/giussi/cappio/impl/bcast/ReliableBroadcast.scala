@@ -59,7 +59,7 @@ object ReliableBroadcast {
 
   import oss.giussi.cappio.Messages._
 
-  def processLocal[P](self: ProcessId)(implicit inj1: Inject[RBDep[P]#Req, RBDep[P]#Dep1#Req], inj2: Inject[RBDep[P]#Req, RBDep[P]#Dep2#Req]) = new processLocalHelper2[RBMod[P],RBDep[P]]{
+  def processLocal[P](self: ProcessId)(implicit inj1: Inject[RBDep[P]#Req, RBDep[P]#Dep1#Req], inj2: Inject[RBDep[P]#Req, RBDep[P]#Dep2#Req]) = new ProcessLocalHelper2[RBMod[P],RBDep[P]]{
 
     override def onPublicRequest(req: RBBcast[P], state: State): Output = LocalStep.withRequests(Set(req2(BebBcast(Payload(req.payload.id, RBData(self, req.payload.msg)), ReliableBroadcast.BEB))), state)
 

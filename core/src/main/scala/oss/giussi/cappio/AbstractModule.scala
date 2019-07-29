@@ -76,8 +76,9 @@ trait ProcessLocalHelper1[M <: ModS[Dep], Dep <: Mod] extends Function2[LocalMsg
 
   type Output = LocalStep[M#State,M#Ind,Dep#Req,Dep#Ind,Dep#Payload]
   type State = M#State // Or M#S?
+  type DInd = Dep#Ind
 
-  override def apply(msg: LocalMsg[M#Req, Dep#Ind], state: State): Output = msg match {
+  final override def apply(msg: LocalMsg[M#Req, Dep#Ind], state: State): Output = msg match {
     case PublicRequest(req) => onPublicRequest(req,state)
     case LocalIndication(ind) => onIndication(ind,state)
     case Tick => onTick(state)
@@ -85,35 +86,25 @@ trait ProcessLocalHelper1[M <: ModS[Dep], Dep <: Mod] extends Function2[LocalMsg
 
   def onPublicRequest(req: M#Req, state: State): Output
 
-  def onIndication(ind: Dep#Ind, state: State): Output
+  def onIndication(ind: DInd, state: State): Output
 
   def onTick(state: State): Output = LocalStep.withState(state)
 }
 
 // como evitar estos injectors?
-// debreia usar M <: ModS? en lugar de M y Dep?
-// rewrite using trait ProcessLocalHelper1
-abstract class processLocalHelper2[M <: Mod, Dep <: Mod2](implicit inj1: Inject[Dep#Req, Dep#Dep1#Req], inj2: Inject[Dep#Req, Dep#Dep2#Req]) extends Function2[LocalMsg[M#Req,Dep#Ind],M#State,LocalStep[M#State,M#Ind,Dep#Req,Dep#Ind,Dep#Payload]] {
+abstract class ProcessLocalHelper2[M <: ModS[Dep], Dep <: Mod2](implicit inj1: Inject[Dep#Req, Dep#Dep1#Req], inj2: Inject[Dep#Req, Dep#Dep2#Req]) extends ProcessLocalHelper1[M,Dep] {
   import shapeless.Coproduct
 
-  type Output = LocalStep[M#State,M#Ind,Dep#Req,Dep#Ind,Dep#Payload]
-  type State = M#State
 
-  override def apply(v1: LocalMsg[M#Req,Dep#Ind], state: State): Output = v1 match {
-    case PublicRequest(req) => onPublicRequest(req,state)
-    case LocalIndication(Inl(ind)) => onDependencyIndication1(ind,state)
-    case LocalIndication(Inr(Inl(ind))) => onDependencyIndication2(ind,state)
-    case LocalIndication(Inr(Inr(_))) => LocalStep.withState(state)
-    case Tick => onTick(state)
+  override def onIndication(ind: DInd, state: State): Output = ind match {
+    case Inl(ind) => onDependencyIndication1(ind,state)
+    case Inr(Inl(ind)) => onDependencyIndication2(ind,state)
+    case Inr(Inr(_)) => LocalStep.withState(state)
   }
-
-  def onPublicRequest(req: M#Req, state: State): Output
 
   def onDependencyIndication1(ind: Dep#Dep1#Ind, state: State): Output
 
   def onDependencyIndication2(ind: Dep#Dep2#Ind, state: State): Output
-
-  def onTick(state: State): Output = LocalStep.withState(state)
 
   def req1(r: Dep#Dep1#Req) : LocalRequest[Dep#Req] = LocalRequest(Coproduct[Dep#Req](r)(inj1))
 
@@ -121,7 +112,6 @@ abstract class processLocalHelper2[M <: Mod, Dep <: Mod2](implicit inj1: Inject[
   def req2(r: Dep#Dep2#Req): LocalRequest[Dep#Req] = LocalRequest(Coproduct[Dep#Req](r)(inj2))
 }
 
-// TODO puedo obviar M2 aca y usar M1#Dep?
 trait AbstractModule[M1 <: ModS[M2], M2 <: Mod] extends Module[M1] {
 
   import Messages._
@@ -177,7 +167,7 @@ trait AbstractModule[M1 <: ModS[M2], M2 <: Mod] extends Module[M1] {
     case l: LMsg => processLocal(l, state)
     case DelegateTick => withModule(state, state.module.tick)
     case LocalRequest(r) => withModule(state, state.module.request(r))
-    case LocalNextState(ns) => withModule(state, ns) //LocalStep(events.map(LocalIndication(_)), sends, state.updateModule(module)) // TODO is needed si tengo el implicit def?
+    case LocalNextState(ns) => withModule(state, ns)
   }
 
   // or process(r: R) to avoid pattern match over PublicRequest, LocalEvent, etc.

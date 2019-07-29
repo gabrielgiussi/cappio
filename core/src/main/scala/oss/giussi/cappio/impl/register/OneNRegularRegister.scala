@@ -107,7 +107,7 @@ object OneNRegularRegister {
 
   def init[V](self: ProcessId, N: Int, timeout: Int, all: Set[ProcessId]) = OneNRegularRegister[V](self, N, ONRRState.init(self, all, timeout))
 
-  def processLocal[V](N: Int, self: ProcessId)(implicit inj1: Inject[ONRRDep[V]#Req,ONRRDep[V]#Dep1#Req], inj2: Inject[ONRRDep[V]#Req,ONRRDep[V]#Dep2#Req]) = new processLocalHelper2[ONRRMod[V], ONRRDep[V]] {
+  def processLocal[V](N: Int, self: ProcessId)(implicit inj1: Inject[ONRRDep[V]#Req,ONRRDep[V]#Dep1#Req], inj2: Inject[ONRRDep[V]#Req,ONRRDep[V]#Dep2#Req]) = new ProcessLocalHelper2[ONRRMod[V], ONRRDep[V]] {
 
     override def onPublicRequest(req: ONRRReq[V], state: State): Output = req match {
       case ONRRWrite(v) =>
