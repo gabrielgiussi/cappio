@@ -45,6 +45,7 @@ object Network {
   - on send/deliver  => no me permite hacer un send/deliver en el mismo step.
  */
 
+// TODO hide this constructor
 case class FLLDeliver[T](packet: Packet[T])
 
 case class Network[T](packets: Set[Packet[T]]) {

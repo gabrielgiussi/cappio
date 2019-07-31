@@ -9,6 +9,14 @@ case class Crash(processId: ProcessId)
 object Scheduler {
 
   def init[M <: Mod](processes: Set[Process[M]]) = Scheduler(processes.map(p => p.id -> p).toMap, Network.init[M#Payload](), 0)
+
+  def init[M <: Mod](processes: Set[ProcessId], f: ProcessId => Process[M]) = Scheduler(processes.map(p => p -> f(p)).toMap, Network.init[M#Payload](), 0)
+}
+
+object RequestBatch {
+  def empty[R] = new RequestBatch[R](Map.empty)
+
+  def apply[R](requests: (ProcessId, R)*): RequestBatch[R] = new RequestBatch(requests.toMap)
 }
 
 case class RequestBatch[Req](requests: Map[ProcessId,Req]) {
@@ -19,9 +27,15 @@ case class RequestBatch[Req](requests: Map[ProcessId,Req]) {
 
 object DeliverBatch {
 
-  def empty[P]: DeliverBatch[P] = DeliverBatch(Map.empty)
+  def empty[P]: DeliverBatch[P] = new DeliverBatch(Map.empty)
+
+  def apply[P](ops: Either[FLLDeliver[P],Drop[P]]*): DeliverBatch[P] = new DeliverBatch(ops.map {
+    case d@Left(FLLDeliver(p)) => p.to -> d
+    case d@Right(Drop(p)) => p.to -> d
+  }.toMap)
 }
 
+// deliver shoulnd't receive a map, just a list of delivers (the packet contains the target process)
 case class DeliverBatch[P](ops: Map[ProcessId,Either[FLLDeliver[P],Drop[P]]]) {
   def add(deliver: FLLDeliver[P]) = copy(ops = ops + (deliver.packet.to -> Left(deliver)))
 
@@ -128,6 +142,7 @@ case class Scheduler[M <: Mod](processes: Map[ProcessId, Process[M]], network: N
         val a = i.map(IndicationFrom(d.packet.to,_))
         (ind ++ a,send ++ s,ps + ns)
     }
+
     NextStateScheduler(fs, fi,copy(processes = processes ++ fp.map(p => p.id -> p).toMap, network = nn.send(fs)))
   }
 

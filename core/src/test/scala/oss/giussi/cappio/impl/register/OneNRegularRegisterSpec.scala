@@ -8,7 +8,7 @@ import shapeless.{Inl, Inr}
 
 class OneNRegularRegisterSpec extends CappIOSpec {
 
-  val all = _0_to_2
+  val all = ALL.take(3).toSet
   val timeout = 100
   val N = all.size
   val ps = all.map(id => id.id -> OneNRegularRegister.init[Int](id, N, timeout, all)).toMap

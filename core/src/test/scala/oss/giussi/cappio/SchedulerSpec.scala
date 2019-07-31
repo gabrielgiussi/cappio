@@ -5,9 +5,11 @@ import oss.giussi.cappio.impl.net.StubbornLink.{SLDeliver, SLSend}
 
 class SchedulerSpec extends CappIOSpec {
 
+  val ALL_SET = ALL.toSet
+
   "Scheduler" should {
     "feed sent packets to the Network" in {
-      val processes = Process(ALL,StubbornLink.init[String](3))
+      val processes = Process(ALL_SET,StubbornLink.init[String](3))
       val _0_to_1 = Packet(p0,p1,"p01",Instance("sl"))
       val _1_to_0 = Packet(p1,p0,"p10",Instance("sl"))
       Scheduler.init(processes)
@@ -16,7 +18,7 @@ class SchedulerSpec extends CappIOSpec {
     }
 
     "trigger indications" in {
-      val processes = Process(ALL,StubbornLink.init[String](3))
+      val processes = Process(ALL_SET,StubbornLink.init[String](3))
       val _0_to_1 = Packet(p0,p1,"p01",Instance("sl"))
       val _1_to_0 = Packet(p1,p0,"p10",Instance("sl"))
       Scheduler.init(processes)
@@ -28,7 +30,7 @@ class SchedulerSpec extends CappIOSpec {
 
   "TickScheduler" should {
     "B" in {
-      val processes = Process(ALL,StubbornLink.init[String](3))
+      val processes = Process(ALL_SET,StubbornLink.init[String](3))
       val packet = Packet(0,1,"pal",Instance("o"))
       WaitingRequest(TickScheduler(Scheduler.init(processes)))
         .request(RequestBatch(Map(ProcessId(0) -> SLSend(packet))))
@@ -36,12 +38,12 @@ class SchedulerSpec extends CappIOSpec {
         .ind should contain theSameElementsAs Set(IndicationFrom(ProcessId(1),packet.slDeliver))
     }
     "C" in  {
-      val processes = Process(ALL,StubbornLink.init[String](3))
+      val processes = Process(ALL_SET,StubbornLink.init[String](3))
       val packet = Packet(0,1,"pal",Instance("o"))
       WaitingRequest(TickScheduler(Scheduler.init(processes)))
         .request(RequestBatch(Map(ProcessId(0) -> SLSend(packet))))
         .deliver(DeliverBatch(Map(ProcessId(1) -> Right(Drop(packet)))))
-        .request(RequestBatch(Map.empty))
+        .request(RequestBatch.empty)
         .deliver(DeliverBatch(Map(ProcessId(1) -> Left(FLLDeliver(packet)))))
       // FIXME no testea nada
     }
