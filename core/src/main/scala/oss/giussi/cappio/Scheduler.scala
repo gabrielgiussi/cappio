@@ -4,8 +4,6 @@ import oss.giussi.cappio.impl.net.FairLossLink.FLLSend
 
 // como hago para que IN tenga una NoOp?
 
-case class Crash(processId: ProcessId)
-
 object Scheduler {
 
   def init[M <: Mod](processes: Set[Process[M]]) = Scheduler(processes.map(p => p.id -> p).toMap, Network.init[M#Payload], 0)
@@ -13,17 +11,27 @@ object Scheduler {
   def init[M <: Mod](processes: Set[ProcessId], f: ProcessId => Process[M]) = Scheduler(processes.map(p => p -> f(p)).toMap, Network.init[M#Payload], 0)
 }
 
+/*
 object RequestBatch {
   def empty[R] = new RequestBatch[R](Map.empty)
 
   def apply[R](requests: (ProcessId, R)*): RequestBatch[R] = new RequestBatch(requests.toMap)
 }
 
+ */
+
+sealed trait Input[+R]
+case class Request[R](id: ProcessId, request: R) extends Input[R]
+case class Crash(id: ProcessId) extends Input[Nothing]
+
+/*
 case class RequestBatch[Req](requests: Map[ProcessId,Req]) {
   def add(processId: ProcessId, req: Req): RequestBatch[Req] = copy(requests = requests + (processId -> req))
 
   def remove(processId: ProcessId) = copy(requests = requests - processId)
 }
+
+ */
 
 object DeliverBatch {
 
@@ -51,22 +59,20 @@ case class DeliverBatch[P](ops: Map[ProcessId,Either[FLLDeliver[P],Drop[P]]]) {
 sealed trait Step[M <: Mod] // TODO delete? esta bien hacer traits con generics q no usa?
 
 case class RequestResult[M <: Mod](sent: Set[FLLSend[M#Payload]],ind: Set[IndicationFrom[M#Ind]], waiting: WaitingDeliver[M]){
-  def deliver = waiting.deliver _
+  def deliver = waiting.deliver
 }
 
 case class DeliverResult[M <: Mod](sent: Set[FLLSend[M#Payload]],ind: Set[IndicationFrom[M#Ind]], waiting: WaitingRequest[M]){
-  def request = waiting.request _
+  def request = waiting.request
 }
 
 case class WaitingRequest[M <: Mod](scheduler: TickScheduler[M]) extends Step[M] {
-  def request(batch: RequestBatch[M#Req]) = {
-    val NextStateTickScheduler(sent,ind,sch) = scheduler.request(batch)
+  def request = scheduler.request andThen { case NextStateTickScheduler(sent,ind,sch) =>
     RequestResult(sent, ind,WaitingDeliver(sch))
   }
 }
 case class WaitingDeliver[M <: Mod](scheduler: TickScheduler[M]) extends Step[M] {
-  def deliver(packets: DeliverBatch[M#Payload]) = {
-    val NextStateTickScheduler(sent,ind,sch) = scheduler.deliver(packets)
+  def deliver = scheduler.deliver andThen { case NextStateTickScheduler(sent,ind,sch) =>
     DeliverResult(sent,ind,WaitingRequest(sch))
   }
 }
@@ -78,15 +84,13 @@ case class NextStateTickScheduler[M <: Mod](sent: Set[FLLSend[M#Payload]], indic
 
 case class TickScheduler[M <: Mod](scheduler: Scheduler[M]){
 
-  def request(batch: RequestBatch[M#Req]) = {
-    val NextStateScheduler(sent0,ind0,sch0) = scheduler.request(batch)
-    val NextStateScheduler(sent1,ind1,sch1) = sch0.tick()
+  def request = scheduler.request _ andThen { case NextStateScheduler(sent0,ind0,sch0) =>
+    val NextStateScheduler(sent1,ind1,sch1) = sch0.tick
     NextStateTickScheduler(sent0 ++ sent1, ind0 ++ ind1,copy(sch1))
   }
 
-  def deliver(delivers: DeliverBatch[M#Payload]) = {
-    val NextStateScheduler(sent0,ind0,sch0) = scheduler.deliver(delivers)
-    val NextStateScheduler(sent1,ind1,sch1) = sch0.tick()
+  def deliver = scheduler.deliver _ andThen { case NextStateScheduler(sent0,ind0,sch0) =>
+    val NextStateScheduler(sent1,ind1,sch1) = sch0.tick
     NextStateTickScheduler(sent0 ++ sent1, ind0 ++ ind1,copy(sch1))
   }
 
@@ -106,19 +110,33 @@ case class Scheduler[M <: Mod](processes: Map[ProcessId, Process[M]], network: N
 
   type Deliver = FLLDeliver[M#Payload]
 
-  // TODO aca mandar los crash?, o un step para crashes?
-  def request(batch: RequestBatch[M#Req]) = {
-    val (fi,fs,fp) = batch.requests.foldLeft[(Set[IndicationFrom[M#Ind]],Set[Send],Set[P])]((Set.empty,Set.empty,Set.empty)){
+  def isDown(p: ProcessId): Option[Boolean] = processes.get(p).map(_.status == Down)
+
+  //TODO Avoid send a crash and a request to the same process id
+  def request(requests: Input[M#Req]*) = {
+    val (batch,crashes) = requests.foldLeft((Map.empty[ProcessId,M#Req],Set.empty[ProcessId])){
+      case ((r,c),Request(id,a)) => (r updated(id, a),c)
+      case ((r,c),Crash(id)) => (r,c + id)
+    }
+
+    val crashed = crashes.foldLeft(Set.empty[Process[M]]){ case (acc,id) => processes.get(id) match {
+      case None => acc
+      case Some(p) => acc + p.crash
+    } }
+
+    val filteredBatch = batch.filterNot(p => isDown(p._1).get) // Doesn't consider new crashed process but should check before if I've received a Crash and a Request for the same process
+
+    val (fi,fs,fp) = filteredBatch.foldLeft[(Set[IndicationFrom[M#Ind]],Set[Send],Set[P])]((Set.empty,Set.empty,Set.empty)){
       case ((ind,send,ps),(pid,req)) =>
         val NextStateProcess(i,s,ns) = processes(pid).request(req)
         val a = i.map(IndicationFrom(pid,_))
         (ind ++ a,send ++ s,ps + ns)
     }
 
-    NextStateScheduler(fs, fi,copy(processes = processes ++ fp.map(p => p.id -> p), network = network.send(fs)))
+    NextStateScheduler(fs, fi,copy(processes = processes ++ (crashed ++ fp).map(p => p.id -> p), network = network.send(fs)))
   }
 
-  def tick(): Next = {
+  def tick: Next = {
     val (fi,fs,fp) = processes.values.foldLeft[(Set[IndicationFrom[M#Ind]],Set[Send],Set[P])]((Set.empty,Set.empty,Set.empty)) {
       case ((ind,send,ps),p) =>
         val NextStateProcess(i,s,ns) = p.tick
@@ -146,4 +164,5 @@ case class Scheduler[M <: Mod](processes: Map[ProcessId, Process[M]], network: N
     NextStateScheduler(fs, fi,copy(processes = processes ++ fp.map(p => p.id -> p).toMap, network = nn.send(fs)))
   }
 
+  def availableProcesses: Set[ProcessId] = processes.filter(_._2.status == Up).keySet
 }

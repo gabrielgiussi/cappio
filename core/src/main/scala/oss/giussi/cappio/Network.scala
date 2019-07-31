@@ -14,6 +14,7 @@ object Payload {
 case class Payload[T](id: UUID, msg: T)
 
 object Packet {
+  @deprecated
   def apply[T](from: Int, to: Int, payload: T, instance: Instance): Packet[T] = new Packet(UUID.randomUUID(), payload, ProcessId(from), ProcessId(to), instance)
 
   def apply[T](from: ProcessId, to: ProcessId, payload: T, instance: Instance): Packet[T] = new Packet(UUID.randomUUID(), payload, from, to, instance)

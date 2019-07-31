@@ -23,5 +23,6 @@ case class Process[M <: Mod](id: ProcessId, stack: Module[M], status: ProcessSta
 
   private def next(ns: NextState[M]): Next = NextStateProcess(ns.indications,ns.send,copy(stack = ns.module))
 
+  def crash = copy(status = Down)
 
 }

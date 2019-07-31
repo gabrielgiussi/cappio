@@ -16,7 +16,7 @@ class BestEffortBroadcastSpec extends CappIOSpec with SchedulerSupport[BebMod[St
         .packets.map(p => (p.from, p.to, p.payload)) should contain theSameElementsAs all.map(to => (self, to, "something"))
     }
     "Trigger a BebDeliver when packet is delivered" in {
-      val packet = Packet(0,1,"s",instance)
+      val packet = Packet(p0,p1,"s",instance)
       beb.tail.deliver(FLLDeliver(packet))
         .indications should contain theSameElementsAs List(BebDeliver(0.id,Payload(packet.id,"s")))
     }

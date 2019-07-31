@@ -24,6 +24,14 @@ trait CappIOSpec extends WordSpec with Matchers {
     def slSend = SLSend(p)
 
     def slDeliver = SLDeliver(p)
+
+    def asId: PacketId[P] = PacketId(p.from,p.to,p.payload)
+  }
+
+  implicit class EnhancedProcesId(id: ProcessId){
+    def -->[R](req: R): Request[R] = Request(id, req)
+
+    def -->>[P](to: ProcessId,payload: P): Packet[P] = Packet(id,to,payload,Instance.ANY)
   }
 
   implicit class EnhancedNextState[M <: Mod](ns: NextState[M]) {
@@ -42,9 +50,38 @@ trait CappIOSpec extends WordSpec with Matchers {
 
   implicit class EnhancedScheduler[M <: Mod](sch: Scheduler[M]) {
 
-    def deliver(ps: (ProcessId, Packet[M#Payload])*) = sch.deliver(DeliverBatch(ps.map { case (id, p) => id -> Left(FLLDeliver(p)) }.toMap))
+    private def findInTransit(packets: Set[PacketId[M#Payload]]) =  {
+      val inTransit = sch.network.inTransit.filter(int => packets.contains(int.packet.asId))
+      if (inTransit.size == packets.size) inTransit
+      else throw new RuntimeException("Some required packets are not present in the network")
+    }
 
-    def req(ps: (ProcessId, M#Req)*) = sch.request(RequestBatch(ps.toMap))
+    // TODO this should receive a PacketId, not a Packet
+    def deliver(ps: PacketId[M#Payload]*) = {
+      val delivers = findInTransit(ps.toSet).map(_.deliver).map(p => p.packet.to -> Left(p)).toMap
+      sch.deliver(DeliverBatch(delivers))
+    }
+
+    def req(ps: (ProcessId, M#Req)*) = sch.request(ps.map { case (id,req) => Request(id,req) } : _*)
+
+    // TODO def send(packet: Packet[M#Req]) = sch.request(Seq(Request(packet.from,SLSend(packet))))
+
+    def crash(ids: ProcessId*) = sch.request(ids.map(Crash) : _*)
+
+    def drop(packets: PacketId[M#Payload]*) = {
+      /*
+      val drops = sch.network.inTransit.map(_.drop).filter { case Drop(Packet(_,payload,from,to,_)) =>
+        val id = PacketId(from,to,payload)
+        packets.toSet.contains(id)
+      }.map(Right.apply).toList
+       */
+      val drops = findInTransit(packets.toSet).map(_.drop).map(Right(_)).toList
+      sch.deliver(DeliverBatch.apply(drops : _*))
+    }
+
+    def network = sch.network
+
+    def processes = sch.processes
 
   }
 
@@ -54,18 +91,21 @@ trait CappIOSpec extends WordSpec with Matchers {
 
   }
 
+  /*
   implicit class EnhancedWaitingRequest[M <: Mod](ns: (Set[FLLSend[M#Payload]], Set[IndicationFrom[M#Ind]], WaitingRequest[M])) {
 
     def req(ps: (ProcessId, M#Req)*) = ns._3.request(RequestBatch(ps.toMap))
 
   }
 
+   */
+
 }
 
 trait SchedulerSupport[M <: Mod] {
 
 
-  sealed trait Input
+  sealed trait Input // TODO rename
 
   case class Req(p: ProcessId, r: M#Req) extends Input
 
@@ -73,7 +113,7 @@ trait SchedulerSupport[M <: Mod] {
 
   case class Drop(p: PacketId[M#Payload]) extends Input
 
-  case class Crash(p: ProcessId) extends Input
+  case class CrashTest(p: ProcessId) extends Input
 
   case object JustTick extends Input
 
@@ -98,8 +138,8 @@ trait SchedulerSupport[M <: Mod] {
       ops match {
         case Nil => indications
         case Req(p, r) :: tail =>
-          val NextStateTickScheduler(_, ind, nsch) = scheduler.request(RequestBatch(p -> r))
-          sch(nsch, tail, indications ++ ind)
+          val NextStateTickScheduler(_, ind, nsch) = scheduler.request(Seq(Request(p, r)))
+          sch(nsch, tail, indications ++ ind) // TODO duplicated code
         case Del(id) :: tail =>
           val inTransit = findPacket(id)
           val NextStateTickScheduler(_, ind, nsch) = scheduler.deliver(DeliverBatch(Left(inTransit.deliver)))
@@ -109,7 +149,10 @@ trait SchedulerSupport[M <: Mod] {
           val NextStateTickScheduler(_, ind, nsch) = scheduler.deliver(DeliverBatch(Right(inTransit.drop)))
           sch(nsch, tail, indications ++ ind)
         case JustTick :: tail =>
-          val NextStateTickScheduler(_, ind, nsch) = scheduler.request(RequestBatch.empty)
+          val NextStateTickScheduler(_, ind, nsch) = scheduler.request(Seq.empty)
+          sch(nsch, tail, indications ++ ind)
+        case CrashTest(id) :: tail =>
+          val NextStateTickScheduler(_, ind, nsch) = scheduler.request(Seq(Crash(id)))
           sch(nsch, tail, indications ++ ind)
       }
     }
