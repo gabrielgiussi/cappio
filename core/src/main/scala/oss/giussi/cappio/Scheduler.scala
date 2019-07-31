@@ -8,9 +8,9 @@ case class Crash(processId: ProcessId)
 
 object Scheduler {
 
-  def init[M <: Mod](processes: Set[Process[M]]) = Scheduler(processes.map(p => p.id -> p).toMap, Network.init[M#Payload](), 0)
+  def init[M <: Mod](processes: Set[Process[M]]) = Scheduler(processes.map(p => p.id -> p).toMap, Network.init[M#Payload], 0)
 
-  def init[M <: Mod](processes: Set[ProcessId], f: ProcessId => Process[M]) = Scheduler(processes.map(p => p -> f(p)).toMap, Network.init[M#Payload](), 0)
+  def init[M <: Mod](processes: Set[ProcessId], f: ProcessId => Process[M]) = Scheduler(processes.map(p => p -> f(p)).toMap, Network.init[M#Payload], 0)
 }
 
 object RequestBatch {
@@ -134,7 +134,7 @@ case class Scheduler[M <: Mod](processes: Map[ProcessId, Process[M]], network: N
     val d = ds.ops.values.collect { case Left(value) => value }.toSet
     val drops = ds.ops.values.collect { case Right(value) => value }
 
-    val nn = network.deliver(d).flatMap(_.drop(drops.map(_.packet).toSet)).get
+    val nn = network.deliver(d).flatMap(_.drop(drops.toSet)).get
 
     val (fi,fs,fp) = d.foldLeft[(Set[IndicationFrom[M#Ind]],Set[Send],Set[P])]((Set.empty,Set.empty,Set.empty)) {
       case ((ind,send,ps),d) =>

@@ -37,7 +37,7 @@ object Network {
     def drop: Drop[T]
   }
 
-  def init[T]() = Network(Set.empty[Packet[T]])
+  def init[T] = Network(Set.empty[Packet[T]])
 
 }
 /*
@@ -45,14 +45,30 @@ object Network {
   - on send/deliver  => no me permite hacer un send/deliver en el mismo step.
  */
 
-// TODO hide this constructor
-case class FLLDeliver[T](packet: Packet[T])
+object FLLDeliver {
+
+  // TODO i want to hide this constructor to assure that only the network can give me FLLDeliver's via inTransit method
+  // this has two main issues
+  // - makes more difficult to test abstractions, unless I test processLocal instead of the whole process! (then I don't have to send FLLDeliver, just indications from the dependency)
+  // - I have one problem in the CombinedModule when I must create FLLDeliver with the correspondent type, aka Inl(payload) to just payload.
+  // I can use the withPayload method but then I could change the payload to anything! i just want to unwrap the payload, I require some method unwrap for the FLLDeliver when the payload
+  // is a Coproduct
+  def apply[P](packet: Packet[P]): FLLDeliver[P] = new FLLDeliver(packet){}
+}
+
+sealed abstract case class FLLDeliver[P](packet: Packet[P]) {
+  def withPayload[NP](newPayload: NP) = new FLLDeliver(packet.copy(payload = newPayload)) {}
+}
+
 
 case class Network[T](packets: Set[Packet[T]]) {
 
   private def remove(delivered: Set[Packet[T]]): Network[T] = copy(packets -- delivered)
 
-  def drop(p: Set[Packet[T]]): Try[Network[T]] = if (p.forall(packets.contains)) Success(remove(p)) else Failure(new RuntimeException("Some packets are not in transit"))
+  def drop(drops: Set[Drop[T]]): Try[Network[T]] = {
+    val p = drops.map(_.packet)
+    if (p.forall(packets.contains)) Success(remove(p)) else Failure(new RuntimeException("Some packets are not in transit"))
+  }
 
   def deliver(delivered: Set[FLLDeliver[T]]): Try[Network[T]] = {
     val p = delivered.map(_.packet)
@@ -66,7 +82,7 @@ case class Network[T](packets: Set[Packet[T]]) {
   def inTransit: Set[InTransitPacket[T]] = packets.map(p => new InTransitPacket[T] {
     val packet = p
 
-    override def deliver: FLLDeliver[T] = FLLDeliver(p)
+    override def deliver: FLLDeliver[T] = new FLLDeliver(packet) {}
 
     override def drop: Drop[T] = Drop(p)
   })
