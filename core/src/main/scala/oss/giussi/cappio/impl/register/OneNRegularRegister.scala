@@ -147,45 +147,7 @@ object OneNRegularRegister {
         else LocalStep.withState(state)
     }
   }
-  /*
-    def processLocal2[V](N: Int, self: ProcessId): ProcessLocal[ONRRReq[V], ONRRState[V], ONRRInd[V], ONRRDep#Req, ONRRDep#Ind] = (msg, state) => msg match {
 
-    case PublicRequest(ONRRWrite(v)) =>
-      val ns = state.write()
-      val beb: Set[LocalRequest[ModuleReq]] = Set(LocalRequest(Left(BebBcast(Payload(ONWRITE(ns.state.wts, v)), OneNRegularRegister.BEB))))
-      LocalStep.withRequests(beb, ns)
-    case LocalIndication(Left(BebDeliver(p, Payload(_, ONWRITE(ts, v: V))))) => // FIXME type T is erased. Also Payload can be Anything!
-      val ns = state.deliver(ts, v)
-      val ack: Set[LocalRequest[ModuleReq]] = Set(LocalRequest(Right(PLSend(Packet(self, p, Payload(ONACK(ts)), OneNRegularRegister.PL)))))
-      LocalStep.withRequests(ack, ns)
-    case LocalIndication(Right(PLDeliver(Packet(_, ONACK(ts), _, _, _)))) =>
-      if (state.state.wts == ts) { // TODO such that condition
-        val (ns, res) = state.acked(N)
-        val ind: Set[ONRRInd[V]] = if (res) Set(ONRRWriteReturn) else Set.empty
-        LocalStep.withIndications(ind, ns)
-      }
-      else LocalStep.withState(state)
-    case PublicRequest(ONRRRead) =>
-      val ns = state.read()
-      val beb: Set[LocalRequest[ModuleReq]] = Set(LocalRequest(Left(BebBcast(Payload(ONREAD(ns.state.rid)), OneNRegularRegister.BEB))))
-      LocalStep.withRequests(beb, ns)
-    case LocalIndication(Left(BebDeliver(p, Payload(_, ONREAD(rid))))) =>
-      val send: Set[LocalRequest[ModuleReq]] = Set(LocalRequest(Right(PLSend(Packet(self, p, Payload(ONVALUE(rid, state.state.ts, state.state.value)), OneNRegularRegister.PL)))))
-      LocalStep.withRequests(send, state)
-    case LocalIndication(Right(PLDeliver(Packet(_, ONVALUE(r, ts, v: Option[V]), q, _, _)))) =>
-      if (r == state.state.rid && v.isDefined) { // TODO v.isDefined?
-        val (maybeValue, ns) = state.value(N, ts, v.get, q)
-        val rr: Set[ONRRInd[V]] = maybeValue.map(ONRRReadReturn(_)).toSet
-        LocalStep.withIndications(rr, ns)
-      }
-      else LocalStep.withState(state)
-    case _ => LocalStep.withState(state) // TODO shouldn't happen.
-
-
-    case _ => ???
-  }
-
-   */
 }
 
 // Majority voting regular register pag 147

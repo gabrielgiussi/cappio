@@ -62,7 +62,7 @@ case class Network[T](packets: Set[Packet[T]]) {
 
   def send(sent: Set[FLLSend[T]]): Network[T] = copy(packets ++ sent.map(_.packet))
 
-  def inTransit(): Set[InTransitPacket[T]] = packets.map(p => new InTransitPacket[T] {
+  def inTransit: Set[InTransitPacket[T]] = packets.map(p => new InTransitPacket[T] {
     val packet = p
 
     override def deliver: FLLDeliver[T] = FLLDeliver(p)

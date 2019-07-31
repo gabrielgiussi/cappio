@@ -8,7 +8,7 @@ case class Crash(processId: ProcessId)
 
 object Scheduler {
 
-  def init[M <: Mod](processes: List[Process[M]]) = Scheduler(processes.map(p => p.id -> p).toMap, Network.init[M#Payload](), 0)
+  def init[M <: Mod](processes: Set[Process[M]]) = Scheduler(processes.map(p => p.id -> p).toMap, Network.init[M#Payload](), 0)
 }
 
 case class RequestBatch[Req](requests: Map[ProcessId,Req]) {
@@ -36,16 +36,24 @@ case class DeliverBatch[P](ops: Map[ProcessId,Either[FLLDeliver[P],Drop[P]]]) {
 
 sealed trait Step[M <: Mod] // TODO delete? esta bien hacer traits con generics q no usa?
 
+case class RequestResult[M <: Mod](sent: Set[FLLSend[M#Payload]],ind: Set[IndicationFrom[M#Ind]], waiting: WaitingDeliver[M]){
+  def deliver = waiting.deliver _
+}
+
+case class DeliverResult[M <: Mod](sent: Set[FLLSend[M#Payload]],ind: Set[IndicationFrom[M#Ind]], waiting: WaitingRequest[M]){
+  def request = waiting.request _
+}
+
 case class WaitingRequest[M <: Mod](scheduler: TickScheduler[M]) extends Step[M] {
   def request(batch: RequestBatch[M#Req]) = {
     val NextStateTickScheduler(sent,ind,sch) = scheduler.request(batch)
-    (sent, ind,WaitingDeliver(sch))
+    RequestResult(sent, ind,WaitingDeliver(sch))
   }
 }
 case class WaitingDeliver[M <: Mod](scheduler: TickScheduler[M]) extends Step[M] {
   def deliver(packets: DeliverBatch[M#Payload]) = {
     val NextStateTickScheduler(sent,ind,sch) = scheduler.deliver(packets)
-    (sent,ind,WaitingRequest(sch))
+    DeliverResult(sent,ind,WaitingRequest(sch))
   }
 }
 
@@ -106,6 +114,7 @@ case class Scheduler[M <: Mod](processes: Map[ProcessId, Process[M]], network: N
     NextStateScheduler(fs, fi,copy(processes = fp.map(p => p.id -> p).toMap, network = network.send(fs), step = step + 1))
   }
 
+  // TODO aca deberia tener algun control de q digo deliver a 0, el paquete 1 -> 0
   def deliver(ds: DeliverBatch[M#Payload]) = {
     def deliver(d: Deliver) = processes(d.packet.to).deliver(d)
     val d = ds.ops.values.collect { case Left(value) => value }.toSet
