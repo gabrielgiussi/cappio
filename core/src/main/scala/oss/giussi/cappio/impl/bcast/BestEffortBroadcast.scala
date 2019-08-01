@@ -19,7 +19,10 @@ object BestEffortBroadcast {
     def apply[P](msg: P): BebBcast[P] = new BebBcast(Payload(msg), Instance.ANY)
   }
 
-  case class BebBcast[P](payload: Payload[P], instance: Instance)
+  case class BebBcast[P](payload: Payload[P], instance: Instance) {
+    // TODO move to a typeclass in the ui
+    override def toString: String = s"beb ${payload.msg}"
+  }
 
   case class BebDeliver[P](from: ProcessId, payload: Payload[P])
 

@@ -121,7 +121,7 @@ object ActionSelection {
   sel.events(onSelection) // pero q el onSelecion lo defina yo, no que sean dom events
 
    */
-  def reqInput[Req, Pay, ReqType](reqTypes: List[ReqType], processes: Processes, reqWriter: Observer[AddReq[Req]], inputPayload: Observer[Option[Req]] => ProcessId => ReqType => ReactiveHtmlElement[dom.html.Element]) = {
+  def reqInput[Req, Pay, ReqType](reqTypes: List[ReqType], processes: List[ProcessId], reqWriter: Observer[AddReq[Req]], inputPayload: Observer[Option[Req]] => ProcessId => ReqType => ReactiveHtmlElement[dom.html.Element]) = {
     val process: Var[Option[ProcessId]] = Var(None) // TODO why use Var if I don't make use of set?
     val requestType: Var[Option[ReqType]] = Var(None)
     val payload: Var[Option[Req]] = Var(None)
@@ -136,15 +136,15 @@ object ActionSelection {
     val $add = new EventBus[Unit]
     val f = form(
       div(cls := "form-row",
-        div(cls := "col-md-4 mb-3",
+        div(cls := "col-sm mb-3",
           label(forId := "processId", "Process"),
-          selectProcess(processes.all, process.writer, id := "processId"),
+          selectProcess(processes, process.writer, id := "processId")
         ),
-        div(cls := "col-md-4 mb-3",
+        div(cls := "col-sm mb-3",
           label(forId := "reqType", "Request"),
           selectReqType(reqTypes, requestType.writer, id := "requestType")
         ),
-        div(cls := "col-md-4 mb-3",
+        div(cls := "col-sm mb-3",
           label(forId := "payload", "Payload"), // TODO pass id
           child <-- requestType.signal.changes.map { rtype =>
             (for {
@@ -153,19 +153,28 @@ object ActionSelection {
             } yield iPayload(pid)(r)) getOrElse label("")
           }
         ),
-        div(cls := "col-md-4 mb-3",
-          button(`type` := "button", cls := "btn btn-success btn-sm", i(cls := "fas fa-plus"),
+        div(cls := "col-sm mb-3",
+          button(`type` := "button", cls := "close",
+            span(
+              cls := "fas fa-plus",
+              cls <-- req.map(r => if (r.isDefined) "green-text" else "")
+            ),
             disabled <-- req.map(_.isEmpty),
             onClick.mapToValue(()) --> $add.writer
           )
         )
-      ),
+      )
     )
     req.changes
       .filter(_.isDefined)
       .map(_.get) // TODO flatMap?
       .combineWith($add.events) // FIXME esto no funciona porque si yo emito una vez un click dsp combina todo con eso. Yo quiero un zip!
-      .map(_._1)
+      .map { case (add,_) =>
+        process.set(None)
+        payload.set(None)
+        requestType.set(None)
+        add
+      }
       .addObserver(reqWriter)(f)
     f
   }
@@ -176,29 +185,36 @@ object ActionSelection {
 
   case class AddReq[Req](id: ProcessId, r: Req) extends BatchCommand
 
+  case class CrashProcess(id: ProcessId) extends BatchCommand
+
   case class RemoveReq(id: ProcessId) extends BatchCommand
 
 
-  def reqBatchInput[Req, ReqType](reqTypes: List[ReqType], processes: Processes, $obs: Observer[RequestBatch[Req]], inputPayload: Observer[Option[Req]] => ProcessId => ReqType => ReactiveHtmlElement[dom.html.Element]) = {
+  def reqBatchInput[Req, ReqType](reqTypes: List[ReqType], processes: List[ProcessId], $obs: Observer[RequestBatch[Req]], inputPayload: Observer[Option[Req]] => ProcessId => ReqType => ReactiveHtmlElement[dom.html.Element]) = {
     val $commands = new EventBus[BatchCommand]
     val $batch: Signal[RequestBatch[Req]] =
       $commands.events.fold(RequestBatch[Req](Map.empty)) {
         case (_, Reset) => RequestBatch[Req](Map.empty)
         case (batch, AddReq(id, r: Req)) => batch.add(id, r) // FIXME unchecked
         case (batch, RemoveReq(id)) => batch.remove(id)
+        case (batch,CrashProcess(id)) => batch.crash(id)
       }
 
-    def renderBatch() = {
-      def renderReq[Req](to: ProcessId, initial: (ProcessId, Req), $changes: Signal[(ProcessId, Req)]) = tr(
+    def renderBatch = {
+      def renderReq[R](to: ProcessId, initial: (ProcessId, ProcessInput[R]), $changes: Signal[(ProcessId, ProcessInput[R])]) = tr(
         th(
           //scope := "",
           to.toString
         ),
         td(
-          child <-- $changes.map { case (_,r) => label(r.toString) }
+          child <-- $changes.map {
+            case (_,ProcessRequest(_,r)) => label(r.toString)
+            case (_,Crash(_)) => label("Crash")
+          }
         ),
         td(
-          button(`type` := "button", cls := "btn btn-danger btn-sm", i(cls := "fas fa-minus"),
+          button(`type` := "button", cls := "close",
+            span(className := "fas fa-times red-text"),
             onClick.mapToValue(RemoveReq(to)) --> $commands
           )
         )
@@ -206,16 +222,37 @@ object ActionSelection {
       table(
         cls := "table",
         tbody(
-          children <-- $batch.map(_.requests.toList).split(_._1)(renderReq),
+          children <-- $batch.map(_.requests.toList).split(_._1)(renderReq)
         )
       )
     }
 
-
+    def crashInput(processes: List[ProcessId], reqWriter: Observer[CrashProcess]) = {
+      val process: Var[Option[ProcessId]] = Var(None)
+      form(
+        div(cls := "form-row",
+          div(cls := "col-sm mb-3",
+            label(forId := "processId", "Process"),
+            selectProcess(processes, process.writer, id := "processId")
+          ),
+          div(cls := "col-sm mb-3",
+            button(`type` := "button", cls := "close",
+              span(
+                cls := "fas fa-plus",
+                cls <-- process.signal.map(r => if (r.isDefined) "green-text" else "")
+              ),
+              disabled <-- process.signal.map(_.isEmpty),
+              onClick.mapTo(process.now().map(CrashProcess)).filter(_.isDefined).map(_.get) --> reqWriter
+            )
+          )
+        )
+      )
+    }
 
     div(
-      renderBatch(),
       reqInput(reqTypes, processes, $commands.writer, inputPayload),
+      crashInput(processes,$commands.writer),
+      renderBatch,
       input(`type` := "submit", cls := "btn btn-primary", value := "Next", // TODO input or button?
         inContext { thisNode =>
           val a = $batch.observe(thisNode)
@@ -242,7 +279,7 @@ object ActionSelection {
         value := "-1"
       ) :: indexed.map { case (i, rt) => option(
         rt.toString,
-        value := i.toString,
+        value := i.toString
       )
       }.toList,
       modifiers

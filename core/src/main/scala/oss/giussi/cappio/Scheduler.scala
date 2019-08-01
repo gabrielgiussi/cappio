@@ -1,5 +1,6 @@
 package oss.giussi.cappio
 
+import oss.giussi.cappio.Network.InTransitPacket
 import oss.giussi.cappio.impl.net.FairLossLink.FLLSend
 
 object Scheduler {
@@ -150,4 +151,6 @@ case class Scheduler[M <: Mod](processes: Map[ProcessId, Process[M]], network: N
   }
 
   def availableProcesses: Set[ProcessId] = processes.filter(_._2.status == Up).keySet
+
+  def availablePackets: Set[InTransitPacket[M#Payload]] = network.inTransit.filterNot(p => isDown(p.packet.to).get)
 }
