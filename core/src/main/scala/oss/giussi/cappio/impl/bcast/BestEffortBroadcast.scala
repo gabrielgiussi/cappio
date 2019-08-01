@@ -15,6 +15,10 @@ object BestEffortBroadcast {
     type Ind = BebDeliver[P]
   }
 
+  object BebBcast {
+    def apply[P](msg: P): BebBcast[P] = new BebBcast(Payload(msg), Instance.ANY)
+  }
+
   case class BebBcast[P](payload: Payload[P], instance: Instance)
 
   case class BebDeliver[P](from: ProcessId, payload: Payload[P])
@@ -24,7 +28,7 @@ object BestEffortBroadcast {
   }
 
 
-  def init[P](self: ProcessId,all:Set[ProcessId], timeout: Int): BestEffortBroadcast[P] = BestEffortBroadcast(self,all,BEBState.init[P](timeout))
+  def init[P](all:Set[ProcessId], timeout: Int)(self: ProcessId): BestEffortBroadcast[P] = BestEffortBroadcast(self,all,BEBState.init[P](timeout))
 
   def processLocal[P](self: ProcessId, all: Set[ProcessId]) = new ProcessLocalHelper1[BebMod[P],PLModule[P]] {
     override def onPublicRequest(req: BebBcast[P], state: State): Output = {

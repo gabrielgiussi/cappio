@@ -32,7 +32,7 @@ object ReliableBroadcast {
   object RBcastState {
     def init[P](self: ProcessId, all: Set[ProcessId], timeout: Int) = {
       val pfdm = PerfectFailureDetector.init(self, all, timeout)
-      val bebm = BestEffortBroadcast.init[RBData[P]](self, all, timeout)
+      val bebm = BestEffortBroadcast.init[RBData[P]](all, timeout)(self)
       RBcastState(all.map(_ -> Set.empty[Payload[P]]).toMap, all, CombinedModule.paired(PFD, pfdm, BEB, bebm))
     }
   }
@@ -52,7 +52,7 @@ object ReliableBroadcast {
     }
   }
 
-  def init[P](self: ProcessId, all: Set[ProcessId], timeout: Int) = ReliableBroadcast(self, RBcastState.init[P](self, all, timeout))
+  def init[P](all: Set[ProcessId], timeout: Int)(self: ProcessId) = ReliableBroadcast(self, RBcastState.init[P](self, all, timeout))
 
   import oss.giussi.cappio.Messages._
 

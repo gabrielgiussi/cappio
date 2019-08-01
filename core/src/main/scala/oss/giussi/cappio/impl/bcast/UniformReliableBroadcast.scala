@@ -43,7 +43,7 @@ object UniformReliableBroadcast {
   object URBState {
     def init[P](self: ProcessId, all: Set[ProcessId], timeout: Int) = {
       val pfdMod = PerfectFailureDetector.init(self, all, timeout) // Este timeout deberia ser enviado en un metodo Init al comienzo asi todos tienen el mismo!
-      val bebMod = BestEffortBroadcast.init[URBData[P]](self, all, timeout)
+      val bebMod = BestEffortBroadcast.init[URBData[P]](all, timeout)(self)
       val combined: Module[URBDep[P]] = CombinedModule.paired(PFD, pfdMod, BEB, bebMod)
       URBState(Set.empty, Set.empty[(ProcessId, UUID, P)], all, Map.empty, combined)
     }
@@ -81,11 +81,15 @@ object UniformReliableBroadcast {
     }
   }
 
+  object URBBcast {
+    def apply[P](msg: P): URBBcast[P] = new URBBcast(Payload(msg))
+  }
+
   case class URBBcast[P](payload: Payload[P])
 
   case class URBDeliver[P](from: ProcessId, payload: P)
 
-  def init[P](self: ProcessId, all: Set[ProcessId], timeout: Int) = UniformReliableBroadcast(self, URBState.init[P](self, all, timeout))
+  def init[P](all: Set[ProcessId], timeout: Int)(self: ProcessId) = UniformReliableBroadcast(self, URBState.init[P](self, all, timeout))
 
   def processLocal[P](self: ProcessId)(implicit inj1: Inject[URBDep[P]#Req, URBDep[P]#Dep1#Req], inj2: Inject[URBDep[P]#Req, URBDep[P]#Dep2#Req]): ProcessLocal[URBBcast[P], URBState[P], URBDeliver[P], URBDep[P]#Req, URBDep[P]#Ind,URBDep[P]#Payload] = new ProcessLocalHelper2[URBMod[P],URBDep[P]]{
     override def onPublicRequest(req: URBBcast[P], state: State): Output = {

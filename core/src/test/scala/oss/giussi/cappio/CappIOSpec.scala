@@ -29,7 +29,7 @@ trait CappIOSpec extends WordSpec with Matchers {
   }
 
   implicit class EnhancedProcesId(id: ProcessId){
-    def -->[R](req: R): Request[R] = Request(id, req)
+    def -->[R](req: R): ProcessRequest[R] = ProcessRequest(id, req)
 
     def -->>[P](to: ProcessId,payload: P): Packet[P] = Packet(id,to,payload,Instance.ANY)
   }
@@ -62,7 +62,7 @@ trait CappIOSpec extends WordSpec with Matchers {
       sch.deliver(DeliverBatch(delivers))
     }
 
-    def req(ps: (ProcessId, M#Req)*) = sch.request(ps.map { case (id,req) => Request(id,req) } : _*)
+    def req(ps: (ProcessId, M#Req)*) = sch.request(ps.map { case (id,req) => ProcessRequest(id,req) } : _*)
 
     // TODO def send(packet: Packet[M#Req]) = sch.request(Seq(Request(packet.from,SLSend(packet))))
 
@@ -138,7 +138,7 @@ trait SchedulerSupport[M <: Mod] {
       ops match {
         case Nil => indications
         case Req(p, r) :: tail =>
-          val NextStateTickScheduler(_, ind, nsch) = scheduler.request(Seq(Request(p, r)))
+          val NextStateTickScheduler(_, ind, nsch) = scheduler.request(Seq(ProcessRequest(p, r)))
           sch(nsch, tail, indications ++ ind) // TODO duplicated code
         case Del(id) :: tail =>
           val inTransit = findPacket(id)

@@ -1,9 +1,8 @@
-package oss.giussi.cappio.ui
+package oss.giussi.cappio.ui.spa
 
 import com.raquo.laminar.api.L._
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.scalajs.dom
-import org.scalajs.dom.ext.LocalStorage
 import org.scalajs.dom.{document, html}
 import oss.giussi.cappio.ui.levels.{IndexedLevel, Level, Levels}
 
@@ -24,15 +23,20 @@ object App {
     val routes: EventStream[Route] = ???
 */
 
-      val hashes = EventStream.merge(EventStream.fromValue(dom.window.location.hash, true), windowEvents.onHashChange.map(_.newURL)).filter(_.contains("#")).map(_.split("#")(1))
+      val hashes = EventStream.merge(EventStream.fromValue(dom.window.location.hash, true), windowEvents.onHashChange.map(_.newURL))
+        .filter(_.contains("#")).map(_.split("#")(1))
 
-      // TODO how to update the hash if the current hash is not a valid number? contramap?
-      val levelSelection: EventStream[IndexedLevel] = hashes.map(e => Try(e.toInt)).filter(_.isSuccess).map(_.get).filter(Levels.levels.map(_.x).contains).map(i => Levels.levels(i - 1))
+      val levelSelection: EventStream[IndexedLevel] = hashes.map(x =>
+        for {
+          index <- Try(x.toInt).toOption
+          level <- Levels.INDEXED_LEVELS.get(index)
+        } yield level
+      ).filter(_.isDefined).map(_.get)
 
-      val levels = Levels.levels.map(l =>
+      val levels = Levels.LEVELS.map(l =>
         a(href := s"#${l.x}", className := "list-group-item waves-effect",
           className <-- levelSelection.map { active => if (active.x == l.x) "active" else "" },
-          i(className := "fas fa-chart-pie mr-3", " Level " + l.x),
+          i(className := "fas fa-chart-pie mr-3", " Level " + l.x)
         )
       )
 

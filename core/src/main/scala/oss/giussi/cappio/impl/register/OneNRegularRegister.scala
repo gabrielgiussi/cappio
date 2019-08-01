@@ -98,7 +98,7 @@ object OneNRegularRegister {
 
     def init[V](self: ProcessId, all: Set[ProcessId], timeout: Int): ONRRState[V] = {
       val pl = PerfectLinkBeta.init[ONDirect[V]](timeout)
-      val beb = BestEffortBroadcast.init[ONOp[V]](self, all, timeout)
+      val beb = BestEffortBroadcast.init[ONOp[V]](all, timeout)(self)
       val cm = CombinedModule.paired(OneNRegularRegister.BEB, beb, OneNRegularRegister.PL, pl)
       val st = ONRRStateI(None, 0, 0, 0, 0, Map.empty[ProcessId, (Int, V)])
       ONRRState(st, cm)

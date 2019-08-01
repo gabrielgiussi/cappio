@@ -5,8 +5,7 @@ import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.scalajs.dom
 import oss.giussi.cappio.Network.InTransitPacket
 import oss.giussi.cappio._
-import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.BebBcast
-import oss.giussi.cappio.impl.bcast.UniformReliableBroadcast.Payload
+import oss.giussi.cappio.ui.levels.RequestBatch
 
 object ActionSelection {
 
@@ -33,23 +32,23 @@ object ActionSelection {
     )
   )
 
-  def networkInput(available: Set[InTransitPacket], $out: Observer[DeliverBatch]) = {
-    val $batch = Var(DeliverBatch.empty)
+  def networkInput[P](available: Set[InTransitPacket[P]], $out: Observer[DeliverBatch[P]]) = {
+    val $batch = Var(DeliverBatch.empty[P])
 
-    def renderPacket(over: Var[Option[Packet]])(id: Packet, initial: PacketSelection, $changes: Signal[PacketSelection]) = {
-      def renderAvailable(inTransit: InTransitPacket) = {
+    def renderPacket(over: Var[Option[Packet[P]]])(id: Packet[P], initial: PacketSelection[P], $changes: Signal[PacketSelection[P]]) = {
+      def renderAvailable(inTransit: InTransitPacket[P]) = {
         div(
           hidden <-- over.signal.map(!_.contains(id)),
           button(`type` := "button", cls := "btn btn-primary btn-sm", "Drop",
-            onClick.mapTo(inTransit.drop) --> Observer.apply[Drop](d => $batch.update(_.add(d)))
+            onClick.mapTo(inTransit.drop) --> Observer.apply[Drop[P]](d => $batch.update(_.add(d)))
           ),
           button(`type` := "button", cls := "btn btn-primary btn-sm", "Deliver",
-            onClick.mapTo(inTransit.deliver) --> Observer.apply[FLLDeliver](d => $batch.update(_.add(d)))
+            onClick.mapTo(inTransit.deliver) --> Observer.apply[FLLDeliver[P]](d => $batch.update(_.add(d)))
           )
         )
       }
 
-      def renderSelection(update: DeliverBatch => DeliverBatch, text: String) = {
+      def renderSelection(update: DeliverBatch[P] => DeliverBatch[P], text: String) = {
         div(
           button(cls := "btn btn-danger", text,
             span(
@@ -60,9 +59,9 @@ object ActionSelection {
         )
       }
 
-      def renderDrop(drop: Drop) = renderSelection(_.remove(drop), "Drop")
+      def renderDrop(drop: Drop[P]) = renderSelection(_.remove(drop), "Drop")
 
-      def renderDeliver(deliver: FLLDeliver) = renderSelection(_.remove(deliver), "Deliver")
+      def renderDeliver(deliver: FLLDeliver[P]) = renderSelection(_.remove(deliver), "Deliver")
 
       li(cls := "list-group-item",
         s"From ${initial.packet.from} to ${initial.packet.to} ${initial.packet.payload}", // TODO
@@ -77,20 +76,20 @@ object ActionSelection {
     }
 
     // son necesarias las 3 clases o con un enum alcanza?
-    sealed trait PacketSelection {
-      def packet: Packet
+    sealed trait PacketSelection[P] {
+      def packet: Packet[P]
     }
-    case class AvailablePacket(p: InTransitPacket) extends PacketSelection {
+    case class AvailablePacket[P](p: InTransitPacket[P]) extends PacketSelection[P] {
       override def packet = p.packet
     }
-    case class SelectedDrop(d: Drop) extends PacketSelection {
+    case class SelectedDrop(d: Drop[P]) extends PacketSelection[P] {
       override def packet = d.packet
     }
-    case class SelectedDeliver(d: FLLDeliver) extends PacketSelection {
+    case class SelectedDeliver(d: FLLDeliver[P]) extends PacketSelection[P] {
       override def packet = d.packet
     }
-    val over: Var[Option[Packet]] = Var(None)
-    val $available = available.map(AvailablePacket)
+    val over: Var[Option[Packet[P]]] = Var(None)
+    val $available = available.map(AvailablePacket.apply)
     val $selected = $batch.signal.map(_.ops.values.map {
       case Right(d) => SelectedDrop(d)
       case Left(d) => SelectedDeliver(d)

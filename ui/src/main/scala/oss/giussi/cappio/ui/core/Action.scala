@@ -8,19 +8,9 @@ sealed trait Action {
   def id: String // TODO improve concrete impls
 }
 
-/*
-sealed abstract case class Index(value: Int)
-
-object Nat {
-  implicit def asInt(index: Index): Int = index.value
-
-  def fromInt(n: Int): Option[Index] =
-    if (n >= 0) Some(new Index(n) {}) else None
+case class Index(i: Int) {
+  def next = Index(i + 1)
 }
-
- */
-
-case class Index(i: Int)
 
 case class Crashed(process: ProcessId, index: Index) extends Action {
   override val id = s"crashed-$process-$index"
@@ -66,7 +56,6 @@ sealed abstract class WriteAction(process: ProcessId, index: Index) extends Acti
 
 case class PendingRead(process: ProcessId, start: Index) extends ReadAction(process,start)
 
-// typed value
 case class ReadReturned(process: ProcessId, start: Index,returned: Index, value: String) extends ReadAction(process,start)
 
 case class PendingWrite(process: ProcessId, start: Index, value: String) extends WriteAction(process,start)

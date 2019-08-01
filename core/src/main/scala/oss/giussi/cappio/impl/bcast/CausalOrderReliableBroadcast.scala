@@ -33,7 +33,7 @@ object CausalOrderReliableBroadcast {
 
   object CRBState {
 
-    def init[P](self: ProcessId, all: Set[ProcessId], timeout: Int) = CRBState(Past.empty[P], Set.empty, ReliableBroadcast.init[CRBData[P]](self, all, timeout))
+    def init[P](all: Set[ProcessId], timeout: Int)(self: ProcessId) = CRBState(Past.empty[P], Set.empty, ReliableBroadcast.init[CRBData[P]](all, timeout)(self))
   }
 
   case class CRBState[P](past: Past[P], delivered: Set[UUID], module: Module[CORBDep[P]]) extends StateWithModule[CORBDep[P], CRBState[P]] {
@@ -52,29 +52,7 @@ object CausalOrderReliableBroadcast {
     }
   }
 
-  def init[P](self: ProcessId, all: Set[ProcessId], timeout: Int) = CausalOrderReliableBroadcast(self, CRBState.init[P](self, all, timeout))
-
-  /*
-  def processLocal2(self: ProcessId): ProcessLocal[CRBBroadcast, CRBState, CRBDeliver, RBBcast, RBDeliver] = {
-    import oss.giussi.cappio.Messages._
-    (msg, state) =>
-      msg match {
-        case PublicRequest(CRBBroadcast(Payload(id, msg))) =>
-          val payload = Payload(id, CRBData(state.past, msg))
-          val bcast = LocalRequest(RBBcast(payload))
-          LocalStep.withRequests(Set(bcast), state.bcast(self, payload.id, msg))
-        case LocalIndication(RBDeliver(from, Payload(id, CRBData(mpast, msg)))) =>
-          state.deliver(from, mpast, id, msg) match {
-            case Some((ns, toDeliver)) =>
-              val ind = toDeliver.map { case (sender, _, m) => CRBDeliver(sender, m) }.toSet
-              LocalStep.withIndications(ind, ns)
-            case None => LocalStep.withState(state)
-          }
-        case _ => LocalStep.withState(state)
-      }
-  }
-
-   */
+  def init[P](all: Set[ProcessId], timeout: Int)(self: ProcessId) = CausalOrderReliableBroadcast(self, CRBState.init[P](all, timeout)(self))
 
   def processLocal[P](self: ProcessId) = new ProcessLocalHelper1[CORBMod[P],CORBDep[P]] {
     override def onPublicRequest(req: CRBBroadcast[P], state: State): Output = {

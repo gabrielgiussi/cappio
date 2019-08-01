@@ -8,7 +8,7 @@ class UniformReliableBroadcastSpec extends CappIOSpec {
 
   val all = (0 to 2).map(ProcessId).toSet
   val timeout = 3
-  val urb = UniformReliableBroadcast.init[String](ProcessId(0), all, timeout)
+  val urb = UniformReliableBroadcast.init[String](all, timeout)(p0)
 
   import UniformReliableBroadcast._
 
