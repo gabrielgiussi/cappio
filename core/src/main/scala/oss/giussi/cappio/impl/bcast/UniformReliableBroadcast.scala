@@ -52,7 +52,7 @@ object UniformReliableBroadcast {
   case class URBState[P](delivered: Set[UUID], pending: Set[(ProcessId, UUID, P)], correct: Set[ProcessId], acks: Acks, module: Module[URBDep[P]]) extends StateWithModule[URBDep[P], URBState[P]] {
     override def updateModule(m: Module[URBDep[P]]): URBState[P] = copy(module = m)
 
-    private def canDeliver(m: UUID): Boolean = correct -- acks(m) isEmpty
+    private def canDeliver(m: UUID): Boolean = acks.get(m).map(correct -- _ isEmpty).getOrElse(false)
 
     def addPending(from: ProcessId, id: UUID, msg: P) = copy(pending = pending + Tuple3(from, id, msg))
 
@@ -71,7 +71,7 @@ object UniformReliableBroadcast {
     // TODO N indications o 1 indication?
     // tendria que inventar un evento que para evaluar conditions si quiero disparar todos, porque el trigger afecta el estado.
     // o agregar logica para que elimine duplicados por payload.id
-    def evaluateCondition(): Option[(URBState[P], (ProcessId, P))] = {
+    def evaluateCondition: Option[(URBState[P], (ProcessId, P))] = {
       val candidates = pending.filter(p => canDeliver(p._2) && !delivered.contains(p._2)).toList // random element
       if (candidates.isEmpty) None
       else {
@@ -85,7 +85,9 @@ object UniformReliableBroadcast {
     def apply[P](msg: P): URBBcast[P] = new URBBcast(Payload(msg))
   }
 
-  case class URBBcast[P](payload: Payload[P])
+  case class URBBcast[P](payload: Payload[P]) {
+    override def toString: String = s"urb-bcast ${payload.msg}"
+  }
 
   case class URBDeliver[P](from: ProcessId, payload: P)
 
@@ -108,7 +110,7 @@ object UniformReliableBroadcast {
     }
 
     override def onTick(state: State): Output = {
-      state.evaluateCondition() match {
+      state.evaluateCondition match {
         case Some((ns, (sender, msg))) => LocalStep.withIndications(Set(URBDeliver(sender, msg)), ns)
         case None => LocalStep.withState(state)
       }

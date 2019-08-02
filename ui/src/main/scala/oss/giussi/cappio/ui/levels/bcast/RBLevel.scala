@@ -20,9 +20,5 @@ case class RBLevel(nProcesses: Int, timeout: Int) extends AbstractLevel[RBMod[St
 
   override def indicationPayload(ind: RBDeliver[String]): String = ind.payload.msg.toString
 
-  override def actionSel(obs: Observer[Option[RBBcast[String]]])(processId: ProcessId): String => ReactiveHtmlElement[Element] = _ => input(
-
-  )
-
-  override val reqTypes: List[String] = List("rb-bcast")
+  override val reqTypes = List()
 }

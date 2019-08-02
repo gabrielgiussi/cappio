@@ -1,8 +1,11 @@
 package oss.giussi.cappio.ui
 
+import java.util.UUID
+
 import com.raquo.laminar.api.L._
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.scalajs.dom
+import org.scalajs.dom.html
 import oss.giussi.cappio.Network.InTransitPacket
 import oss.giussi.cappio._
 import oss.giussi.cappio.ui.levels.RequestBatch
@@ -32,172 +35,159 @@ object ActionSelection {
     )
   )
 
+  def iconButton(className: String) = button(
+    `type` := "button", cls := "close",
+    span(cls := className)
+  )
+
   def networkInput[P](available: Set[InTransitPacket[P]], $out: Observer[DeliverBatch[P]]) = {
-    val $batch = Var(DeliverBatch.empty[P])
-
-    def renderPacket(over: Var[Option[Packet[P]]])(id: Packet[P], initial: PacketSelection[P], $changes: Signal[PacketSelection[P]]) = {
-      def renderAvailable(inTransit: InTransitPacket[P]) = {
-        div(
-          hidden <-- over.signal.map(!_.contains(id)),
-          button(`type` := "button", cls := "btn btn-primary btn-sm", "Drop",
-            onClick.mapTo(inTransit.drop) --> Observer.apply[Drop[P]](d => $batch.update(_.add(d)))
-          ),
-          button(`type` := "button", cls := "btn btn-primary btn-sm", "Deliver",
-            onClick.mapTo(inTransit.deliver) --> Observer.apply[FLLDeliver[P]](d => $batch.update(_.add(d)))
-          )
-        )
-      }
-
-      def renderSelection(update: DeliverBatch[P] => DeliverBatch[P], text: String) = {
-        div(
-          button(cls := "btn btn-danger", text,
+    def renderDeliverTo(obs: Observer[NetworkCommand])(to: ProcessId, initial: DeliverTo, $changes: Signal[DeliverTo]) = {
+      def renderPacket(id: UUID, packet: PacketWithOp, $changes: Signal[PacketWithOp]) = li(
+        p(
+          s"Deliver [${packet.p.packet.payload}] to ${packet.p.packet.to}   ",
+          button(
+            `type` := "button",
+            cls := "btn btn-link p-0",
             span(
-              cls := "badge badge-danger ml-3", "X",
-              onClick.mapToValue(()) --> Observer.apply[Unit](_ => $batch.update(update)) // TODO esta bien?
+              cls := "fas fa-long-arrow-alt-down",
+              cls <-- $changes.map(p => if (p.op == DeliverOp) "green-text" else ""),
+              onClick.mapToValue(DeliverCommand(packet.p.packet)) --> obs
+            )
+          ),
+          // TODO duplicated code
+          button(
+            `type` := "button",
+            cls := "btn btn-link p-0",
+            span(
+              cls := "fas fa-trash-alt",
+              cls <-- $changes.map(p => if (p.op == DropOp) "red-text" else ""),
+              onClick.mapToValue(DropCommand(packet.p.packet)) --> obs
+            )
+          ),
+          button(
+            `type` := "button",
+            cls := "btn btn-link p-0",
+            disabled <-- $changes.map(_.op == NoOp),
+            span(
+              cls := "fas fa-times",
+              onClick.mapToValue(ResetCommand(packet.p.packet)) --> obs
             )
           )
         )
-      }
+      )
 
-      def renderDrop(drop: Drop[P]) = renderSelection(_.remove(drop), "Drop")
-
-      def renderDeliver(deliver: FLLDeliver[P]) = renderSelection(_.remove(deliver), "Deliver")
-
-      li(cls := "list-group-item",
-        s"From ${initial.packet.from} to ${initial.packet.to} ${initial.packet.payload}", // TODO
-        onMouseEnter.mapToValue(Some(id)) --> over.writer,
-        onMouseLeave.mapToValue(None) --> over.writer,
-        child <-- $changes.map {
-          case AvailablePacket(p) => renderAvailable(p)
-          case SelectedDrop(d) => renderDrop(d)
-          case SelectedDeliver(d) => renderDeliver(d)
-        }
+      ul(cls := "list-group list-group-flush",
+        children <-- $changes.map(_.packets.values.toList).split(_.p.packet.id)(renderPacket)
       )
     }
 
-    // son necesarias las 3 clases o con un enum alcanza?
-    sealed trait PacketSelection[P] {
-      def packet: Packet[P]
+    object DeliverToBatch {
+      def apply(map: List[DeliverTo]): DeliverToBatch = new DeliverToBatch(map.map(dt => dt.processId -> dt).toMap)
     }
-    case class AvailablePacket[P](p: InTransitPacket[P]) extends PacketSelection[P] {
-      override def packet = p.packet
+
+    case class DeliverToBatch(delivers: Map[ProcessId, DeliverTo]) {
+      def update(f: (DeliverTo, UUID) => DeliverTo)(p: Packet[P]) = copy(delivers + (p.to -> f(delivers(p.to), p.id)))
+
+      def drop = update(_ drop _) _
+
+      def deliver = update(_ deliver _) _
+
+      def reset = update(_ reset _) _
+
+      def ops = delivers.values.foldLeft(Seq.empty[Either[FLLDeliver[P],Drop[P]]])(_ ++ _.ops)
+
+      def clear = copy(delivers.map { case (id,v) => id -> v.clear })
+
+      def values = delivers.values
     }
-    case class SelectedDrop(d: Drop[P]) extends PacketSelection[P] {
-      override def packet = d.packet
+
+    sealed trait NetworkCommand
+    case class DropCommand(p: Packet[P]) extends NetworkCommand
+    case class DeliverCommand(p: Packet[P]) extends NetworkCommand
+    case class ResetCommand(p: Packet[P]) extends NetworkCommand
+
+    sealed trait PacketOp
+    case object DeliverOp extends PacketOp
+    case object DropOp extends PacketOp
+    case object NoOp extends PacketOp
+
+    case class PacketWithOp(p: InTransitPacket[P], op: PacketOp)
+
+    object DeliverTo {
+      def apply(packets: Set[InTransitPacket[P]]): DeliverTo = new DeliverTo(packets.head.packet.to, packets.map(p => p.packet.id -> PacketWithOp(p, NoOp)).toMap)
     }
-    case class SelectedDeliver(d: FLLDeliver[P]) extends PacketSelection[P] {
-      override def packet = d.packet
+
+    case class DeliverTo(processId: ProcessId, packets: Map[UUID, PacketWithOp]) {
+      def update(op: PacketOp)(id: UUID) = copy(packets = packets.map {
+        case (`id`, p) => id -> p.copy(op = op)
+        case (i, p) => i -> p.copy(op = NoOp)
+      })
+
+      def drop = update(DropOp) _
+
+      def deliver = update(DeliverOp) _
+
+      def reset = update(NoOp) _
+
+      def ops = packets.values.collect {
+        case PacketWithOp(p, DeliverOp) => Left(p.deliver)
+        case PacketWithOp(p, DropOp) => Right(p.drop)
+      }
+
+      def clear = packets.keySet.foldLeft(this)(_ reset _)
     }
-    val over: Var[Option[Packet[P]]] = Var(None)
-    val $available = available.map(AvailablePacket.apply)
-    val $selected = $batch.signal.map(_.ops.values.map {
-      case Right(d) => SelectedDrop(d)
-      case Left(d) => SelectedDeliver(d)
-    }.toSet)
-    // FIXME ObserverError: TypeError: prevChildRef.elem$1 is null
-    val $all = $selected.map(s => ($available.filterNot(s.contains) ++ s).toList.sortBy(_.packet.id))
+
+    val raw = available.groupBy(_.packet.to).map { case (_, packets) => DeliverTo(packets) }.toList
+    val batch = Var(DeliverToBatch(raw))
+
+    val commandObs = Observer[NetworkCommand] {
+      case DropCommand(p) => batch.update(_.drop(p))
+      case DeliverCommand(p) => batch.update(_.deliver(p))
+      case ResetCommand(id) => batch.update(_.reset(id))
+    }
 
     div(
-      ul(cls := "list-group list-group-flush",
-        children <-- $all.split(_.packet)(renderPacket(over)) // TODO siempre haciendo toList!
-      ),
+      children <-- batch.signal.map(_.values.toList).split(_.processId)(renderDeliverTo(commandObs)),
       button(`type` := "reset", cls := "btn btn-primary", "Next",
-        onClick.mapTo($batch.now()) --> $out
+        onClick.mapTo(batch.now()).map(b => DeliverBatch(b.ops : _*)) --> $out
       ),
       button(`type` := "button", cls := "btn btn-danger", "Clear",
-        disabled <-- $batch.signal.map(_.ops.isEmpty),
-        onClick.mapToValue(()) --> Observer.apply[Unit](_ => $batch.set(DeliverBatch.empty))
+        //disabled <-- $batch.signal.map(_.ops.isEmpty),
+        onClick.mapToValue(()) --> Observer.apply[Unit](_ => batch.update(_.clear))
       )
     )
   }
 
-  // TODO como limpiar el form cuando submiteo un req!?
-  /*
-  no me gusta el tipo de inputPayload. 2 cosas
-  (1) deberia ser un EventStream o un ReactiveElement?
-  (2) no hay una mejor manera de tomar los cambios sin la necesidad de parle el Observer? Tal vez hacer un elemento
-  que sea un ReactiveElement y que me de un events tipado del estilo
-  val sel = selectRequest()
-  sel.events(onSelection) // pero q el onSelecion lo defina yo, no que sean dom events
+  sealed trait BatchCommand[+R]
 
-   */
-  def reqInput[Req, Pay, ReqType](reqTypes: List[ReqType], processes: List[ProcessId], reqWriter: Observer[AddReq[Req]], inputPayload: Observer[Option[Req]] => ProcessId => ReqType => ReactiveHtmlElement[dom.html.Element]) = {
-    val process: Var[Option[ProcessId]] = Var(None) // TODO why use Var if I don't make use of set?
-    val requestType: Var[Option[ReqType]] = Var(None)
-    val payload: Var[Option[Req]] = Var(None)
-    val iPayload = inputPayload(payload.writer)
-    val req = process.signal
-      .combineWith(payload.signal)
-      .map { case (process, payload) => for {
-        id <- process
-        p <- payload
-      } yield AddReq(id, p)
-      }
-    val $add = new EventBus[Unit]
-    val f = form(
-      div(cls := "form-row",
-        div(cls := "col-sm mb-3",
-          label(forId := "processId", "Process"),
-          selectProcess(processes, process.writer, id := "processId")
-        ),
-        div(cls := "col-sm mb-3",
-          label(forId := "reqType", "Request"),
-          selectReqType(reqTypes, requestType.writer, id := "requestType")
-        ),
-        div(cls := "col-sm mb-3",
-          label(forId := "payload", "Payload"), // TODO pass id
-          child <-- requestType.signal.changes.map { rtype =>
-            (for {
-              r <- rtype
-              pid <- process.now()
-            } yield iPayload(pid)(r)) getOrElse label("")
-          }
-        ),
-        div(cls := "col-sm mb-3",
-          button(`type` := "button", cls := "close",
-            span(
-              cls := "fas fa-plus",
-              cls <-- req.map(r => if (r.isDefined) "green-text" else "")
-            ),
-            disabled <-- req.map(_.isEmpty),
-            onClick.mapToValue(()) --> $add.writer
-          )
-        )
-      )
-    )
-    req.changes
-      .filter(_.isDefined)
-      .map(_.get) // TODO flatMap?
-      .combineWith($add.events) // FIXME esto no funciona porque si yo emito una vez un click dsp combina todo con eso. Yo quiero un zip!
-      .map { case (add,_) =>
-        process.set(None)
-        payload.set(None)
-        requestType.set(None)
-        add
-      }
-      .addObserver(reqWriter)(f)
-    f
+  case object Reset extends BatchCommand[Nothing]
+
+  object AddReq {
+    def apply[R](id: ProcessId, req: R): AddReq[R] = new AddReq(id, RequestWrapper(req))
   }
 
-  sealed trait BatchCommand
+  sealed trait AddCommand[R] extends BatchCommand[R]
 
-  case object Reset extends BatchCommand
+  case class AddReq[R](id: ProcessId, r: AddReqInput[R]) extends AddCommand[R]
 
-  case class AddReq[Req](id: ProcessId, r: Req) extends BatchCommand
+  sealed trait AddReqInput[+R]
 
-  case class CrashProcess(id: ProcessId) extends BatchCommand
+  case class RequestWrapper[R](req: R) extends AddReqInput[R]
 
-  case class RemoveReq(id: ProcessId) extends BatchCommand
+  case object CrashP extends AddReqInput[Nothing]
 
+  case class RemoveReq(id: ProcessId) extends BatchCommand[Nothing]
 
-  def reqBatchInput[Req, ReqType](reqTypes: List[ReqType], processes: List[ProcessId], $obs: Observer[RequestBatch[Req]], inputPayload: Observer[Option[Req]] => ProcessId => ReqType => ReactiveHtmlElement[dom.html.Element]) = {
-    val $commands = new EventBus[BatchCommand]
+  type Inputs[R] = (List[ProcessId], Observer[AddCommand[R]]) => ReactiveHtmlElement[html.Div]
+
+  def reqBatchInput[Req](inputs: List[Inputs[Req]], processes: List[ProcessId], $obs: Observer[RequestBatch[Req]]) = {
+    val $commands = new EventBus[BatchCommand[Req]]
     val $batch: Signal[RequestBatch[Req]] =
       $commands.events.fold(RequestBatch[Req](Map.empty)) {
         case (_, Reset) => RequestBatch[Req](Map.empty)
-        case (batch, AddReq(id, r: Req)) => batch.add(id, r) // FIXME unchecked
+        case (batch, AddReq(id, RequestWrapper(r))) => batch.add(id, r)
+        case (batch, AddReq(id, CrashP)) => batch.crash(id)
         case (batch, RemoveReq(id)) => batch.remove(id)
-        case (batch,CrashProcess(id)) => batch.crash(id)
       }
 
     def renderBatch = {
@@ -208,8 +198,8 @@ object ActionSelection {
         ),
         td(
           child <-- $changes.map {
-            case (_,ProcessRequest(_,r)) => label(r.toString)
-            case (_,Crash(_)) => label("Crash")
+            case (_, ProcessRequest(_, r)) => label(r.toString)
+            case (_, Crash(_)) => label("Crash")
           }
         ),
         td(
@@ -219,6 +209,7 @@ object ActionSelection {
           )
         )
       )
+
       table(
         cls := "table",
         tbody(
@@ -227,31 +218,10 @@ object ActionSelection {
       )
     }
 
-    def crashInput(processes: List[ProcessId], reqWriter: Observer[CrashProcess]) = {
-      val process: Var[Option[ProcessId]] = Var(None)
-      form(
-        div(cls := "form-row",
-          div(cls := "col-sm mb-3",
-            label(forId := "processId", "Process"),
-            selectProcess(processes, process.writer, id := "processId")
-          ),
-          div(cls := "col-sm mb-3",
-            button(`type` := "button", cls := "close",
-              span(
-                cls := "fas fa-plus",
-                cls <-- process.signal.map(r => if (r.isDefined) "green-text" else "")
-              ),
-              disabled <-- process.signal.map(_.isEmpty),
-              onClick.mapTo(process.now().map(CrashProcess)).filter(_.isDefined).map(_.get) --> reqWriter
-            )
-          )
-        )
-      )
-    }
-
     div(
-      reqInput(reqTypes, processes, $commands.writer, inputPayload),
-      crashInput(processes,$commands.writer),
+      form(
+        inputs.map(_.apply(processes, $commands.writer))
+      ),
       renderBatch,
       input(`type` := "submit", cls := "btn btn-primary", value := "Next", // TODO input or button?
         inContext { thisNode =>
@@ -266,25 +236,62 @@ object ActionSelection {
     )
   }
 
-  // TODO esto depende de cada nivel
-  // auto trigger and disable if there is only one option
-  def selectReqType[ReqType](types: List[ReqType], obs: Observer[Option[ReqType]], modifiers: Modifier[Select]*) = {
-    //val request: Var[Option[String]] = Var(None)
-    val indexed = types.zipWithIndex.map { case (rt, index) => index -> rt }.toMap
-    select(
-      cls := "browser-default custom-select mb-4",
-      inContext(thisNode => onInput.mapTo(thisNode.ref.value).map(v => indexed.get(v.toInt)) --> obs),
-      option(
-        "-",
-        value := "-1"
-      ) :: indexed.map { case (i, rt) => option(
-        rt.toString,
-        value := i.toString
-      )
-      }.toList,
-      modifiers
+  case object Click
+
+  def plus(enabled: Signal[Boolean], obs: Observer[Click.type]) = button(`type` := "button", cls := "close",
+    span(
+      cls := "fas fa-plus",
+      cls <-- enabled.map(e => if (e) "green-text" else "")
+    ),
+    disabled <-- enabled.map(!_),
+    onClick.mapToValue(Click) --> obs
+  )
+
+  def plusDiv = (plus _).tupled.andThen(x => div(cls := "col-sm mb-2", x))
+
+  def crash[R] = noPayloadRequest[R](_ => CrashP) _
+
+  def noPayloadRequest[R](f: ProcessId => AddReqInput[R])(processes: List[ProcessId], obs: Observer[AddCommand[R]]): ReactiveHtmlElement[html.Div] = {
+    val process: Var[Option[ProcessId]] = Var(None)
+    val click = new EventBus[Click.type]
+    val d = div(cls := "form-row",
+      selectDiv((processes, process.writer, Seq(id := "processId"))),
+      plusDiv(process.signal.map(_.isDefined), click.writer)
     )
+    click.events.mapTo(process.now().map(id => AddReq(id, f(id))))
+      .collect { case Some(r) => r }.addObserver(obs)(d)
+    d
   }
+
+  def payloadRequest[R](f: (ProcessId, String) => R)(processes: List[ProcessId], obs: Observer[AddCommand[R]]): ReactiveHtmlElement[html.Div] = {
+    val process: Var[Option[ProcessId]] = Var(None)
+    val payload: Var[Option[String]] = Var(None)
+    val click = new EventBus[Click.type]
+    val d = div(cls := "form-row",
+      selectDiv((processes, process.writer, Seq(id := "processId"))),
+      div(cls := "col-sm mb-2",
+        label(forId := "bebPayload", "Payload"),
+        input(
+          id := "bebProcessId", // TODO estoy repitiendo los ids!
+          cls := "form-control",
+          inContext { thisNode =>
+            @inline def updatePayload = Option(thisNode.ref.value).filterNot(_.isEmpty)
+
+            onMouseOut.stopPropagation.mapTo(updatePayload) --> payload.writer
+          }
+        )
+      ),
+      plusDiv(payload.signal.map(_.isDefined), click.writer)
+    )
+    click.events.mapTo {
+      for {
+        id <- process.now()
+        msg <- payload.now()
+      } yield AddReq(id, f(id, msg))
+    }.collect { case Some(r) => r }.addObserver(obs)(d)
+    d
+  }
+
 
   def selectProcess(processes: List[ProcessId], obs: Observer[Option[ProcessId]], modifiers: Modifier[Select]*) = {
     select(
@@ -300,5 +307,11 @@ object ActionSelection {
       modifiers
     )
   }
+
+  // IMPROVE
+  def selectDiv = (selectProcess _).tupled.andThen(x => div(cls := "col-sm mb-3",
+    label(forId := "processId", "Process"),
+    x
+  ))
 
 }

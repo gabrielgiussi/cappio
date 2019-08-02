@@ -36,7 +36,7 @@ case class DeliverBatch[P](ops: Map[ProcessId, Either[FLLDeliver[P], Drop[P]]]) 
 
   def remove(drop: Drop[P]) = copy(ops = ops - drop.packet.to)
 
-  def clear() = DeliverBatch.empty
+  def clear = DeliverBatch.empty
 }
 
 sealed trait Step[M <: Mod] // TODO delete? esta bien hacer traits con generics q no usa?

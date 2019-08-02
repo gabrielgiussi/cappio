@@ -10,7 +10,7 @@ class CausalOrderReliableBroadcastSpec extends CappIOSpec {
 
   val all = (0 to 2).map(ProcessId)
   val self = all.head
-  val crb = CausalOrderReliableBroadcast.init[String](self,all.toSet,3)
+  val crb = CausalOrderReliableBroadcast.init[String](all.toSet,3)(self)
 
   "A" should {
     "b" in {

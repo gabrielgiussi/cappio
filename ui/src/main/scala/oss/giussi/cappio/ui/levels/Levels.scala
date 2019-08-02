@@ -5,6 +5,7 @@ import com.raquo.laminar.nodes.ReactiveHtmlElement
 import oss.giussi.cappio
 import oss.giussi.cappio._
 import oss.giussi.cappio.impl.net.FairLossLink.FLLSend
+import oss.giussi.cappio.ui.ActionSelection.Inputs
 import oss.giussi.cappio.ui.core._
 import oss.giussi.cappio.ui.levels.bcast.{BEBLevel, URBLevel}
 import oss.giussi.cappio.ui.{ActionSelection, Diagram}
@@ -120,7 +121,7 @@ abstract class AbstractLevel[M <: ModT, ReqType](scheduler: Scheduler[M]) extend
         Snapshot(current.next, filtered ++ indications ++ delivers ++ sends, wr, Some(c))
       case (Snapshot(_, _, _, Some(prev)), Prev) => prev
       case (s, input) =>
-        org.scalajs.dom.console.log(s"%c Bad input $input for step ${s.step} ", "background: #222; color: #bada55")
+        //org.scalajs.dom.console.log(s"%c Bad input $input for step ${s.step} ", "background: #222; color: #bada55")
         s
     }
   }
@@ -129,16 +130,13 @@ abstract class AbstractLevel[M <: ModT, ReqType](scheduler: Scheduler[M]) extend
 
   override val $actions = $snapshots.map(_.actions).changes // TODO puedo devolver una signal directamente total al principio no va a tener actions
 
-  // FIXME cada vez que se seleccione un processId se va a repintar, no quiero eso!
-  def actionSel(obs: Observer[Option[Req]])(processId: ProcessId): ReqType => ReactiveHtmlElement[org.scalajs.dom.html.Element]
-
-  val reqTypes: List[ReqType]
+  val reqTypes: List[Inputs[Req]]
 
   override def actionSelection: Div = {
     div(
       div(
         child <-- $steps.map {
-          case WaitingRequest(sch) => ActionSelection.reqBatchInput(reqTypes, sch.scheduler.availableProcesses.toList, $next.writer.contramap[ReqBatch](r => NextReq(r)), actionSel)
+          case WaitingRequest(sch) => ActionSelection.reqBatchInput(reqTypes, sch.scheduler.availableProcesses.toList, $next.writer.contramap[ReqBatch](r => NextReq(r)))
           case WaitingDeliver(sch) => ActionSelection.networkInput(sch.scheduler.availablePackets, $next.writer.contramap[DelBatch](r => NextDeliver(r)))
         }
       ),

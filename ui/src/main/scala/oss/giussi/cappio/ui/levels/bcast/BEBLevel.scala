@@ -6,6 +6,7 @@ import org.scalajs.dom.html.Element
 import oss.giussi.cappio.impl.bcast.BestEffortBroadcast
 import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.{BebBcast, BebDeliver, BebMod}
 import oss.giussi.cappio.ui.ActionSelection
+import oss.giussi.cappio.ui.ActionSelection.{Inputs, payloadRequest}
 import oss.giussi.cappio.ui.levels.AbstractLevel
 import oss.giussi.cappio.{ProcessId, Scheduler}
 
@@ -16,15 +17,16 @@ object BEBLevel {
     Scheduler.init(all,BestEffortBroadcast.init[P](all,timeout))
   }
 
+  val beb = payloadRequest({ case (_,s) => BebBcast(s)}) _
 
 }
 
 case class BEBLevel(nProcesses: Int, timeout: Int) extends AbstractLevel[BebMod[String], String](BEBLevel.scheduler(nProcesses,timeout)) {
 
-  override def actionSel(obs: Observer[Option[BebBcast[String]]])(processId: ProcessId): String => ReactiveHtmlElement[Element] = _ =>
-    ActionSelection.payloadInput(obs.contramap(_.map(raw => BebBcast(raw))))
-
-  override val reqTypes: List[String] = List("beb")
+  override val reqTypes: List[Inputs[BebBcast[String]]] = List(
+    BEBLevel.beb,
+    ActionSelection.crash
+  )
 
   override def requestPayload(req: BebBcast[String]): String = req.payload.msg.toString
 

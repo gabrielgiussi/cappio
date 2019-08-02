@@ -22,7 +22,7 @@ class BestEffortBroadcastSpec extends CappIOSpec with SchedulerSupport[BebMod[St
     }
   }
 
-  val scheduler = TickScheduler(Scheduler.init(all, id => new Process(id,BestEffortBroadcast.init[String](id,all,3),Up)))
+  val scheduler = TickScheduler(Scheduler.init(all, BestEffortBroadcast.init[String](all,3)))
 
 
   "BestEffortBroadcast cluster" must {

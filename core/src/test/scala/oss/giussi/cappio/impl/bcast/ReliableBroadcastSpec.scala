@@ -9,7 +9,7 @@ class ReliableBroadcastSpec extends CappIOSpec {
 
   val all = (0 to 2).map(ProcessId)
   val self = all.head
-  val rb = ReliableBroadcast.init[String](self,all.toSet,3)
+  val rb = ReliableBroadcast.init[String](all.toSet,3)(self)
 
   "A" should {
     "a" in {
