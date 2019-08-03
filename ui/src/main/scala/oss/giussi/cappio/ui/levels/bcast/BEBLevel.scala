@@ -1,10 +1,7 @@
 package oss.giussi.cappio.ui.levels.bcast
 
-import com.raquo.laminar.api.L._
-import com.raquo.laminar.nodes.ReactiveHtmlElement
-import org.scalajs.dom.html.Element
 import oss.giussi.cappio.impl.bcast.BestEffortBroadcast
-import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.{BebBcast, BebDeliver, BebMod}
+import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.{BebBcast, BebMod}
 import oss.giussi.cappio.ui.ActionSelection
 import oss.giussi.cappio.ui.ActionSelection.{Inputs, payloadRequest}
 import oss.giussi.cappio.ui.levels.AbstractLevel

@@ -2,21 +2,23 @@ package oss.giussi.cappio.ui.levels
 
 
 import com.raquo.laminar.api.L._
+import com.raquo.laminar.nodes.ReactiveHtmlElement
+import org.scalajs.dom.raw.HTMLElement
 import oss.giussi.cappio
-import oss.giussi.cappio._
 import oss.giussi.cappio.impl.net.FairLossLink.FLLSend
 import oss.giussi.cappio.ui.ActionSelection.Inputs
 import oss.giussi.cappio.ui.core._
 import oss.giussi.cappio.ui.levels.bcast.{BEBLevel, URBLevel}
 import oss.giussi.cappio.ui.{ActionSelection, Diagram}
-import oss.giussi.cappio.{Mod => ModT}
+import oss.giussi.cappio.{Mod => ModT, _}
 
 object Levels {
 
 
   val INDEXED_LEVELS: Map[Int, IndexedLevel] = Map(
-    1 -> IndexedLevel(1, () => BEBLevel(4, 3)),
-    2 -> IndexedLevel(2, () => URBLevel(4, 3))
+    1 -> IndexedLevel(1, Documentation("broadcast")),
+    2 -> IndexedLevel(2, BEBLevel(4, 3)),
+    3 -> IndexedLevel(3, URBLevel(4, 3))
   )
 
   val LEVELS = INDEXED_LEVELS.values.toList
@@ -26,9 +28,27 @@ object Levels {
 
 // FIXME createLevel es por ahora para que siempre genere un nuevo nivel porque las signal ya van a haber cambiado el valor initial
 // remove indexed level?
-case class IndexedLevel(x: Int, createLevel: () => Level)
+case class IndexedLevel(x: Int, s: Selection)
 
-trait Level {
+sealed trait Selection {
+  def render: ReactiveHtmlElement[HTMLElement]
+}
+
+case class Documentation(doc: String) extends Selection {
+  override def render = div(cls := "container-fluid mt-5",
+    div(cls := "row wow fadeIn",
+      div(cls := "col-md mb-4",
+        div(cls := "card",
+          div(cls := "card-body",
+            doc
+          )
+        )
+      )
+    )
+  )
+}
+
+trait Level extends Selection {
 
   val processes: Processes
 
@@ -41,6 +61,30 @@ trait Level {
   def states: Div
 
   def conditions: Div
+
+  final override def render = div(cls := "container-fluid mt-5",
+    div(cls := "row wow fadeIn",
+      div(cls := "col-md-9 mb-4",
+        div(cls := "card",
+          div(cls := "card-body",
+            diagram
+          )
+        )
+      ),
+      div(
+        cls := "col-md-3 mb-4",
+        div(cls := "card mb-4",
+          div(cls := "card-header text-center", "Action Selection"),
+          div(cls := "card-body",
+            actionSelection
+          )
+        )
+      )
+    ),
+    div(
+      states
+    )
+  )
 
 }
 

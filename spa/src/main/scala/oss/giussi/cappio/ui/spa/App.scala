@@ -4,7 +4,7 @@ import com.raquo.laminar.api.L._
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.scalajs.dom
 import org.scalajs.dom.{document, html}
-import oss.giussi.cappio.ui.levels.{IndexedLevel, Level, Levels}
+import oss.giussi.cappio.ui.levels.{Documentation, IndexedLevel, Level, Levels}
 
 import scala.util.Try
 
@@ -33,41 +33,21 @@ object App {
         } yield level
       ).filter(_.isDefined).map(_.get)
 
-      val levels = Levels.LEVELS.map(l =>
-        a(href := s"#${l.x}", className := "list-group-item waves-effect",
+      val levels = Levels.LEVELS.map { l =>
+        val icon = l match {
+          case IndexedLevel(_,Documentation(_)) => "fa-book"
+          case _ => "fa-cogs"
+        }
+        a(href := s"#${l.x}", className := "list-group-item list-group-item-action waves-effect",
           className <-- levelSelection.map { active => if (active.x == l.x) "active" else "" },
-          i(className := "fas fa-chart-pie mr-3", " Level " + l.x)
+          i(className := s"fas $icon mr-3", " Level " + l.x)
         )
-      )
+      }
 
       val leftMenu: ReactiveHtmlElement[html.Div] = div(
         className := "list-group list-group-flush",
         levels
       )
-
-      def router(levelSelection: EventStream[Level]) = {
-        div(cls := "container-fluid mt-5",
-          div(cls := "row wow fadeIn",
-            div(cls := "col-md-9 mb-4",
-              div(cls := "card",
-                div(cls := "card-body",
-                  child <-- levelSelection.map(_.diagram)
-                )
-              )
-            ),
-            div(
-              cls := "col-md-3 mb-4",
-              div(cls := "card mb-4",
-                div(cls := "card-header text-center", "Action Selection"),
-                div(cls := "card-body", child <-- levelSelection.map(_.actionSelection))
-              )
-            )
-          ),
-          div(
-            child <-- levelSelection.map(_.states)
-          )
-        )
-      }
 
       documentEvents.onDomContentLoaded.foreach { _ =>
 
@@ -77,7 +57,9 @@ object App {
           container
         }
 
-        render(getElementById("main-container", true), router(levelSelection.map(_.createLevel())))
+        render(getElementById("main-container", true), div(
+          child <-- levelSelection.map(_.s.render)
+        ))
         render(getElementById("sidebar"), leftMenu)
 
       }(unsafeWindowOwner)
