@@ -25,13 +25,12 @@ script:
 after_success:
   - mkdir deploy
   - cp ./spa/index.html deploy
-  - cp ./spa/target/scala-2.12/ui-opt.js deploy
-  - cp ./spa/target/scala-2.12/ui-jsdeps.js deploy
-  - cp ./spa/js deploy
-  - cp ./spa/scss deploy
-  - cp ./spa/img deploy
-  - cp ./spa/font deploy
-  - cp ./spa/css deploy
+  - cp ./spa/target/scala-2.12/spa-opt.js deploy
+  - cp -R ./spa/js deploy
+  - cp -R ./spa/scss deploy
+  - cp -R ./spa/img deploy
+  - cp -R ./spa/font deploy
+  - cp -R ./spa/css deploy
 before_deploy:
 deploy:
   provider: pages
