@@ -44,6 +44,7 @@ lazy val core = (project in file("core"))
 
 lazy val ui = (project in file("ui"))
   .settings(
+    commonSettings,
     libraryDependencies ++= Seq(
       "com.raquo" %%% "laminar" % "0.7"
     )

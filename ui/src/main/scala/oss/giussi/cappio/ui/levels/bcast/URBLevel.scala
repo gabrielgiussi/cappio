@@ -18,7 +18,7 @@ object URBLevel {
 
 }
 
-case class URBLevel(nProcesses: Int, timeout: Int) extends AbstractLevel[URBMod[String], String](URBLevel.scheduler(nProcesses,timeout)) {
+case class URBLevel(nProcesses: Int, timeout: Int) extends AbstractLevel[URBMod[String]](URBLevel.scheduler(nProcesses,timeout)) {
 
   override val reqTypes = List(
     URBLevel.urb,
@@ -27,5 +27,5 @@ case class URBLevel(nProcesses: Int, timeout: Int) extends AbstractLevel[URBMod[
 
   override def requestPayload(req: URBBcast[String]): String = req.payload.msg.toString
 
-  override def indicationPayload(ind: URBDeliver[String]): String = ind.payload.toString
+  override val indicationPayload = ind => ind.payload.toString
 }

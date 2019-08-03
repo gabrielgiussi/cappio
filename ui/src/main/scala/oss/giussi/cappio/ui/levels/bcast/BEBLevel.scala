@@ -21,7 +21,7 @@ object BEBLevel {
 
 }
 
-case class BEBLevel(nProcesses: Int, timeout: Int) extends AbstractLevel[BebMod[String], String](BEBLevel.scheduler(nProcesses,timeout)) {
+case class BEBLevel(nProcesses: Int, timeout: Int) extends AbstractLevel[BebMod[String]](BEBLevel.scheduler(nProcesses,timeout)) {
 
   override val reqTypes: List[Inputs[BebBcast[String]]] = List(
     BEBLevel.beb,
@@ -30,5 +30,5 @@ case class BEBLevel(nProcesses: Int, timeout: Int) extends AbstractLevel[BebMod[
 
   override def requestPayload(req: BebBcast[String]): String = req.payload.msg.toString
 
-  override def indicationPayload(ind: BebDeliver[String]): String = ind.payload.msg.toString
+  override val indicationPayload = ind => ind.payload.msg.toString
 }

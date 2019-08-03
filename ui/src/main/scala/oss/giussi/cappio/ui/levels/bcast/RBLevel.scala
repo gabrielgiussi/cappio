@@ -15,10 +15,10 @@ object RBLevel {
   }
 }
 
-case class RBLevel(nProcesses: Int, timeout: Int) extends AbstractLevel[RBMod[String], String](RBLevel.scheduler(nProcesses,timeout)) {
+case class RBLevel(nProcesses: Int, timeout: Int) extends AbstractLevel[RBMod[String]](RBLevel.scheduler(nProcesses,timeout)) {
   override def requestPayload(req: RBBcast[String]): String = req.payload.msg.toString
 
-  override def indicationPayload(ind: RBDeliver[String]): String = ind.payload.msg.toString
+  override val indicationPayload = ind => ind.payload.msg.toString
 
   override val reqTypes = List()
 }

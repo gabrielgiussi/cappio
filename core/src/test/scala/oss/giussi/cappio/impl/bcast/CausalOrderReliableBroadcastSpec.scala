@@ -18,8 +18,8 @@ class CausalOrderReliableBroadcastSpec extends CappIOSpec {
       val uuid = payload.id
       crb.request(CRBBroadcast(payload))
         .send
-        .filter(_.packet.payload == Inr(Inl(RBData(ProcessId(0),CRBData(Past.empty[String],"gaga")))))
-        .map { case FLLSend(Packet(`uuid`,_,`self`,to, _)) => to.id } should contain theSameElementsAs Set(0,1,2)
+        .filter(_.packet.payload == Inr(Inl(RBData(p0,CRBData(Past.empty[String],"gaga")))))
+        .map { case FLLSend(Packet(`uuid`,_,`self`,to, _)) => to } should contain theSameElementsAs Set(p0,p1,p2)
     }
     "c" in {
       val payload = Payload("gaga")

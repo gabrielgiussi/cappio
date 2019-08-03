@@ -27,8 +27,7 @@ object Diagram {
     )
   }
 
-  def renderAction($gridConf: Signal[GridConf])(id: String, initial: Action, $action: EventStream[Action]) = {
-    val signal = $action.toSignal(initial) // TODO no se si esta bien de acuerdo a https://github.com/raquo/Laminar/blob/master/docs/Documentation.md#performant-children-rendering--childrencommand
+  def renderAction($gridConf: Signal[GridConf])(id: String, initial: Action, signal: Signal[Action]) = {
     s.svg(
       child <-- signal.combineWith($gridConf).map {
         case (d: Delivered,gridConf) => Arrows.delivered(d,gridConf)
@@ -97,7 +96,7 @@ object Diagram {
           s.r := "30",
         )
       },
-      children <-- $actions.split(_.id)(renderAction($gridConf))
+      children <-- $actions.splitIntoSignals(_.id)(renderAction($gridConf))
     )
   }
 

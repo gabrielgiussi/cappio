@@ -44,7 +44,7 @@ object ActionSelection {
     def renderDeliverTo(obs: Observer[NetworkCommand])(to: ProcessId, initial: DeliverTo, $changes: Signal[DeliverTo]) = {
       def renderPacket(id: UUID, packet: PacketWithOp, $changes: Signal[PacketWithOp]) = li(
         p(
-          s"Deliver [${packet.p.packet.payload}] to ${packet.p.packet.to}   ",
+          s"Deliver ${packet.p.packet.from}--[${packet.p.packet.payload}]-->${packet.p.packet.to}   ",
           button(
             `type` := "button",
             cls := "btn btn-link p-0",
