@@ -1,0 +1,45 @@
+# https://www.scala-sbt.org/1.x/docs/Travis-CI-with-sbt.html
+sudo: false
+language: scala
+jdk: oraclejdk8
+branches:
+  only:
+    - shapeless-2
+install:
+  - npm install jsdom
+cache:
+  directories:
+    - $HOME/.ivy2/cache
+    - $HOME/.sbt
+
+before_cache:
+  # Cleanup the cached directories to avoid unnecessary cache updates
+  - find $HOME/.ivy2/cache -name "ivydata-*.properties" -print -delete
+  - find $HOME/.sbt        -name "*.lock"               -print -delete
+
+
+script:
+  - sbt ++$TRAVIS_SCALA_VERSION test
+  - sbt ++$TRAVIS_SCALA_VERSION fullOptJS
+
+after_success:
+  - mkdir deploy
+  - cp ./spa/index.html deploy
+  - cp ./spa/target/scala-2.12/ui-opt.js deploy
+  - cp ./spa/target/scala-2.12/ui-jsdeps.js deploy
+  - cp ./spa/js deploy
+  - cp ./spa/scss deploy
+  - cp ./spa/img deploy
+  - cp ./spa/font deploy
+  - cp ./spa/css deploy
+before_deploy:
+deploy:
+  provider: pages
+  skip-cleanup: true
+  github-token: $GITHUB_TOKEN
+  target-branch: gh-pages
+  local-dir: deploy
+  on:
+    branch: shapeless-2
+after_deploy:
+  - rm -rf deploy
