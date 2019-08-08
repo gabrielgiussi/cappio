@@ -6,7 +6,7 @@ import oss.giussi.cappio.ui.core.{Action, Crashed, Delivered, Dropped, Indicatio
 
 object Diagram {
 
-  def apply(processes: Processes, $actions: EventStream[List[Action]]) = {
+  def apply(processes: Processes, $actions: Signal[List[Action]]) = {
     val labelWidth = 20 // TODO must fit the greatest process id number or use autoscale
     val $bus = new EventBus[GridConfImpl]
     val gridConf = GridConfImpl(40, processes)
@@ -79,7 +79,7 @@ object Diagram {
 
 
 
-  def timelines(gridConf: GridConf, $gridConf: Signal[GridConf], x: Int, $actions: EventStream[List[Action]]) = {
+  def timelines(gridConf: GridConf, $gridConf: Signal[GridConf], x: Int, $actions: Signal[List[Action]]) = {
     s.svg(
       s.x := x.toString,
       s.y := "0",

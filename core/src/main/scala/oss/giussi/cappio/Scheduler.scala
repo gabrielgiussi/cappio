@@ -39,7 +39,9 @@ case class DeliverBatch[P](ops: Map[ProcessId, Either[FLLDeliver[P], Drop[P]]]) 
   def clear = DeliverBatch.empty
 }
 
-sealed trait Step[M <: Mod] // TODO delete? esta bien hacer traits con generics q no usa?
+sealed trait Step[M <: Mod] {
+  val scheduler: TickScheduler[M]
+}
 
 case class RequestResult[M <: Mod](sent: Set[FLLSend[M#Payload]], ind: Set[IndicationFrom[M#Ind]], waiting: WaitingDeliver[M]) {
   def deliver = waiting.deliver

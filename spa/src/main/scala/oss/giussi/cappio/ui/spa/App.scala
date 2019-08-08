@@ -4,7 +4,7 @@ import com.raquo.laminar.api.L._
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.scalajs.dom
 import org.scalajs.dom.{document, html}
-import oss.giussi.cappio.ui.levels.{Documentation, IndexedLevel, Level, Levels}
+import oss.giussi.cappio.ui.levels.{Documentation, IndexedLevel, Level, LevelId, Levels}
 
 import scala.util.Try
 
@@ -29,7 +29,7 @@ object App {
       val levelSelection: EventStream[IndexedLevel] = hashes.map(x =>
         for {
           index <- Try(x.toInt).toOption
-          level <- Levels.INDEXED_LEVELS.get(index)
+          level <- Levels.INDEXED_LEVELS.get(LevelId(index))
         } yield level
       ).filter(_.isDefined).map(_.get)
 
