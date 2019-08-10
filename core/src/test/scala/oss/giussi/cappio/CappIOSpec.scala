@@ -104,7 +104,6 @@ trait CappIOSpec extends WordSpec with Matchers {
 
 trait SchedulerSupport[M <: Mod] {
 
-
   sealed trait Input // TODO rename
 
   case class Req(p: ProcessId, r: M#Req) extends Input
@@ -125,34 +124,35 @@ trait SchedulerSupport[M <: Mod] {
 
   def tick: Input = JustTick
 
-  def schedule(scheduler: TickScheduler[M], ops: List[Input]): List[IndicationFrom[M#Ind]] = {
+  def schedule(scheduler: Scheduler[M], ops: List[Input]): List[IndicationFrom[M#Ind]] = {
     @tailrec
-    def sch(scheduler: TickScheduler[M], ops: List[Input], indications: List[IndicationFrom[M#Ind]]): List[IndicationFrom[M#Ind]] = {
+    def sch(scheduler: Scheduler[M], ops: List[Input], indications: List[IndicationFrom[M#Ind]]): List[IndicationFrom[M#Ind]] = {
       def findPacket(id: PacketId[M#Payload]) = {
-        scheduler.scheduler.network.inTransit.find(p => p.packet.from == id.from && p.packet.to == id.to && p.packet.payload == id.payload) match {
+        scheduler.network.inTransit.find(p => p.packet.from == id.from && p.packet.to == id.to && p.packet.payload == id.payload) match {
           case None => throw new RuntimeException(s"Packet from ${id.from} to ${id.to} with payload ${id.payload} is not in transit")
           case Some(e) => e
         }
       }
 
+      import Scheduler._
       ops match {
         case Nil => indications
         case Req(p, r) :: tail =>
-          val NextStateTickScheduler(_, ind, nsch) = scheduler.request(Seq(ProcessRequest(p, r)))
+          val NextStateScheduler(_, ind, nsch) = requestAndTick(scheduler)(Seq(ProcessRequest(p, r)))
           sch(nsch, tail, indications ++ ind) // TODO duplicated code
         case Del(id) :: tail =>
           val inTransit = findPacket(id)
-          val NextStateTickScheduler(_, ind, nsch) = scheduler.deliver(DeliverBatch(Left(inTransit.deliver)))
+          val NextStateScheduler(_, ind, nsch) = deliverAndTick(scheduler)(DeliverBatch(Left(inTransit.deliver)))
           sch(nsch, tail, indications ++ ind)
         case Drop(id) :: tail =>
           val inTransit = findPacket(id)
-          val NextStateTickScheduler(_, ind, nsch) = scheduler.deliver(DeliverBatch(Right(inTransit.drop)))
+          val NextStateScheduler(_, ind, nsch) = deliverAndTick(scheduler)(DeliverBatch(Right(inTransit.drop)))
           sch(nsch, tail, indications ++ ind)
         case JustTick :: tail =>
-          val NextStateTickScheduler(_, ind, nsch) = scheduler.request(Seq.empty)
+          val NextStateScheduler(_, ind, nsch) = requestAndTick(scheduler)(Seq.empty)
           sch(nsch, tail, indications ++ ind)
         case CrashTest(id) :: tail =>
-          val NextStateTickScheduler(_, ind, nsch) = scheduler.request(Seq(Crash(id)))
+          val NextStateScheduler(_, ind, nsch) = requestAndTick(scheduler)(Seq(Crash(id)))
           sch(nsch, tail, indications ++ ind)
       }
     }

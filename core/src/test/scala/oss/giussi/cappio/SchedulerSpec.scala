@@ -55,7 +55,7 @@ class SchedulerSpec extends CappIOSpec {
     "alternate requests and delivers" in {
       val processes = Process(ALL_SET,StubbornLink.init[String](3))
       val packet = Packet(p0,p1,"pal",Instance("o"))
-      WaitingRequest(TickScheduler(Scheduler.init(processes)))
+      WaitingRequest(Scheduler.init(processes))
         .request(Seq(p0 --> SLSend(packet)))
         .deliver(DeliverBatch(Map(p1 -> Left(FLLDeliver(packet)))))
         .ind should contain theSameElementsAs Set(IndicationFrom(p1,packet.slDeliver))
@@ -79,7 +79,7 @@ class SchedulerSpec extends CappIOSpec {
       }
 
       val processes = Process(ALL_SET,TestModule(0))
-      WaitingRequest(TickScheduler(Scheduler.init(processes)))
+      WaitingRequest(Scheduler.init(processes))
         .request(Seq.empty)
         .deliver(DeliverBatch.empty)
         .request(Seq.empty)

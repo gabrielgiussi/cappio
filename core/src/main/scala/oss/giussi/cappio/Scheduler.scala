@@ -8,6 +8,16 @@ object Scheduler {
   def init[M <: Mod](processes: Set[Process[M]]): Scheduler[M] = Scheduler(processes.map(p => p.id -> p).toMap, Network.init[M#Payload], 0)
 
   def init[M <: Mod](processes: Set[ProcessId], f: ProcessId => Module[M]): Scheduler[M] = Scheduler(processes.map(pId => pId -> Process(pId, f(pId))).toMap, Network.init[M#Payload], 0)
+
+  def requestAndTick[M <: Mod](scheduler: Scheduler[M]) = scheduler.request _ andThen { case NextStateScheduler(sent0, ind0, sch0) =>
+    val NextStateScheduler(sent1, ind1, sch1) = sch0.tick
+    NextStateScheduler(sent0 ++ sent1, ind0 ++ ind1, sch1)
+  }
+
+  def deliverAndTick[M <: Mod](scheduler: Scheduler[M]) = scheduler.deliver _ andThen { case NextStateScheduler(sent0, ind0, sch0) =>
+    val NextStateScheduler(sent1, ind1, sch1) = sch0.tick
+    NextStateScheduler(sent0 ++ sent1, ind0 ++ ind1, sch1)
+  }
 }
 
 sealed trait ProcessInput[+R]
@@ -40,7 +50,7 @@ case class DeliverBatch[P](ops: Map[ProcessId, Either[FLLDeliver[P], Drop[P]]]) 
 }
 
 sealed trait Step[M <: Mod] {
-  val scheduler: TickScheduler[M]
+  val scheduler: Scheduler[M]
 }
 
 case class RequestResult[M <: Mod](sent: Set[FLLSend[M#Payload]], ind: Set[IndicationFrom[M#Ind]], waiting: WaitingDeliver[M]) {
@@ -51,14 +61,14 @@ case class DeliverResult[M <: Mod](sent: Set[FLLSend[M#Payload]], ind: Set[Indic
   def request = waiting.request
 }
 
-case class WaitingRequest[M <: Mod](scheduler: TickScheduler[M]) extends Step[M] {
-  def request = scheduler.request andThen { case NextStateTickScheduler(sent, ind, sch) =>
+case class WaitingRequest[M <: Mod](scheduler: Scheduler[M]) extends Step[M] {
+  def request = Scheduler.requestAndTick(scheduler) andThen { case NextStateScheduler(sent, ind, sch) =>
     RequestResult(sent, ind, WaitingDeliver(sch))
   }
 }
 
-case class WaitingDeliver[M <: Mod](scheduler: TickScheduler[M]) extends Step[M] {
-  def deliver = scheduler.deliver andThen { case NextStateTickScheduler(sent, ind, sch) =>
+case class WaitingDeliver[M <: Mod](scheduler: Scheduler[M]) extends Step[M] {
+  def deliver = Scheduler.deliverAndTick(scheduler) andThen { case NextStateScheduler(sent, ind, sch) =>
     DeliverResult(sent, ind, WaitingRequest(sch))
   }
 }
@@ -66,8 +76,9 @@ case class WaitingDeliver[M <: Mod](scheduler: TickScheduler[M]) extends Step[M]
 // FIXME estas dos clases son un asco
 case class NextStateScheduler[M <: Mod](sent: Set[FLLSend[M#Payload]], indications: Set[IndicationFrom[M#Ind]], scheduler: Scheduler[M])
 
-case class NextStateTickScheduler[M <: Mod](sent: Set[FLLSend[M#Payload]], indications: Set[IndicationFrom[M#Ind]], scheduler: TickScheduler[M])
+//case class NextStateTickScheduler[M <: Mod](sent: Set[FLLSend[M#Payload]], indications: Set[IndicationFrom[M#Ind]], scheduler: TickScheduler[M])
 
+/*
 case class TickScheduler[M <: Mod](scheduler: Scheduler[M]) {
 
   def request = scheduler.request _ andThen { case NextStateScheduler(sent0, ind0, sch0) =>
@@ -81,6 +92,8 @@ case class TickScheduler[M <: Mod](scheduler: Scheduler[M]) {
   }
 
 }
+
+ */
 
 case class IndicationFrom[I](p: ProcessId, i: I)
 

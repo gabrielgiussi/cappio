@@ -227,7 +227,7 @@ abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Lis
 
   val $snapshots: Signal[Snapshot[M]] = {
     val ns = Snapshot.next[M](indicationPayload, requestPayload) _
-    $next.events.fold(Snapshot(Index(0), List.empty, WaitingRequest(TickScheduler(scheduler)), None))(ns)
+    $next.events.fold(Snapshot(Index(0), List.empty, WaitingRequest(scheduler), None))(ns)
   }
 
   val $steps: Signal[Step[M]] = $snapshots.map(_.step)
@@ -240,8 +240,8 @@ abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Lis
     div(
       div(
         child <-- $steps.map {
-          case WaitingRequest(sch) => ActionSelection.reqBatchInput(reqTypes, sch.scheduler.availableProcesses.toList, $next.writer.contramap[RequestBatch[M#Req]](r => NextReq(r)))
-          case WaitingDeliver(sch) => ActionSelection.networkInput(sch.scheduler.availablePackets, $next.writer.contramap[DelBatch](r => NextDeliver(r)))
+          case WaitingRequest(sch) => ActionSelection.reqBatchInput(reqTypes, sch.availableProcesses.toList, $next.writer.contramap[RequestBatch[M#Req]](r => NextReq(r)))
+          case WaitingDeliver(sch) => ActionSelection.networkInput(sch.availablePackets, $next.writer.contramap[DelBatch](r => NextDeliver(r)))
         }
       ),
       div(
@@ -273,7 +273,7 @@ abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Lis
     // children <-- $states.split(_.id)(renderState) TODO
   )
 
-  override val $conditions = $snapshots.map(snap => conditions.map(_.apply(snap.step.scheduler.scheduler)))
+  override val $conditions = $snapshots.map(snap => conditions.map(_.apply(snap.step.scheduler)))
 
   override def status: EventStream[LevelPassed.type] = $conditions.changes.filter(_.find(!_.ok).isEmpty).map(_ => LevelPassed)
 
