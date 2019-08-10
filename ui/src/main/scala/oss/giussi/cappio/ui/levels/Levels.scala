@@ -21,7 +21,7 @@ object Levels {
     //URBLevel(4, 3)
   )
 
-  val INDEXED_LEVELS: Map[LevelId, IndexedLevel] = RAW_LEVELS.zipWithIndex.map { case (level,index) => LevelId(index) -> IndexedLevel(index,level) }.toMap
+  val INDEXED_LEVELS: Map[LevelId, IndexedLevel] = RAW_LEVELS.zipWithIndex.map { case (level, index) => LevelId(index) -> IndexedLevel(index, level) }.toMap
 
   val LEVELS = INDEXED_LEVELS.values.toList
 
@@ -30,9 +30,10 @@ object Levels {
 
     pendingLevels.signal.foreach(println)(unsafeWindowOwner)
 
-    INDEXED_LEVELS.map { case (id,level) => level.s.status.addObserver(Observer {
+    INDEXED_LEVELS.map { case (id, level) => level.s.status.addObserver(Observer {
       _ => pendingLevels.update(_ - id)
-    })(unsafeWindowOwner) }
+    })(unsafeWindowOwner)
+    }
 
     pendingLevels.signal.map(_.isEmpty)
   }
@@ -62,7 +63,9 @@ case class Documentation(doc: String) extends Selection {
     )
   )
 
-  override def status: EventStream[LevelPassed.type] = EventStream.fromValue(LevelPassed,true).map(x => { println("paso"); x })
+  override def status: EventStream[LevelPassed.type] = EventStream.fromValue(LevelPassed, true).map(x => {
+    println("paso"); x
+  })
 }
 
 case class ConditionLevel(id: Int, result: ConditionResult) {
@@ -85,13 +88,12 @@ trait Level extends Selection {
 
   def conditions: Div = {
     def renderCondition(id: Int, initial: ConditionLevel, $changes: Signal[ConditionLevel]) = li(cls := "list-group-item",
-      label(
-        child <-- $changes.map(_.result.result match {
-          case Successful => s"${initial.result.description} ok"
-          case Error(msg) => s"${initial.result.description} $msg"
-        })
-      )
+      child <-- $changes.map(_.result.result match {
+        case Successful => label(s"${initial.result.short}", span(cls := "badge badge-pill badge-success", i(cls := "fas fa-check")))
+        case Error(msg) => label(s"$msg", span(cls := "badge badge-pill badge-danger", i(cls := "fas fa-exclamation")))
+      })
     )
+
     div(cls := "card mb-4",
       div(cls := "card-body",
         ul(cls := "list-group",
@@ -159,7 +161,7 @@ object Snapshot {
 
   def sendToUndelivered[P](index: Index)(send: FLLSend[P]): Undelivered = Undelivered(send.packet.from, send.packet.to, send.packet.id, send.packet.payload.toString, index)
 
-  def next[M <: ModT](indicationPayload: M#Ind => String, reqPayload: M#Req => String)(snapshot: Snapshot[M], op: Op[M]): Snapshot[M] = (snapshot,op) match {
+  def next[M <: ModT](indicationPayload: M#Ind => String, reqPayload: M#Req => String)(snapshot: Snapshot[M], op: Op[M]): Snapshot[M] = (snapshot, op) match {
     case (c@Snapshot(current, actions, wr@WaitingRequest(_), _), NextReq(req)) =>
       val RequestResult(sent, ind, wd) = wr.request(req.requests.values.toSeq)
       val sends = sent.map(sendToUndelivered(current))
@@ -176,7 +178,7 @@ object Snapshot {
         case _ => None
       }
       val drops = del.ops.values.flatMap {
-        case Right(Drop(Packet(id, payload, from, to, instance))) => Some(Dropped(from,to,id,payload.toString,actions.collectFirst{
+        case Right(Drop(Packet(id, payload, from, to, instance))) => Some(Dropped(from, to, id, payload.toString, actions.collectFirst {
           case Undelivered(`from`, `to`, `id`, _, s) => s
         }.get, current))
         case _ => None
@@ -278,7 +280,7 @@ abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Lis
   )
 
   override val $conditions = {
-    val c = conditions.zipWithIndex.map { case (condition,index) => condition.andThen(ConditionLevel(index,_:ConditionResult))}
+    val c = conditions.zipWithIndex.map { case (condition, index) => condition.andThen(ConditionLevel(index, _: ConditionResult)) }
     $snapshots.map(snap => c.map(_.apply(snap.step.scheduler)))
   }
 

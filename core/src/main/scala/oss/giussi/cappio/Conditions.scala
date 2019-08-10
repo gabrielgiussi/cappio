@@ -14,19 +14,18 @@ object Conditions {
 
   type Condition[I] = I => ConditionResult
 
-  def condition[I](description: String, validation: Validation[I]): Condition[I] = new Function1[I, ConditionResult] {
+  def condition[I](short:String, description: String, validation: Validation[I]): Condition[I] = new Function1[I, ConditionResult] {
     override def apply(v1: I): ConditionResult = validation(v1) match {
-      case None => ConditionResult(description, Successful)
-      case Some(msg) => ConditionResult(description, Error(msg))
+      case None => ConditionResult(short, description, Successful)
+      case Some(msg) => ConditionResult(short, description, Error(msg))
     }
   }
 
   object Validations {
     def ALL_UP[M <: Mod]: Validation[Set[Process[M]]] = processes => {
-      //val down = processes.filter(_.status == Down)  // TODO
-      val down = processes.filter(_.status == Up)
+      val down = processes.filter(_.status == Down).map(_.id)
       if (down.isEmpty) NO_ERROR
-      else Some(s"Processes ${down.mkString(",")} has crashed")
+      else Some(s"Processes [${down.mkString(",")}] has crashed")
     }
   }
 
@@ -34,9 +33,8 @@ object Conditions {
 
   def network[M <: Mod](v: NetworkValidation[M#Payload])(scheduler: Scheduler[M]) = v(scheduler.network)
 
-  // FIXME sacar el id de aca, de eso deberia encargarse el q las usa
   // FIXME porque necesito pasarle el Mod si no me interesa para la validacion, solo necesito el estado de los procesos
-  def ALL_UP[M <: Mod] = condition( "All processes should be Up", Validations.ALL_UP[M])
+  def ALL_UP[M <: Mod] = condition("All Up", "All processes should be Up", Validations.ALL_UP[M])
 }
 
 sealed trait Result
@@ -45,6 +43,6 @@ case object Successful extends Result
 
 case class Error(msg: String) extends Result
 
-case class ConditionResult(description: String, result: Result) {
+case class ConditionResult(short: String, description: String, result: Result) {
   def ok = result == Successful
 }
