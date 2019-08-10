@@ -13,7 +13,7 @@ object CMIElement {
 
     val LESSON_LOCATION = s"$core.lesson_location"
 
-    val LESSON_STATUS = s"s$core.lesson_status"
+    val LESSON_STATUS = s"$core.lesson_status"
   }
 
 }

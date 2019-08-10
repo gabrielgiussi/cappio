@@ -18,9 +18,11 @@ before_cache:
   - find $HOME/.sbt        -name "*.lock"               -print -delete
 
 
+# TODO use sbt in interactive mode
 script:
   - sbt ++$TRAVIS_SCALA_VERSION test
   - sbt ++$TRAVIS_SCALA_VERSION fullOptJS
+  - sbt ++$TRAVIS_SCALA_VERSION universal:packageBin
 
 after_success:
   - mkdir deploy
@@ -31,6 +33,7 @@ after_success:
   - cp -R ./spa/img deploy
   - cp -R ./spa/font deploy
   - cp -R ./spa/css deploy
+  - cp ./oa/target/universal/cappio-scorm-12.zip deploy
 before_deploy:
 deploy:
   provider: pages

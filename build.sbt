@@ -20,6 +20,7 @@ lazy val oa = (project in file("oa"))
     scalaJSUseMainModuleInitializer := true,
     maintainer := "gabrielgiussi@gmail.com",
     topLevelDirectory := None,
+    packageName in Universal  := "cappio-scorm-12",
     mappings.in(Universal) ++= webpack.in(Compile, fullOptJS).value.map { f =>
       f.data -> s"assets/${f.data.getName()}"
     }

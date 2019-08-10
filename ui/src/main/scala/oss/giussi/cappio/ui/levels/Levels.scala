@@ -1,6 +1,5 @@
 package oss.giussi.cappio.ui.levels
 
-import com.raquo.laminar.api.L
 import com.raquo.laminar.api.L._
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.scalajs.dom.raw.HTMLElement
@@ -9,7 +8,7 @@ import oss.giussi.cappio.Conditions.Condition
 import oss.giussi.cappio.impl.net.FairLossLink.FLLSend
 import oss.giussi.cappio.ui.ActionSelection.Inputs
 import oss.giussi.cappio.ui.core._
-import oss.giussi.cappio.ui.levels.bcast.{BEBLevel, URBLevel}
+import oss.giussi.cappio.ui.levels.bcast.BEBLevel
 import oss.giussi.cappio.ui.{ActionSelection, Diagram}
 import oss.giussi.cappio.{Mod => ModT, _}
 
@@ -25,20 +24,18 @@ object Levels {
 
   val LEVELS = INDEXED_LEVELS.values.toList
 
-  val $approved = {
-    val pendingLevels: Var[Set[LevelId]] = Var(INDEXED_LEVELS.keySet)
-
-    pendingLevels.signal.foreach(println)(unsafeWindowOwner)
+  val $pendingLevels: StrictSignal[Map[LevelId,LevelResult]] = {
+    val pendingLevels: Var[Map[LevelId,LevelResult]] = Var(INDEXED_LEVELS.mapValues(_ => Pending)) // TODO cuidado con el mapValues q esta medio roto
 
     INDEXED_LEVELS.map { case (id, level) => level.s.status.addObserver(Observer {
-      _ => pendingLevels.update(_ - id)
+      _ => pendingLevels.update(_.updated(id,LevelPassed))
     })(unsafeWindowOwner)
     }
 
-    pendingLevels.signal.map(_.isEmpty)
+    pendingLevels.signal
   }
 
-  $approved.foreach(x => if (x) println("Passed all") else println("pending"))(unsafeWindowOwner)
+  val $approved = $pendingLevels.signal.map(_.forall(_._2 == LevelPassed))
 }
 
 

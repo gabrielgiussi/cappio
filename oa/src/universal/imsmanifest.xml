@@ -17,21 +17,29 @@
     <organizations default="giussi_unlp">
         <organization identifier="giussi_unlp">
             <title>CappIO - Learning Distributed Systems</title>
-            <item identifier="item_1" identifierref="resource_1">
-                <title>Introduction</title>
+
+            <item identifier="broadcast">
+                <item identifier="item_1" identifierref="resource_1"> <!-- parameters="?level=1"> -->
+                    <adlcp:datafromlms>1</adlcp:datafromlms>
+                    <title>Introduction</title>
+                </item>
+                <item identifier="item_2" identifierref="resource_1">
+                    <adlcp:datafromlms>2</adlcp:datafromlms>
+                    <title>Broadcast</title>
+                </item>
             </item>
-            <!--
-            <item identifier="item_2" identifierref="resource_2">
-                <adlcp:masteryscore></adlcp:masteryscore>
-                <title>Broadcast</title>
-            </item>
-            -->
+
         </organization>
     </organizations>
     <resources>
         <resource identifier="resource_1" type="webcontent" adlcp:scormtype="sco" href="shared/index.html">
+            <dependency identifierref="common_files" />
+        </resource>
+
+        <resource identifier="common_files" type="webcontent" adlcp:scormtype="asset">
             <file href="shared/index.html"/>
             <file href="assets/oa-opt-bundle.js"/>
+            <!-- TODO css, js, imgs, etc -->
         </resource>
     </resources>
 </manifest>
