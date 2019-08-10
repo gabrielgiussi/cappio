@@ -3,28 +3,32 @@ package oss.giussi.cappio.ui
 import oss.giussi.cappio.Processes
 import com.raquo.laminar.api.L.{svg => s, _}
 import oss.giussi.cappio.ui.core.{Action, Crashed, Delivered, Dropped, Indication, PendingRead, PendingWrite, ReadReturned, Request, Undelivered, WriteReturned}
+import oss.giussi.cappio.ui.levels.LastSnapshot
 
 object Diagram {
 
-  def apply(processes: Processes, $actions: Signal[List[Action]]) = {
+  def apply(processes: Processes, $actions: Signal[LastSnapshot]) = {
     val labelWidth = 20 // TODO must fit the greatest process id number or use autoscale
     val $bus = new EventBus[GridConfImpl]
     val gridConf = GridConfImpl(40, processes)
     val $gridConf = $bus.events.toSignal(gridConf)
     val height = (processes.ids.size * gridConf.roundHeight) + gridConf.roundHeight // padding
     val width = "10000" // TODO scrolled
-    div(
+    val diag = div(
+      id := "svg-diagram",
       styleAttr := "overflow: scroll; overflow-y: hidden;",
       s.svg(
         s.height := height.toString,
         s.width := width,
         child <-- $gridConf.map(c => Markers.defs(c.arrowHeadSize, c.crossSize)),
         labels(gridConf, labelWidth, height),
-        timelines(gridConf, $gridConf, labelWidth + 1, $actions),
+        timelines(gridConf, $gridConf, labelWidth + 1, $actions.map(_.actions)),
         grid(gridConf,labelWidth + 1, height)
       )
       //,input(`type` := "number", inContext(thisNode => onChange.mapTo(thisNode.ref.value).map(w => gridConf.copy(roundWidth = w.toInt)) --> $bus)) TODO
     )
+    $actions.combineWith($gridConf).foreach { case (LastSnapshot(index,_),gconf) => diag.ref.scrollLeft = gconf.x(index.copy(index.i - 10)) }(diag)
+    diag
   }
 
   def renderAction($gridConf: Signal[GridConf])(id: String, initial: Action, signal: Signal[Action]) = {

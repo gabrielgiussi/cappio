@@ -63,20 +63,20 @@ case class Documentation(doc: String) extends Selection {
     )
   )
 
-  override def status: EventStream[LevelPassed.type] = EventStream.fromValue(LevelPassed, true).map(x => {
-    println("paso"); x
-  })
+  override def status: EventStream[LevelPassed.type] = EventStream.fromValue(LevelPassed, true)
 }
 
 case class ConditionLevel(id: Int, result: ConditionResult) {
   def ok = result.ok
 }
 
+case class LastSnapshot(current: Index, actions: List[Action])
+
 trait Level extends Selection {
 
   val processes: Processes
 
-  val $actions: Signal[List[Action]]
+  val $actions: Signal[LastSnapshot]
 
   def diagram: Div = Diagram(processes, $actions)
 
@@ -202,7 +202,9 @@ object Snapshot {
 
 }
 
-case class Snapshot[M <: ModT](index: Index, actions: List[Action], step: Step[M], prev: Option[Snapshot[M]])
+case class Snapshot[M <: ModT](index: Index, actions: List[Action], step: Step[M], prev: Option[Snapshot[M]]) {
+  def last = LastSnapshot(index,actions)
+}
 
 case class LevelId(x: Int)
 
@@ -238,7 +240,7 @@ abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Lis
 
   val $steps: Signal[Step[M]] = $snapshots.map(_.step)
 
-  override val $actions = $snapshots.map(_.actions)
+  override val $actions = $snapshots.map(_.last)
 
   val reqTypes: List[Inputs[Req]]
 
@@ -276,7 +278,8 @@ abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Lis
 
   override def states: Div = div(
     cls := "row wow fadeIn",
-    // children <-- $states.split(_.id)(renderState) TODO
+    // https://stackoverflow.com/a/10635041
+    //children <-- $states.split(_.id)(renderState) TODO
   )
 
   override val $conditions = {
