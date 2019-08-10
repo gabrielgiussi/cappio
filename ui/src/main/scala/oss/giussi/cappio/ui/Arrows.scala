@@ -141,8 +141,20 @@ object Arrows {
   def delivered(action: Delivered, gridConf: GridConf) = {
     val p1 = gridConf.point(action.sent, action.from)
     val p2 = gridConf.point(action.received, action.to)
-    arrow(p1, p2)
+    def selfDelivered = {
+      svg.path(
+        svg.d := s"M${p1.x},${p1.y} Q${(p2.x + p1.x) / 2} ${p1.y - gridConf.roundHeight} ${p2.x},${p2.y}",
+        svg.fill := "transparent",
+        svg.markerEnd := "url(#arrowhead)",
+        svg.stroke := "black",
+        svg.strokeWidth := "2"
+      )
+    }
+    if (action.from == action.to) selfDelivered
+    else arrow(p1, p2)
   }
+
+
 
   def circle(p: Point, size: Double) = {
     svg.circle(
