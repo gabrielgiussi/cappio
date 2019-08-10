@@ -22,8 +22,8 @@ object Diagram {
         labels(gridConf, labelWidth, height),
         timelines(gridConf, $gridConf, labelWidth + 1, $actions),
         grid(gridConf,labelWidth + 1, height)
-      ),
-      input(`type` := "number", inContext(thisNode => onChange.mapTo(thisNode.ref.value).map(w => gridConf.copy(roundWidth = w.toInt)) --> $bus))
+      )
+      //,input(`type` := "number", inContext(thisNode => onChange.mapTo(thisNode.ref.value).map(w => gridConf.copy(roundWidth = w.toInt)) --> $bus)) TODO
     )
   }
 

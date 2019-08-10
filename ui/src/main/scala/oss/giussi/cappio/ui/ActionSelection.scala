@@ -99,6 +99,8 @@ object ActionSelection {
       def clear = copy(delivers.map { case (id,v) => id -> v.clear })
 
       def values = delivers.values
+
+      def isEmpty = delivers.isEmpty
     }
 
     sealed trait NetworkCommand
@@ -147,6 +149,7 @@ object ActionSelection {
     }
 
     div(
+      child <-- batch.signal.map(b => if (b.isEmpty) label("Network is empty") else label("")),
       children <-- batch.signal.map(_.values.toList).split(_.processId)(renderDeliverTo(commandObs)),
       button(`type` := "reset", cls := "btn btn-primary", "Next",
         onClick.mapTo(batch.now()).map(b => DeliverBatch(b.ops : _*)) --> $out

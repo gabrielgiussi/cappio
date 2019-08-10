@@ -65,6 +65,10 @@ case class Documentation(doc: String) extends Selection {
   override def status: EventStream[LevelPassed.type] = EventStream.fromValue(LevelPassed,true).map(x => { println("paso"); x })
 }
 
+case class ConditionLevel(id: Int, result: ConditionResult) {
+  def ok = result.ok
+}
+
 trait Level extends Selection {
 
   val processes: Processes
@@ -77,14 +81,14 @@ trait Level extends Selection {
 
   def states: Div
 
-  val $conditions: Signal[List[ConditionResult]]
+  val $conditions: Signal[List[ConditionLevel]]
 
   def conditions: Div = {
-    def renderCondition(id: Int, initial: ConditionResult, $changes: Signal[ConditionResult]) = li(cls := "list-group-item",
+    def renderCondition(id: Int, initial: ConditionLevel, $changes: Signal[ConditionLevel]) = li(cls := "list-group-item",
       label(
-        child <-- $changes.map(_.result match {
-          case Successful => s"${initial.description} ok"
-          case Error(msg) => s"${initial.description} $msg"
+        child <-- $changes.map(_.result.result match {
+          case Successful => s"${initial.result.description} ok"
+          case Error(msg) => s"${initial.result.description} $msg"
         })
       )
     )
@@ -232,7 +236,7 @@ abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Lis
 
   val $steps: Signal[Step[M]] = $snapshots.map(_.step)
 
-  override val $actions = $snapshots.map(_.actions) //.changes // TODO puedo devolver una signal directamente total al principio no va a tener actions
+  override val $actions = $snapshots.map(_.actions)
 
   val reqTypes: List[Inputs[Req]]
 
@@ -273,7 +277,10 @@ abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Lis
     // children <-- $states.split(_.id)(renderState) TODO
   )
 
-  override val $conditions = $snapshots.map(snap => conditions.map(_.apply(snap.step.scheduler)))
+  override val $conditions = {
+    val c = conditions.zipWithIndex.map { case (condition,index) => condition.andThen(ConditionLevel(index,_:ConditionResult))}
+    $snapshots.map(snap => c.map(_.apply(snap.step.scheduler)))
+  }
 
   override def status: EventStream[LevelPassed.type] = $conditions.changes.filter(_.find(!_.ok).isEmpty).map(_ => LevelPassed)
 

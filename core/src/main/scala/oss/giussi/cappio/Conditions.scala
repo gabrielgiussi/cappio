@@ -14,10 +14,10 @@ object Conditions {
 
   type Condition[I] = I => ConditionResult
 
-  def condition[I](id: Int, description: String, validation: Validation[I]): Condition[I] = new Function1[I, ConditionResult] {
+  def condition[I](description: String, validation: Validation[I]): Condition[I] = new Function1[I, ConditionResult] {
     override def apply(v1: I): ConditionResult = validation(v1) match {
-      case None => ConditionResult(id, description, Successful)
-      case Some(msg) => ConditionResult(id, description, Error(msg))
+      case None => ConditionResult(description, Successful)
+      case Some(msg) => ConditionResult(description, Error(msg))
     }
   }
 
@@ -36,7 +36,7 @@ object Conditions {
 
   // FIXME sacar el id de aca, de eso deberia encargarse el q las usa
   // FIXME porque necesito pasarle el Mod si no me interesa para la validacion, solo necesito el estado de los procesos
-  def ALL_UP[M <: Mod] = condition(1, "All processes should be Up", Validations.ALL_UP[M])
+  def ALL_UP[M <: Mod] = condition( "All processes should be Up", Validations.ALL_UP[M])
 }
 
 sealed trait Result
@@ -45,6 +45,6 @@ case object Successful extends Result
 
 case class Error(msg: String) extends Result
 
-case class ConditionResult(id: Int, description: String, result: Result) {
+case class ConditionResult(description: String, result: Result) {
   def ok = result == Successful
 }

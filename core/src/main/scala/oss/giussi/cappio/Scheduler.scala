@@ -73,27 +73,7 @@ case class WaitingDeliver[M <: Mod](scheduler: Scheduler[M]) extends Step[M] {
   }
 }
 
-// FIXME estas dos clases son un asco
 case class NextStateScheduler[M <: Mod](sent: Set[FLLSend[M#Payload]], indications: Set[IndicationFrom[M#Ind]], scheduler: Scheduler[M])
-
-//case class NextStateTickScheduler[M <: Mod](sent: Set[FLLSend[M#Payload]], indications: Set[IndicationFrom[M#Ind]], scheduler: TickScheduler[M])
-
-/*
-case class TickScheduler[M <: Mod](scheduler: Scheduler[M]) {
-
-  def request = scheduler.request _ andThen { case NextStateScheduler(sent0, ind0, sch0) =>
-    val NextStateScheduler(sent1, ind1, sch1) = sch0.tick
-    NextStateTickScheduler(sent0 ++ sent1, ind0 ++ ind1, copy(sch1))
-  }
-
-  def deliver = scheduler.deliver _ andThen { case NextStateScheduler(sent0, ind0, sch0) =>
-    val NextStateScheduler(sent1, ind1, sch1) = sch0.tick
-    NextStateTickScheduler(sent0 ++ sent1, ind0 ++ ind1, copy(sch1))
-  }
-
-}
-
- */
 
 case class IndicationFrom[I](p: ProcessId, i: I)
 
