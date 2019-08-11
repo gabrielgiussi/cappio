@@ -125,7 +125,7 @@ object ActionSelection {
         case (i, p) => i -> p.copy(op = NoOp)
       })
 
-      def drop = update(DropOp) _
+      def drop = update(DropOp)  _
 
       def deliver = update(DeliverOp) _
 
@@ -241,7 +241,7 @@ object ActionSelection {
 
   case object Click
 
-  def plus(enabled: Signal[Boolean], obs: Observer[Click.type]) = button(`type` := "button", cls := "close",
+  def plus(enabled: Signal[Boolean], obs: Observer[Click.type]) = button(`type` := "button", cls := "btn btn-link p-1",
     span(
       cls := "fas fa-plus",
       cls <-- enabled.map(e => if (e) "green-text" else "")
@@ -252,13 +252,14 @@ object ActionSelection {
 
   def plusDiv = (plus _).tupled.andThen(x => div(cls := "col-sm mb-2", x))
 
-  def crash[R] = noPayloadRequest[R](_ => CrashP) _
+  def crash[R] = noPayloadRequest[R]("Crash")(_ => CrashP) _
 
-  def noPayloadRequest[R](f: ProcessId => AddReqInput[R])(processes: List[ProcessId], obs: Observer[AddCommand[R]]): ReactiveHtmlElement[html.Div] = {
+  def noPayloadRequest[R](description: String)(f: ProcessId => AddReqInput[R])(processes: List[ProcessId], obs: Observer[AddCommand[R]]): ReactiveHtmlElement[html.Div] = {
     val process: Var[Option[ProcessId]] = Var(None)
     val click = new EventBus[Click.type]
     val d = div(cls := "form-row",
-      selectDiv((processes, process.writer, Seq(id := "processId"))),
+      div(cls := "col-sm mb-2", description),
+      selectDiv((processes, process.writer, Seq.empty)),
       plusDiv(process.signal.map(_.isDefined), click.writer)
     )
     click.events.mapTo(process.now().map(id => AddReq(id, f(id))))
@@ -266,25 +267,25 @@ object ActionSelection {
     d
   }
 
-  def payloadRequest[R](f: (ProcessId, String) => R)(processes: List[ProcessId], obs: Observer[AddCommand[R]]): ReactiveHtmlElement[html.Div] = {
+  def payloadRequest[R](description: String)(f: (ProcessId, String) => R)(processes: List[ProcessId], obs: Observer[AddCommand[R]]): ReactiveHtmlElement[html.Div] = {
     val process: Var[Option[ProcessId]] = Var(None)
     val payload: Var[Option[String]] = Var(None)
     val click = new EventBus[Click.type]
     val d = div(cls := "form-row",
-      selectDiv((processes, process.writer, Seq(id := "processId"))),
+      div(cls := "col-sm mb-2", description),
+      selectDiv((processes, process.writer, Seq.empty)),
       div(cls := "col-sm mb-2",
-        label(forId := "bebPayload", "Payload"),
+        //label(forId := "bebPayload", "Payload"),
         input(
-          id := "bebProcessId", // TODO estoy repitiendo los ids!
           cls := "form-control",
           inContext { thisNode =>
             @inline def updatePayload = Option(thisNode.ref.value).filterNot(_.isEmpty)
 
-            onMouseOut.stopPropagation.mapTo(updatePayload) --> payload.writer
+            onKeyUp.stopPropagation.mapTo(updatePayload) --> payload.writer // there is some way to throttle events in airstream?
           }
         )
       ),
-      plusDiv(payload.signal.map(_.isDefined), click.writer)
+      plusDiv(payload.signal.combineWith(process.signal).map { case (pd,ps) => ps.isDefined && pd.isDefined }, click.writer)
     )
     click.events.mapTo {
       for {
@@ -298,22 +299,22 @@ object ActionSelection {
 
   def selectProcess(processes: List[ProcessId], obs: Observer[Option[ProcessId]], modifiers: Modifier[Select]*) = {
     select(
-      cls := "browser-default custom-select mb-4",
+      cls := "browser-default custom-select mb-2",
       inContext(thisNode => onInput.mapTo(thisNode.ref.value).map(Option(_).filterNot(_ == "unset").map(_.toInt).map(ProcessId)) --> obs),
       option(
         "-",
         value := "unset"
       ) :: processes.map(p => option(
         p.id.toString,
-        value := p.id.toString,
+        value := p.id.toString
       )),
       modifiers
     )
   }
 
   // IMPROVE
-  def selectDiv = (selectProcess _).tupled.andThen(x => div(cls := "col-sm mb-3",
-    label(forId := "processId", "Process"),
+  def selectDiv = (selectProcess _).tupled.andThen(x => div(cls := "col-sm mb-2",
+    //label(forId := "processId", "Process"),
     x
   ))
 

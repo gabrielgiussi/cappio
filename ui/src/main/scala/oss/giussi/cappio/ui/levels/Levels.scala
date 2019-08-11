@@ -86,8 +86,8 @@ trait Level extends Selection {
   def conditions: Div = {
     def renderCondition(id: Int, initial: ConditionLevel, $changes: Signal[ConditionLevel]) = li(cls := "list-group-item",
       child <-- $changes.map(_.result.result match {
-        case Successful => label(s"${initial.result.short}", span(cls := "badge badge-pill badge-success", i(cls := "fas fa-check")))
-        case Error(msg) => label(s"$msg", span(cls := "badge badge-pill badge-danger", i(cls := "fas fa-exclamation")))
+        case Successful => label(s"${initial.result.short}", span(cls := "badge badge-pill badge-success ml-3", i(cls := "fas fa-check")))
+        case Error(msg) => label(s"$msg", span(cls := "badge badge-pill badge-danger ml-3", i(cls := "fas fa-exclamation")))
       })
     )
 

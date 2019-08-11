@@ -14,7 +14,7 @@ object URBLevel {
     Scheduler.init(all,UniformReliableBroadcast.init[P](all,timeout))
   }
 
-  val urb = payloadRequest({ case (_,msg) => URBBcast(msg) }) _
+  val urb = payloadRequest("Broadcast")({ case (_,msg) => URBBcast(msg) }) _
 
 }
 

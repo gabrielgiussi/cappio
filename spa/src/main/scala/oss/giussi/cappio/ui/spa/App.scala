@@ -38,14 +38,14 @@ object App {
           case IndexedLevel(_,Documentation(_)) => "fa-book"
           case _ => "fa-cogs"
         }
-        a(href := s"#${l.x}", className := "list-group-item list-group-item-action waves-effect",
+        a(href := s"#${l.x}", className := "list-group-item list-group-item-action waves-effect p-2 mt-1",
           className <-- levelSelection.map { active => if (active.x == l.x) "active" else "" },
           i(className := s"fas $icon mr-3", " Level " + l.x)
         )
       }
 
       val leftMenu: ReactiveHtmlElement[html.Div] = div(
-        className := "list-group list-group-flush",
+        className := "list-group list-group-flush mt-3",
         levels
       )
 

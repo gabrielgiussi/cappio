@@ -16,7 +16,7 @@ object BEBLevel {
     Scheduler.init(all,BestEffortBroadcast.init[String](all,timeout))
   }
 
-  val beb = payloadRequest({ case (_,s) => BebBcast(s)}) _
+  val beb = payloadRequest("Broadcast")({ case (_,s) => BebBcast(s)}) _
 
   import oss.giussi.cappio.Conditions._
   val conditions: List[Condition[Scheduler[ModLevel]]] = List(
