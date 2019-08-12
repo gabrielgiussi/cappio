@@ -9,6 +9,7 @@ import org.scalajs.dom.html
 import oss.giussi.cappio.Network.InTransitPacket
 import oss.giussi.cappio._
 import oss.giussi.cappio.ui.levels.RequestBatch
+import ShowSyntax._
 
 object ActionSelection {
 
@@ -40,11 +41,11 @@ object ActionSelection {
     span(cls := className)
   )
 
-  def networkInput[P](available: Set[InTransitPacket[P]], $out: Observer[DeliverBatch[P]]) = {
+  def networkInput[P : Show](available: Set[InTransitPacket[P]], $out: Observer[DeliverBatch[P]]) = {
     def renderDeliverTo(obs: Observer[NetworkCommand])(to: ProcessId, initial: DeliverTo, $changes: Signal[DeliverTo]) = {
       def renderPacket(id: UUID, packet: PacketWithOp, $changes: Signal[PacketWithOp]) = li(
         p(
-          s"Deliver ${packet.p.packet.from}--[${packet.p.packet.payload}]-->${packet.p.packet.to}   ",
+          s"Deliver ${packet.p.packet.from}--[${packet.p.packet.payload.show}]-->${packet.p.packet.to}   ",
           button(
             `type` := "button",
             cls := "btn btn-link p-0",

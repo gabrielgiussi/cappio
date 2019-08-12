@@ -2,7 +2,7 @@ package oss.giussi.cappio.ui.levels.bcast
 
 import oss.giussi.cappio.impl.bcast.BestEffortBroadcast
 import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.{BebBcast, BebMod}
-import oss.giussi.cappio.ui.ActionSelection
+import oss.giussi.cappio.ui.{ActionSelection, Show}
 import oss.giussi.cappio.ui.ActionSelection.{Inputs, payloadRequest}
 import oss.giussi.cappio.ui.levels.AbstractLevel
 import oss.giussi.cappio.{ProcessId, Scheduler}
@@ -35,4 +35,5 @@ case class BEBLevel(nProcesses: Int, timeout: Int) extends AbstractLevel[BebMod[
   override def requestPayload(req: BebBcast[String]): String = req.payload.msg.toString
 
   override val indicationPayload = ind => ind.payload.msg.toString
+
 }

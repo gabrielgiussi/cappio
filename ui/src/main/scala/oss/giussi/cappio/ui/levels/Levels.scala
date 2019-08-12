@@ -8,8 +8,9 @@ import oss.giussi.cappio.Conditions.Condition
 import oss.giussi.cappio.impl.net.FairLossLink.FLLSend
 import oss.giussi.cappio.ui.ActionSelection.Inputs
 import oss.giussi.cappio.ui.core._
-import oss.giussi.cappio.ui.levels.bcast.BEBLevel
-import oss.giussi.cappio.ui.{ActionSelection, Diagram}
+import oss.giussi.cappio.ui.levels.bcast.{BEBLevel, URBLevel}
+import oss.giussi.cappio.ui.levels.register.ONRRLevel
+import oss.giussi.cappio.ui.{ActionSelection, Diagram, Show}
 import oss.giussi.cappio.{Mod => ModT, _}
 
 object Levels {
@@ -17,18 +18,20 @@ object Levels {
   val RAW_LEVELS = List(
     Documentation("broadcast"),
     BEBLevel(4, 3),
-    //URBLevel(4, 3)
+    URBLevel(4, 3),
+    ONRRLevel(4, 6)
+
   )
 
   val INDEXED_LEVELS: Map[LevelId, IndexedLevel] = RAW_LEVELS.zipWithIndex.map { case (level, index) => LevelId(index) -> IndexedLevel(index, level) }.toMap
 
   val LEVELS = INDEXED_LEVELS.values.toList
 
-  val $pendingLevels: StrictSignal[Map[LevelId,LevelResult]] = {
-    val pendingLevels: Var[Map[LevelId,LevelResult]] = Var(INDEXED_LEVELS.mapValues(_ => Pending)) // TODO cuidado con el mapValues q esta medio roto
+  val $pendingLevels: StrictSignal[Map[LevelId, LevelResult]] = {
+    val pendingLevels: Var[Map[LevelId, LevelResult]] = Var(INDEXED_LEVELS.mapValues(_ => Pending)) // TODO cuidado con el mapValues q esta medio roto
 
     INDEXED_LEVELS.map { case (id, level) => level.s.status.addObserver(Observer {
-      _ => pendingLevels.update(_.updated(id,LevelPassed))
+      _ => pendingLevels.update(_.updated(id, LevelPassed))
     })(unsafeWindowOwner)
     }
 
@@ -192,6 +195,7 @@ object Snapshot {
       }
       Snapshot(current.next, filtered ++ indications ++ delivers ++ sends ++ drops, wr, Some(c))
     case (Snapshot(_, _, _, Some(prev)), Prev()) => prev
+    case (Snapshot(_, _, _, Some(prev)), Reset()) => next(indicationPayload, reqPayload)(prev, Reset()) // FIXME TEMPORAL SOLUTION, store a list of all snapshots instead. or some structure that allows access to root in O (1)
     case (s, input) =>
       //org.scalajs.dom.console.log(s"%c Bad input $input for step ${s.step} ", "background: #222; color: #bada55")
       s
@@ -200,7 +204,7 @@ object Snapshot {
 }
 
 case class Snapshot[M <: ModT](index: Index, actions: List[Action], step: Step[M], prev: Option[Snapshot[M]]) {
-  def last = LastSnapshot(index,actions)
+  def last = LastSnapshot(index, actions)
 }
 
 case class LevelId(x: Int)
@@ -211,7 +215,7 @@ case object LevelPassed extends LevelResult
 
 case object Pending extends LevelResult
 
-abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: List[Condition[Scheduler[M]]] = List.empty) extends Level {
+abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: List[Condition[Scheduler[M]]] = List.empty)(implicit show: Show[M#Payload]) extends Level {
 
   type Payload = M#Payload
   type State = M#State
@@ -254,6 +258,11 @@ abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Lis
           cls := "btn btn-secondary",
           onClick.mapToValue(Prev[M]()) --> $next.writer,
           "Previous"
+        ),
+        button(
+          cls := "btn btn-secondary",
+          onClick.mapToValue(Reset[M]()) --> $next.writer,
+          "Reset"
         )
       )
     )
