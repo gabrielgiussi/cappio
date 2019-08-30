@@ -1,11 +1,10 @@
 package oss.giussi.cappio.impl.bcast
 
-import oss.giussi.cappio.Messages.{LocalRequest, LocalStep, ProcessLocalM}
+import oss.giussi.cappio.Messages.{LocalRequest, LocalStep}
 import oss.giussi.cappio._
 import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.BebMod
-import oss.giussi.cappio.impl.net.PerfectLink.{PLDeliver, PLSend}
-import oss.giussi.cappio.impl.net.PerfectLinkBeta
-import oss.giussi.cappio.impl.net.PerfectLinkBeta.PLModule
+import oss.giussi.cappio.impl.net.PerfectLink
+import oss.giussi.cappio.impl.net.PerfectLink.{PLDeliver, PLModule, PLSend}
 
 object BestEffortBroadcast {
 
@@ -27,7 +26,7 @@ object BestEffortBroadcast {
   case class BebDeliver[P](from: ProcessId, payload: Payload[P])
 
   object BEBState {
-    def init[P](timeout: Int) = BasicState(PerfectLinkBeta.init[P](timeout))
+    def init[P](timeout: Int) = BasicState(PerfectLink.init[P](timeout))
   }
 
 
@@ -48,7 +47,7 @@ object BestEffortBroadcast {
   }
 
   def apply[T](self: ProcessId, all: Set[ProcessId], timeout: Int): Module[BebMod[T]] = {
-    AbstractModule.mod[BebMod[T],BebMod[T]#Dep](BasicState(PerfectLinkBeta.init[T](timeout)),BestEffortBroadcast.processLocal[T](self,all))
+    AbstractModule.mod[BebMod[T],BebMod[T]#Dep](BasicState(PerfectLink.init[T](timeout)),BestEffortBroadcast.processLocal[T](self,all))
   }
 
 }

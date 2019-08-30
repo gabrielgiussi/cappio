@@ -4,9 +4,8 @@ import oss.giussi.cappio.Messages.LocalStep
 import oss.giussi.cappio._
 import oss.giussi.cappio.impl.bcast.BestEffortBroadcast
 import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.{BebBcast, BebDeliver, BebMod}
-import oss.giussi.cappio.impl.net.PerfectLink.{PLDeliver, PLSend}
-import oss.giussi.cappio.impl.net.PerfectLinkBeta
-import oss.giussi.cappio.impl.net.PerfectLinkBeta.PLModule
+import oss.giussi.cappio.impl.net.PerfectLink
+import oss.giussi.cappio.impl.net.PerfectLink.{PLDeliver, PLModule, PLSend}
 import oss.giussi.cappio.impl.register.OneNRegularRegister._
 import shapeless.ops.coproduct.Inject
 
@@ -97,7 +96,7 @@ object OneNRegularRegister {
   object ONRRState {
 
     def init[V](self: ProcessId, all: Set[ProcessId], timeout: Int): ONRRState[V] = {
-      val pl = PerfectLinkBeta.init[ONDirect[V]](timeout)
+      val pl = PerfectLink.init[ONDirect[V]](timeout)
       val beb = BestEffortBroadcast.init[ONOp[V]](all, timeout)(self)
       val cm = CombinedModule.paired(OneNRegularRegister.BEB, beb, OneNRegularRegister.PL, pl)
       val st = ONRRStateI(None, 0, 0, 0, 0, Map.empty[ProcessId, (Int, V)])

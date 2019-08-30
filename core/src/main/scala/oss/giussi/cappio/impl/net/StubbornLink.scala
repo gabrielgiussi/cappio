@@ -36,9 +36,6 @@ case class StubbornLink[P](state: StubbornLinkState[P]) extends Module[StubLink[
 
   override def tail = this
 
-  // TODO deberia tener el ProcessId aca asi puedo validar q el deliver sea correcto!
-  //override def deliver(d: FLLDeliver[P]) = next( this, indications = Set(SLDeliver(d.packet)))
-
   override def tick: Next = {
     if (state.timer + 1 == state.timeout) {
       val send = state.sent.map(FLLSend.apply)

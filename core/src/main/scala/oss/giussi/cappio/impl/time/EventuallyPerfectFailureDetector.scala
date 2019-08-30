@@ -2,9 +2,8 @@ package oss.giussi.cappio.impl.time
 
 import oss.giussi.cappio.Messages.ProcessLocal
 import oss.giussi.cappio._
-import oss.giussi.cappio.impl.net.PerfectLink.{PLDeliver, PLSend}
-import oss.giussi.cappio.impl.net.PerfectLinkBeta
-import oss.giussi.cappio.impl.net.PerfectLinkBeta.PLModule
+import oss.giussi.cappio.impl.net.PerfectLink
+import oss.giussi.cappio.impl.net.PerfectLink.{PLDeliver, PLModule, PLSend}
 import oss.giussi.cappio.impl.time.EventuallyPerfectFailureDetector.{EPFDMod, EPFDState, EPFDep}
 import oss.giussi.cappio.impl.time.PerfectFailureDetector.{HeartbeatMsg, HeartbeatReply, HeartbeatRequest}
 
@@ -25,7 +24,7 @@ object EventuallyPerfectFailureDetector {
   }
 
   object EPFDState {
-    def init(all: Set[ProcessId], delay: Int): EPFDState = EPFDState(0, all, Set.empty, all, delay, delay, PerfectLinkBeta.init(delay)) // TODO el delay es el mismo?
+    def init(all: Set[ProcessId], delay: Int): EPFDState = EPFDState(0, all, Set.empty, all, delay, delay, PerfectLink.init(delay)) // TODO el delay es el mismo?
   }
 
   case class EPFDState(timer: Int, alive: Set[ProcessId], suspected: Set[ProcessId], all: Set[ProcessId], currentDelay: Int, delay: Int, module: Module[EPFDep]) extends StateWithModule[EPFDep, EPFDState] {

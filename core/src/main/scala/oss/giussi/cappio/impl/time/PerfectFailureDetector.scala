@@ -1,11 +1,10 @@
 package oss.giussi.cappio.impl.time
 
 import oss.giussi.cappio.Messages.ProcessLocal
-import oss.giussi.cappio.{AbstractModule, Instance, ModS, Module, NoRequest, Packet, ProcessId, StateWithModule}
-import oss.giussi.cappio.impl.net.PerfectLink.{PLDeliver, PLSend}
-import oss.giussi.cappio.impl.net.PerfectLinkBeta
-import oss.giussi.cappio.impl.net.PerfectLinkBeta.{PLModule, PerfectLinkBetaState}
-import oss.giussi.cappio.impl.time.PerfectFailureDetector.{Crashed, PFDMod, PFDState}
+import oss.giussi.cappio.impl.net.PerfectLink
+import oss.giussi.cappio.impl.net.PerfectLink.{PLDeliver, PLModule, PLSend}
+import oss.giussi.cappio.impl.time.PerfectFailureDetector.{PFDMod, PFDState}
+import oss.giussi.cappio._
 
 object PerfectFailureDetector {
 
@@ -24,7 +23,7 @@ object PerfectFailureDetector {
   }
 
   object PFDState {
-    def init(all: Set[ProcessId], timeout: Int) = PFDState(0,all,Set.empty,all,PerfectLinkBeta.init(timeout))
+    def init(all: Set[ProcessId], timeout: Int) = PFDState(0,all,Set.empty,all,PerfectLink.init(timeout))
   }
 
   case class PFDState(timer: Int, alive: Set[ProcessId], detected: Set[ProcessId], all: Set[ProcessId], module: Module[PFDMod#Dep]) extends StateWithModule[PFDMod#Dep,PFDState] {
