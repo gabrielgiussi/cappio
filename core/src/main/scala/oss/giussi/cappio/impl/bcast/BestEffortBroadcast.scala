@@ -30,7 +30,7 @@ object BestEffortBroadcast {
   }
 
 
-  def init[P](all:Set[ProcessId], timeout: Int)(self: ProcessId): BestEffortBroadcast[P] = BestEffortBroadcast(self,all,BEBState.init[P](timeout))
+  //def init[P](all:Set[ProcessId], timeout: Int)(self: ProcessId): BestEffortBroadcast[P] = BestEffortBroadcast(self,all,BEBState.init[P](timeout))
 
   def processLocal[P](self: ProcessId, all: Set[ProcessId]) = new ProcessLocalHelper1[BebMod[P],PLModule[P]] {
     override def onPublicRequest(req: BebBcast[P], state: State): Output = {
@@ -46,14 +46,25 @@ object BestEffortBroadcast {
 
   }
 
-  def apply[T](self: ProcessId, all: Set[ProcessId], timeout: Int): Module[BebMod[T]] = {
+  def apply[T](all: Set[ProcessId], timeout: Int)(self: ProcessId): Module[BebMod[T]] = {
     AbstractModule.mod[BebMod[T],BebMod[T]#Dep](BasicState(PerfectLink.init[T](timeout)),BestEffortBroadcast.processLocal[T](self,all))
   }
 
 }
 
+/*
 case class BestEffortBroadcast[T](self: ProcessId, all: Set[ProcessId], state: BasicState[BebMod[T]#Dep]) extends AbstractModule[BebMod[T],BebMod[T]#Dep] {
   override def copyModule(s: BasicState[BebMod[T]#Dep]) = copy(state = s)
 
   override val processLocal: PLocal = BestEffortBroadcast.processLocal(self,all)
 }
+
+ */
+
+case class AppState[S, M <: Mod](value: Option[S], module: Module[M]) extends StateWithModule[M,AppState[S,M]]{
+  override def updateModule(m: Module[M]): AppState[S, M] = copy(module = m)
+
+  def update(v: S) = copy(value = Some(v))
+}
+
+//case class BebApp[S](self: ProcessId, all: Set[ProcessId], state: AppState[S,Beb])

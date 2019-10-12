@@ -406,3 +406,12 @@ https://twitter.github.io/scala_school/advanced-types.html
 - fix self arrow
 - forbid drop auto delivers
 - multiple deliver (beb bcast)
+
+
+  /*
+  broken
+  - split (laminar)
+  - P0.send and P1.indication arrows are head to head in the diagram
+  - InTransitPacket show payloads with Inl(Inl(..
+  - ONRR delivers are being unselected
+   */

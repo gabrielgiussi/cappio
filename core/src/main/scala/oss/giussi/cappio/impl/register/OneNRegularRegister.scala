@@ -97,7 +97,7 @@ object OneNRegularRegister {
 
     def init[V](self: ProcessId, all: Set[ProcessId], timeout: Int): ONRRState[V] = {
       val pl = PerfectLink.init[ONDirect[V]](timeout)
-      val beb = BestEffortBroadcast.init[ONOp[V]](all, timeout)(self)
+      val beb = BestEffortBroadcast[ONOp[V]](all, timeout)(self)
       val cm = CombinedModule.paired(OneNRegularRegister.BEB, beb, OneNRegularRegister.PL, pl)
       val st = ONRRStateI(None, 0, 0, 0, 0, Map.empty[ProcessId, (Int, V)])
       ONRRState(st, cm)
@@ -121,11 +121,11 @@ object OneNRegularRegister {
 
     override def onDependencyIndication1(ind: BebDeliver[ONOp[V]], state: State): Output = ind match {
         case BebDeliver(p, Payload(_, ONREAD(rid))) =>
-          val send = Set(req2(PLSend(Packet(self, p, ONVALUE(rid, state.state.ts, state.state.value), OneNRegularRegister.PL)))) // lo tengo que meter en un Payload?
+          val send = Set(req2(PLSend(Packet(self, p, ONVALUE(rid, state.state.ts, state.state.value), OneNRegularRegister.PL))))
           LocalStep.withRequests(send, state)
         case BebDeliver(p, Payload(_, ONWRITE(ts, v))) =>
           val ns = state.deliver(ts, v)
-          val ack = Set(req2(PLSend(Packet(self, p, ONACK(ts), OneNRegularRegister.PL)))) // lo tengo q meter en un payload?
+          val ack = Set(req2(PLSend(Packet(self, p, ONACK(ts), OneNRegularRegister.PL))))
           LocalStep.withRequests(ack, ns)
       }
 

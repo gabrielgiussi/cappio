@@ -32,7 +32,7 @@ object ReliableBroadcast {
   object RBcastState {
     def init[P](self: ProcessId, all: Set[ProcessId], timeout: Int) = {
       val pfdm = PerfectFailureDetector.init(self, all, timeout)
-      val bebm = BestEffortBroadcast.init[RBData[P]](all, timeout)(self)
+      val bebm = BestEffortBroadcast[RBData[P]](all, timeout)(self)
       RBcastState(all.map(_ -> Set.empty[Payload[P]]).toMap, all, CombinedModule.paired(PFD, pfdm, BEB, bebm))
     }
   }

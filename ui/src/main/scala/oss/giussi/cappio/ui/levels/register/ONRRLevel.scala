@@ -7,6 +7,7 @@ import oss.giussi.cappio.impl.register.OneNRegularRegister.{ONRRInd, ONRRMod, ON
 import oss.giussi.cappio.ui.ActionSelection
 import oss.giussi.cappio.ui.ActionSelection.{Inputs, RequestWrapper}
 import oss.giussi.cappio.ui.levels.AbstractLevel
+import oss.giussi.cappio.ui.levels.Snapshot.Conditions
 import oss.giussi.cappio.ui.levels.register.ONRRLevel.ONRR
 
 object ONRRLevel {
@@ -18,7 +19,7 @@ object ONRRLevel {
     Scheduler.init(all,OneNRegularRegister.init[String](N,timeout,all))
   }
 
-  val conditions: List[Condition[Scheduler[ONRR]]] = List()
+  val conditions: Conditions[ONRR] = List()
 
   val onrrRead = ActionSelection.noPayloadRequest[ONRRReq[String]]("Read")(_ => RequestWrapper(ONRRRead)) _
   val onrrWrite = ActionSelection.payloadRequest[ONRRReq[String]]("Write")({ case (_,v) => ONRRWrite(v) }) _
@@ -42,12 +43,4 @@ case class ONRRLevel(nProcesses: Int, timeout: Int) extends AbstractLevel[ONRR](
     onrrWrite,
     ActionSelection.crash
   )
-
-  /*
-  broken
-  - split (laminar)
-  - P0.send and P1.indication arrows are head to head in the diagram
-  - InTransitPacket show payloads with Inl(Inl(..
-  - ONRR delivers are being unselected
-   */
 }

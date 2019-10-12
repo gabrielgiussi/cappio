@@ -43,7 +43,7 @@ object UniformReliableBroadcast {
   object URBState {
     def init[P](self: ProcessId, all: Set[ProcessId], timeout: Int) = {
       val pfdMod = PerfectFailureDetector.init(self, all, timeout) // Este timeout deberia ser enviado en un metodo Init al comienzo asi todos tienen el mismo!
-      val bebMod = BestEffortBroadcast.init[URBData[P]](all, timeout)(self)
+      val bebMod = BestEffortBroadcast[URBData[P]](all, timeout)(self)
       val combined: Module[URBDep[P]] = CombinedModule.paired(PFD, pfdMod, BEB, bebMod)
       URBState(Set.empty, Set.empty[(ProcessId, UUID, P)], all, Map.empty, combined)
     }

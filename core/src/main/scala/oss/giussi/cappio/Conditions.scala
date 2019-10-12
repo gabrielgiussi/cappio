@@ -8,7 +8,7 @@ object Conditions {
 
   type ProcessesValidation[M <: Mod] = Condition[Set[Process[M]]]
 
-  type IndicationValidation[I] = Condition[List[IndicationFrom[I]]]
+  type IndicationValidation[I] = Condition[Set[IndicationFrom[I]]]
 
   type NetworkValidation[P] = Condition[Network[P]]
 
@@ -29,12 +29,9 @@ object Conditions {
     }
   }
 
-  def processes[M <: Mod](v: ProcessesValidation[M])(scheduler: Scheduler[M]) = v(scheduler.processes.values.toSet)
-
-  def network[M <: Mod](v: NetworkValidation[M#Payload])(scheduler: Scheduler[M]) = v(scheduler.network)
-
   // FIXME porque necesito pasarle el Mod si no me interesa para la validacion, solo necesito el estado de los procesos
   def ALL_UP[M <: Mod] = condition("All Up", "All processes should be Up", Validations.ALL_UP[M])
+
 }
 
 sealed trait Result

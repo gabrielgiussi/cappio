@@ -8,6 +8,7 @@ import oss.giussi.cappio.Conditions.Condition
 import oss.giussi.cappio.impl.net.FairLossLink.FLLSend
 import oss.giussi.cappio.ui.ActionSelection.Inputs
 import oss.giussi.cappio.ui.core._
+import oss.giussi.cappio.ui.levels.Snapshot.Conditions
 import oss.giussi.cappio.ui.levels.bcast.{BEBLevel, URBLevel}
 import oss.giussi.cappio.ui.levels.register.ONRRLevel
 import oss.giussi.cappio.ui.{ActionSelection, Diagram, Show}
@@ -17,7 +18,8 @@ object Levels {
 
   val RAW_LEVELS = List(
     Documentation("broadcast"),
-    BEBLevel(4, 3),
+    BEBLevel.simple(4, 3),
+    BEBLevel.broken(4, 3),
     URBLevel(4, 3),
     ONRRLevel(4, 6)
 
@@ -25,10 +27,10 @@ object Levels {
 
   val INDEXED_LEVELS: Map[LevelId, IndexedLevel] = RAW_LEVELS.zipWithIndex.map { case (level, index) => LevelId(index) -> IndexedLevel(index, level) }.toMap
 
-  val LEVELS = INDEXED_LEVELS.values.toList
+  val LEVELS = INDEXED_LEVELS.values.toList.sortBy(_.x)
 
   val $pendingLevels: StrictSignal[Map[LevelId, LevelResult]] = {
-    val pendingLevels: Var[Map[LevelId, LevelResult]] = Var(INDEXED_LEVELS.mapValues(_ => Pending)) // TODO cuidado con el mapValues q esta medio roto
+    val pendingLevels: Var[Map[LevelId, LevelResult]] = Var(INDEXED_LEVELS.map{ case (k,_) => k -> Pending })
 
     INDEXED_LEVELS.map { case (id, level) => level.s.status.addObserver(Observer {
       _ => pendingLevels.update(_.updated(id, LevelPassed))
@@ -162,13 +164,13 @@ object Snapshot {
   def sendToUndelivered[P](index: Index)(send: FLLSend[P]): Undelivered = Undelivered(send.packet.from, send.packet.to, send.packet.id, send.packet.payload.toString, index)
 
   def next[M <: ModT](indicationPayload: M#Ind => String, reqPayload: M#Req => String)(snapshot: Snapshot[M], op: Op[M]): Snapshot[M] = (snapshot, op) match {
-    case (c@Snapshot(current, actions, wr@WaitingRequest(_), _), NextReq(req)) =>
+    case (c@Snapshot(current, actions, pastInd, wr@WaitingRequest(_), _), NextReq(req)) =>
       val RequestResult(sent, ind, wd) = wr.request(req.requests.values.toSeq)
       val sends = sent.map(sendToUndelivered(current))
       val requests = req.requests.map { case (p, r) => toRequest(reqPayload)(p, r, current) }
       val indications = ind.map(toIndication(indicationPayload)(current))
-      Snapshot(current.next, actions ++ indications ++ requests ++ sends, wd, Some(c))
-    case (c@Snapshot(current, actions, wd@WaitingDeliver(_), _), NextDeliver(del)) =>
+      Snapshot(current.next, actions ++ indications ++ requests ++ sends, pastInd ++ ind, wd, Some(c))
+    case (c@Snapshot(current, actions,pastInd, wd@WaitingDeliver(_), _), NextDeliver(del)) =>
       val DeliverResult(sent, ind, wr) = wd.deliver(del)
       val sends = sent.map(sendToUndelivered(current))
       val delivers = del.ops.values.flatMap {
@@ -193,17 +195,19 @@ object Snapshot {
           case _ => true
         }
       }
-      Snapshot(current.next, filtered ++ indications ++ delivers ++ sends ++ drops, wr, Some(c))
-    case (Snapshot(_, _, _, Some(prev)), Prev()) => prev
-    case (Snapshot(_, _, _, Some(prev)), Reset()) => next(indicationPayload, reqPayload)(prev, Reset()) // FIXME TEMPORAL SOLUTION, store a list of all snapshots instead. or some structure that allows access to root in O (1)
+      Snapshot(current.next, filtered ++ indications ++ delivers ++ sends ++ drops, pastInd ++ ind, wr, Some(c))
+    case (Snapshot(_, _, _,_, Some(prev)), Prev()) => prev
+    case (Snapshot(_, _, _,_, Some(prev)), Reset()) => next(indicationPayload, reqPayload)(prev, Reset()) // FIXME TEMPORAL SOLUTION, store a list of all snapshots instead. or some structure that allows access to root in O (1)
     case (s, input) =>
       //org.scalajs.dom.console.log(s"%c Bad input $input for step ${s.step} ", "background: #222; color: #bada55")
       s
   }
 
+  type Conditions[M <: oss.giussi.cappio.Mod] = List[Condition[Snapshot[M]]]
+
 }
 
-case class Snapshot[M <: ModT](index: Index, actions: List[Action], step: Step[M], prev: Option[Snapshot[M]]) {
+case class Snapshot[M <: ModT](index: Index, actions: List[Action], indications: Set[IndicationFrom[M#Ind]], step: Step[M], prev: Option[Snapshot[M]]) {
   def last = LastSnapshot(index, actions)
 }
 
@@ -215,7 +219,7 @@ case object LevelPassed extends LevelResult
 
 case object Pending extends LevelResult
 
-abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: List[Condition[Scheduler[M]]] = List.empty)(implicit show: Show[M#Payload]) extends Level {
+abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Conditions[M] = List.empty)(implicit show: Show[M#Payload]) extends Level {
 
   type Payload = M#Payload
   type State = M#State
@@ -236,7 +240,7 @@ abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Lis
 
   val $snapshots: Signal[Snapshot[M]] = {
     val ns = Snapshot.next[M](indicationPayload, requestPayload) _
-    $next.events.fold(Snapshot(Index(0), List.empty, WaitingRequest(scheduler), None))(ns)
+    $next.events.fold(Snapshot(Index(0), List.empty,Set.empty[IndicationFrom[M#Ind]], WaitingRequest(scheduler), None))(ns)
   }
 
   val $steps: Signal[Step[M]] = $snapshots.map(_.step)
@@ -290,7 +294,7 @@ abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Lis
 
   override val $conditions = {
     val c = conditions.zipWithIndex.map { case (condition, index) => condition.andThen(ConditionLevel(index, _: ConditionResult)) }
-    $snapshots.map(snap => c.map(_.apply(snap.step.scheduler)))
+    $snapshots.map(snap => c.map(_.apply(snap)))
   }
 
   override def status: EventStream[LevelPassed.type] = $conditions.changes.filter(_.find(!_.ok).isEmpty).map(_ => LevelPassed)
