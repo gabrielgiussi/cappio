@@ -11,9 +11,8 @@ class OneNRegularRegisterSpec extends CappIOSpec {
   val all = ALL.take(3).toSet
   val timeout = 100
   val N = all.size
-  val ps = all.map(id => id.id -> OneNRegularRegister.init[Int](id, N, timeout, all)).toMap
 
-  val onrr = OneNRegularRegister.init[Int](p0, N, timeout, all)
+  val onrr = OneNRegularRegister.init[Int](N, timeout, all)(p0)
 
   "OneNRegularRegister" should {
     "Broadcast ONREAD" in {
