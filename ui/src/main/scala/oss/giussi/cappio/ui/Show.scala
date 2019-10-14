@@ -5,7 +5,7 @@ import oss.giussi.cappio.impl.bcast.ReliableBroadcast.{RBData, RBMod}
 import oss.giussi.cappio.impl.bcast.{BestEffortBroadcast, ReliableBroadcast, UniformReliableBroadcast}
 import oss.giussi.cappio.impl.bcast.UniformReliableBroadcast.{URBData, URBMod}
 import oss.giussi.cappio.impl.register.OneNRegularRegister
-import oss.giussi.cappio.impl.register.OneNRegularRegister.{ONACK, ONREAD, ONRRMod, ONVALUE, ONWRITE}
+import oss.giussi.cappio.impl.register.OneNRegularRegister.{ONACK, ONREAD, ONRRMod, ONRRRead, ONRRWrite, ONVALUE, ONWRITE}
 import oss.giussi.cappio.impl.time.PerfectFailureDetector
 import shapeless.{:+:, CNil, Inl, Inr}
 
@@ -24,19 +24,22 @@ object Show {
   // Show requests
 
   implicit def showBEB[A](implicit e: Show[A]) = new Show[BebMod[A]#Req] {
-    override def show(a: BestEffortBroadcast.BebBcast[A]): String = "beb"
+    override def show(a: BestEffortBroadcast.BebBcast[A]): String = s"beb ${a.payload.msg}"
   }
 
   implicit def showRB[A](implicit e: Show[A]) = new Show[RBMod[A]#Req] {
-    override def show(a: ReliableBroadcast.RBBcast[A]): String = "rb"
+    override def show(a: ReliableBroadcast.RBBcast[A]): String = s"rb ${a.payload.msg}"
   }
 
   implicit def showURB[A](implicit e: Show[A]) = new Show[URBMod[A]#Req] {
-    override def show(a: UniformReliableBroadcast.URBBcast[A]): String = ???
+    override def show(a: UniformReliableBroadcast.URBBcast[A]): String = s"urb ${a.payload.msg}"
   }
 
   implicit def showONRR[A](implicit e: Show[A]) = new Show[ONRRMod[A]#Req] {
-    override def show(a: OneNRegularRegister.ONRRReq[A]): String = ???
+    override def show(a: OneNRegularRegister.ONRRReq[A]): String = a match {
+      case ONRRRead => "read"
+      case ONRRWrite(v) => s"write $v"
+    }
   }
 
   // Show payloads

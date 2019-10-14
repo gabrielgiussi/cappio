@@ -38,7 +38,7 @@ object Network {
     def drop: Drop[T]
   }
 
-  def init[T] = Network(Set.empty[Packet[T]])
+  def init[T] = Network(Set.empty[Packet[T]],Set.empty[Packet[T]])
 
 }
 /*
@@ -58,23 +58,23 @@ object FLLDeliver {
 }
 
 sealed abstract case class FLLDeliver[P](packet: Packet[P]) {
+  // TODO not used
   def withPayload[NP](newPayload: NP) = new FLLDeliver(packet.copy(payload = newPayload)) {}
 }
 
+// TODO I added alreadyDelivered only to be able to check the "liveness" condition (see BEBLevel broken) but maybe I shlould save this info somewhere else.
+case class Network[T](packets: Set[Packet[T]], alreadyDelivered: Set[Packet[T]]) {
 
-case class Network[T](packets: Set[Packet[T]]) {
-
-  private def remove(delivered: Set[Packet[T]]): Network[T] = copy(packets -- delivered)
 
   def drop(drops: Set[Drop[T]]): Try[Network[T]] = {
     val p = drops.map(_.packet)
-    if (p.forall(packets.contains)) Success(remove(p)) else Failure(new RuntimeException("Some packets are not in transit"))
+    if (p.forall(packets.contains)) Success(copy(packets -- p)) else Failure(new RuntimeException("Some packets are not in transit"))
   }
 
   def deliver(delivered: Set[FLLDeliver[T]]): Try[Network[T]] = {
     val p = delivered.map(_.packet)
     if (p.forall(packets.contains))
-      Success(remove(p))
+      Success(copy(packets -- p, alreadyDelivered ++ p))
     else Failure(new RuntimeException)
   }
 

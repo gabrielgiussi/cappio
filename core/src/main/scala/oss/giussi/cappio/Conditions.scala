@@ -6,11 +6,17 @@ object Conditions {
 
   type Validation[I] = I => Option[String]
 
+  type ProcessValidation[M <: Mod] = Condition[Process[M]]
+
   type ProcessesValidation[M <: Mod] = Condition[Set[Process[M]]]
 
   type IndicationValidation[I] = Condition[Set[IndicationFrom[I]]]
 
   type NetworkValidation[P] = Condition[Network[P]]
+
+  type StatesValidation[M <: Mod] = Condition[Map[ProcessId,M#State]]
+
+  type StateValidation[M <: Mod] = Condition[M#State]
 
   type Condition[I] = I => ConditionResult
 

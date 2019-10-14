@@ -16,16 +16,18 @@ import oss.giussi.cappio.{Mod => ModT, _}
 
 object Levels {
 
-  val RAW_LEVELS = List(
-    Documentation("broadcast"),
-    BEBLevel.simple(4, 3),
-    BEBLevel.broken(4, 3),
-    URBLevel(4, 3),
-    ONRRLevel(4, 6)
-
+  val RAW_LEVELS: List[LevelId => Selection] = List(
+    Documentation("broadcast") _,
+    _ => BEBLevel.simple(4, 3),
+    _ => BEBLevel.broken(4, 3),
+    _ => URBLevel(4, 3),
+    //_ => ONRRLevel(4, 6)
   )
 
-  val INDEXED_LEVELS: Map[LevelId, IndexedLevel] = RAW_LEVELS.zipWithIndex.map { case (level, index) => LevelId(index) -> IndexedLevel(index, level) }.toMap
+  val INDEXED_LEVELS: Map[LevelId, IndexedLevel] = RAW_LEVELS.zipWithIndex.map { case (level, index) =>
+    val levelId = LevelId(index)
+    levelId -> IndexedLevel(index, level(levelId))
+  }.toMap
 
   val LEVELS = INDEXED_LEVELS.values.toList.sortBy(_.x)
 
@@ -43,7 +45,7 @@ object Levels {
   val $approved = $pendingLevels.signal.map(_.forall(_._2 == LevelPassed))
 }
 
-
+// TODO shouldn't be LevelId instead X?
 case class IndexedLevel(x: Int, s: Selection)
 
 sealed trait Selection {
@@ -52,13 +54,16 @@ sealed trait Selection {
   def status: EventStream[LevelPassed.type]
 }
 
-case class Documentation(doc: String) extends Selection {
+case class Documentation(doc: String)(id: LevelId) extends Selection {
   override def render = div(cls := "container-fluid mt-5",
     div(cls := "row wow fadeIn",
       div(cls := "col-md mb-4",
         div(cls := "card",
           div(cls := "card-body",
             doc
+          ),
+          a(href := s"#${id.next.x}",
+            "Next"
           )
         )
       )
@@ -213,7 +218,9 @@ case class Snapshot[M <: ModT](index: Index, actions: List[Action], indications:
   def last = LastSnapshot(index, actions)
 }
 
-case class LevelId(x: Int)
+case class LevelId(x: Int) {
+  lazy val next = LevelId(x + 1)
+}
 
 sealed trait LevelResult
 
@@ -300,5 +307,6 @@ abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Con
   }
 
   override def status: EventStream[LevelPassed.type] = $conditions.changes.filter(_.find(!_.ok).isEmpty).map(_ => LevelPassed)
+
 
 }

@@ -4,7 +4,7 @@ import com.raquo.laminar.api.L._
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.scalajs.dom
 import org.scalajs.dom.{document, html}
-import oss.giussi.cappio.ui.levels.{Documentation, IndexedLevel, Level, LevelId, Levels}
+import oss.giussi.cappio.ui.levels.{Documentation, IndexedLevel, Level, LevelId, LevelPassed, Levels, Pending}
 
 import scala.util.Try
 
@@ -22,6 +22,7 @@ object App {
     https://groups.google.com/forum/#!topic/scala-js/7s3f51uIn4w
     val routes: EventStream[Route] = ???
 */
+      dom.window.location.hash
 
       val hashes = EventStream.merge(EventStream.fromValue(dom.window.location.hash, true), windowEvents.onHashChange.map(_.newURL))
         .filter(_.contains("#")).map(_.split("#")(1))
@@ -40,7 +41,8 @@ object App {
         }
         a(href := s"#${l.x}", className := "list-group-item list-group-item-action waves-effect p-2 mt-1",
           className <-- levelSelection.map { active => if (active.x == l.x) "active" else "" },
-          i(className := s"fas $icon mr-3", " Level " + l.x)
+          i(className := s"fas $icon mr-3", " Level " + l.x),
+          //disabled <-- Levels.$pendingLevels.map(x => { println(x); x }).map(!_.get(LevelId(l.x - 1)).contains(LevelPassed)) TODO <a> does not support disabled
         )
       }
 
