@@ -1,7 +1,8 @@
 package oss.giussi.cappio.ui
 
+import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.BebMod
 import oss.giussi.cappio.impl.bcast.ReliableBroadcast.{RBData, RBMod}
-import oss.giussi.cappio.impl.bcast.UniformReliableBroadcast
+import oss.giussi.cappio.impl.bcast.{BestEffortBroadcast, ReliableBroadcast, UniformReliableBroadcast}
 import oss.giussi.cappio.impl.bcast.UniformReliableBroadcast.{URBData, URBMod}
 import oss.giussi.cappio.impl.register.OneNRegularRegister
 import oss.giussi.cappio.impl.register.OneNRegularRegister.{ONACK, ONREAD, ONRRMod, ONVALUE, ONWRITE}
@@ -20,21 +21,41 @@ object Show {
     override def show(a: String): String = a
   }
 
-  implicit def showRB[A](implicit e: Show[A]) = new Show[RBMod[A]#Payload] {
+  // Show requests
+
+  implicit def showBEB[A](implicit e: Show[A]) = new Show[BebMod[A]#Req] {
+    override def show(a: BestEffortBroadcast.BebBcast[A]): String = "beb"
+  }
+
+  implicit def showRB[A](implicit e: Show[A]) = new Show[RBMod[A]#Req] {
+    override def show(a: ReliableBroadcast.RBBcast[A]): String = "rb"
+  }
+
+  implicit def showURB[A](implicit e: Show[A]) = new Show[URBMod[A]#Req] {
+    override def show(a: UniformReliableBroadcast.URBBcast[A]): String = ???
+  }
+
+  implicit def showONRR[A](implicit e: Show[A]) = new Show[ONRRMod[A]#Req] {
+    override def show(a: OneNRegularRegister.ONRRReq[A]): String = ???
+  }
+
+  // Show payloads
+
+  implicit def showRBPayload[A](implicit e: Show[A]) = new Show[RBMod[A]#Payload] {
     override def show(a: :+:[PerfectFailureDetector.HeartbeatMsg, RBData[A] :+: CNil]): String = a match {
       case Inr(Inl(RBData(_, msg))) => s"RBDATA[${e.show(msg)}]"
       case _ => "hearbeat"
     }
   }
 
-  implicit def showURB[A](implicit e: Show[A]) = new Show[URBMod[A]#Payload] {
+  implicit def showURBPayload[A](implicit e: Show[A]) = new Show[URBMod[A]#Payload] {
     override def show(a: :+:[PerfectFailureDetector.HeartbeatMsg, UniformReliableBroadcast.URBData[A] :+: CNil]): String = a match {
-      case Inr(Inl(URBData(_, msg))) => s"RBDATA[${e.show(msg)}]"
+      case Inr(Inl(URBData(_, msg))) => s"URBDATA[${e.show(msg)}]"
       case _ => "hearbeat"
     }
   }
 
-  implicit def showONRR[A : Show] = new Show[ONRRMod[A]#Payload]{
+  implicit def showONRRPayload[A : Show] = new Show[ONRRMod[A]#Payload]{
     override def show(a: :+:[OneNRegularRegister.ONOp[A], OneNRegularRegister.ONDirect[A] :+: CNil]): String = a match {
       case Inl(ONREAD(rid)) => s"read $rid"
       case Inl(ONWRITE(timestamp, v)) => s"write ($timestamp,$v)"

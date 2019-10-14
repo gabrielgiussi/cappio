@@ -120,7 +120,9 @@ case class Scheduler[M <: Mod](processes: Map[ProcessId, Process[M]], network: N
     val (fi, fs, fp) = processes.values.foldLeft[(Set[IndicationFrom[M#Ind]], Set[Send], Set[P])]((Set.empty, Set.empty, Set.empty)) {
       case ((ind, send, ps), p) =>
         val NextStateProcess(i, s, ns) = p.tick
+        //<editor-fold desc="Description">
         val a = i.map(IndicationFrom(p.id, _))
+        //</editor-fold>
         (ind ++ a, send ++ s, ps + ns)
     }
     NextStateScheduler(fs, fi, copy(processes = fp.map(p => p.id -> p).toMap, network = network.send(fs), step = step + 1))

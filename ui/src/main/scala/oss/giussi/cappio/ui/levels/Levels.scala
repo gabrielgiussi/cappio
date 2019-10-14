@@ -154,6 +154,8 @@ case class Reset[M <: ModT]() extends Op[M]
 
 object Snapshot {
 
+  def init[M <: oss.giussi.cappio.Mod](step: Step[M]): Snapshot[M] = Snapshot(Index(0),List.empty,Set.empty[IndicationFrom[M#Ind]],step,None)
+
   final def toRequest[R](reqPayload: R => String)(p: ProcessId, req: ProcessInput[R], i: Index): Action = req match {
     case ProcessRequest(_, req) => Request(p, i, reqPayload(req))
     case Crash(_) => Crashed(p, i)
@@ -219,7 +221,7 @@ case object LevelPassed extends LevelResult
 
 case object Pending extends LevelResult
 
-abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Conditions[M] = List.empty)(implicit show: Show[M#Payload]) extends Level {
+abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Conditions[M] = List.empty)(implicit show: Show[M#Payload], show2: Show[M#Req]) extends Level {
 
   type Payload = M#Payload
   type State = M#State
@@ -240,7 +242,7 @@ abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Con
 
   val $snapshots: Signal[Snapshot[M]] = {
     val ns = Snapshot.next[M](indicationPayload, requestPayload) _
-    $next.events.fold(Snapshot(Index(0), List.empty,Set.empty[IndicationFrom[M#Ind]], WaitingRequest(scheduler), None))(ns)
+    $next.events.fold(Snapshot.init(WaitingRequest(scheduler)))(ns)
   }
 
   val $steps: Signal[Step[M]] = $snapshots.map(_.step)

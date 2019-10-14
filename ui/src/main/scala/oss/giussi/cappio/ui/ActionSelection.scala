@@ -184,7 +184,7 @@ object ActionSelection {
 
   type Inputs[R] = (List[ProcessId], Observer[AddCommand[R]]) => ReactiveHtmlElement[html.Div]
 
-  def reqBatchInput[Req](inputs: List[Inputs[Req]], processes: List[ProcessId], $obs: Observer[RequestBatch[Req]]) = {
+  def reqBatchInput[Req : Show](inputs: List[Inputs[Req]], processes: List[ProcessId], $obs: Observer[RequestBatch[Req]]) = {
     val $commands = new EventBus[BatchCommand[Req]]
     val $batch: Signal[RequestBatch[Req]] =
       $commands.events.fold(RequestBatch[Req](Map.empty)) {
@@ -195,14 +195,14 @@ object ActionSelection {
       }
 
     def renderBatch = {
-      def renderReq[R](to: ProcessId, initial: (ProcessId, ProcessInput[R]), $changes: Signal[(ProcessId, ProcessInput[R])]) = tr(
+      def renderReq(to: ProcessId, initial: (ProcessId, ProcessInput[Req]), $changes: Signal[(ProcessId, ProcessInput[Req])]) = tr(
         th(
           //scope := "",
           to.toString
         ),
         td(
           child <-- $changes.map {
-            case (_, ProcessRequest(_, r)) => label(r.toString)
+            case (_, ProcessRequest(_, r)) => label(r.show)
             case (_, Crash(_)) => label("Crash")
           }
         ),

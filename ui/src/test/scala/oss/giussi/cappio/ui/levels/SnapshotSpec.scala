@@ -16,13 +16,12 @@ class SnapshotSpec extends WordSpec with Matchers {
 
   "Snapshot" must {
     "" ignore {
-      val step = WaitingRequest(Scheduler.init(all,BestEffortBroadcast.init[String](all,3)))
+      val step = WaitingRequest(Scheduler.init(all,BestEffortBroadcast[String](all,3)))
       val next = Snapshot.next[BebMod[String]](_.toString,_.toString) _
       val req = RequestBatch[BebBcast[String]](Map.empty)
         .add(p0,BebBcast("a"))
         .add(p4,BebBcast("a"))
-      val index0 = Index(0)
-      val s1 = next(Snapshot(index0,List.empty,step, None),NextReq[BebMod[String]](req))
+      val s1 = next(Snapshot.init(step),NextReq[BebMod[String]](req))
       val wd = s1.step.asInstanceOf[WaitingDeliver[BebMod[String]]]
       val delivers: List[Either[FLLDeliver[String],Drop[String]]] = wd.scheduler.network.inTransit.collect {
         case p if (p.packet.from == p0 && (p.packet.to == p3 || p.packet.to == p1)) => Left(p.deliver)

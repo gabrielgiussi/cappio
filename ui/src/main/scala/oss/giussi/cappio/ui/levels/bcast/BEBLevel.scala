@@ -2,7 +2,7 @@ package oss.giussi.cappio.ui.levels.bcast
 
 import oss.giussi.cappio.Conditions.Condition
 import oss.giussi.cappio.impl.bcast.BestEffortBroadcast
-import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.{BebBcast, BebMod}
+import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.{BebApp, BebBcast, BebMod}
 import oss.giussi.cappio.ui.{ActionSelection, Show}
 import oss.giussi.cappio.ui.ActionSelection.{Inputs, payloadRequest}
 import oss.giussi.cappio.ui.core.Dropped
@@ -13,11 +13,11 @@ import oss.giussi.cappio.{ConditionResult, IndicationFrom, ProcessId, Scheduler}
 
 object BEBLevel {
 
-  type ModLevel = BebMod[String]
+  type ModLevel = BebApp[String]
 
   def scheduler[P](nProcesses: Int, timeout: Int): Scheduler[ModLevel] = {
     val all = (0 to nProcesses).map(ProcessId).toSet
-    Scheduler.init(all,BestEffortBroadcast[String](all,timeout))
+    Scheduler.init(all,BestEffortBroadcast.app[String](all,timeout))
   }
 
   val beb = payloadRequest("Broadcast")({ case (_,s) => BebBcast(s)}) _
@@ -39,7 +39,7 @@ object BEBLevel {
 
 }
 
-case class BEBLevel(cond: Conditions[ModLevel])(nProcesses: Int, timeout: Int) extends AbstractLevel[BebMod[String]](BEBLevel.scheduler(nProcesses,timeout), cond) {
+case class BEBLevel(cond: Conditions[ModLevel])(nProcesses: Int, timeout: Int) extends AbstractLevel[ModLevel](BEBLevel.scheduler(nProcesses,timeout), cond) {
 
   override val reqTypes: List[Inputs[BebBcast[String]]] = List(
     BEBLevel.beb,
