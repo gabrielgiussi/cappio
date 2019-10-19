@@ -28,11 +28,6 @@ object ONRRLevel {
 case class ONRRLevel(nProcesses: Int, timeout: Int) extends AbstractLevel[ONRR](ONRRLevel.scheduler(nProcesses,timeout),ONRRLevel.conditions) {
   import ONRRLevel._
 
-  override def requestPayload(req: ONRRReq[String]): String = req match {
-    case ONRRRead => "read"
-    case ONRRWrite(v) => s"write $v"
-  }
-
   override val indicationPayload: ONRRInd[String] => String = {
     case ONRRReadReturn(v) => s"read $v"
     case ONRRWriteReturn => "write ok"

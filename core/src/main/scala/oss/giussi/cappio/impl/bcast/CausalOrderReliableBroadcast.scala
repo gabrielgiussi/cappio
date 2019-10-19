@@ -33,7 +33,7 @@ object CausalOrderReliableBroadcast {
 
   object CRBState {
 
-    def init[P](all: Set[ProcessId], timeout: Int)(self: ProcessId) = CRBState(Past.empty[P], Set.empty, ReliableBroadcast.init[CRBData[P]](all, timeout)(self))
+    def init[P](all: Set[ProcessId], timeout: Int)(self: ProcessId) = CRBState(Past.empty[P], Set.empty, ReliableBroadcast[CRBData[P]](all, timeout)(self))
   }
 
   case class CRBState[P](past: Past[P], delivered: Set[UUID], module: Module[CORBDep[P]]) extends StateWithModule[CORBDep[P], CRBState[P]] {

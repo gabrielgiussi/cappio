@@ -1,8 +1,9 @@
 package oss.giussi.cappio.impl.bcast
 
 import oss.giussi.cappio._
+import oss.giussi.cappio.impl.AppState
+import oss.giussi.cappio.impl.AppState.AppMod2
 import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.{BebBcast, BebDeliver, BebMod}
-import oss.giussi.cappio.impl.bcast.ReliableBroadcast._
 import oss.giussi.cappio.impl.time.PerfectFailureDetector
 import oss.giussi.cappio.impl.time.PerfectFailureDetector.{Crashed, PFDMod}
 import shapeless.ops.coproduct.Inject
@@ -17,10 +18,15 @@ object ReliableBroadcast {
     type State = (Dep1#State, Dep2#State)
   }
 
+  // TODO trait vs type?
   trait RBMod[P] extends ModS[RBDep[P]] {
     override type S = RBcastState[P]
     override type Ind = RBDeliver[P]
     override type Req = RBBcast[P]
+  }
+
+  object RBBcast {
+    def apply[P](msg: P): RBBcast[P] = new RBBcast(Payload(msg))
   }
 
   case class RBBcast[P](payload: Payload[P])
@@ -52,7 +58,7 @@ object ReliableBroadcast {
     }
   }
 
-  def init[P](all: Set[ProcessId], timeout: Int)(self: ProcessId) = ReliableBroadcast(self, RBcastState.init[P](self, all, timeout))
+  //def init[P](all: Set[ProcessId], timeout: Int)(self: ProcessId) = ReliableBroadcast(self, RBcastState.init[P](self, all, timeout))
 
   import oss.giussi.cappio.Messages._
 
@@ -77,11 +83,31 @@ object ReliableBroadcast {
       }
     }
   }
+
+  def apply[T](all: Set[ProcessId], timeout: Int)(self: ProcessId): Module[RBMod[T]] = {
+    AbstractModule.mod[RBMod[T],RBMod[T]#Dep](RBcastState.init(self,all,timeout),ReliableBroadcast.processLocal[T](self))
+  }
+
+  type RBApp[P] = AppMod2[P,RBMod[P]]
+
+  def app[P](all: Set[ProcessId], timeout: Int)(self: ProcessId): Module[RBApp[P]] = {
+    def appLocal = new ProcessLocalHelper1[RBApp[P],RBMod[P]] {
+      override def onPublicRequest(req: RBBcast[P], state: State): Output = LocalStep.withRequests(Set(LocalRequest(req)),state)
+
+      override def onIndication(ind: DInd, state: State): Output = LocalStep.withIndications(Set(ind),state.update(ind.payload.msg))
+    }
+    val rb = ReliableBroadcast[P](all,timeout)(self)
+    AppState.app[P,RBMod[P]](rb,appLocal)
+  }
 }
 
+/*
 case class ReliableBroadcast[T](self: ProcessId, state: RBcastState[T]) extends AbstractModule[RBMod[T],RBDep[T]] {
   override def copyModule(s: RBcastState[T]) = copy(state = s)
 
   override val processLocal = ReliableBroadcast.processLocal(self)
 
 }
+
+
+ */

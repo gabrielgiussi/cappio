@@ -9,8 +9,7 @@ import oss.giussi.cappio.impl.net.FairLossLink.FLLSend
 import oss.giussi.cappio.ui.ActionSelection.Inputs
 import oss.giussi.cappio.ui.core._
 import oss.giussi.cappio.ui.levels.Snapshot.Conditions
-import oss.giussi.cappio.ui.levels.bcast.{BEBLevel, URBLevel}
-import oss.giussi.cappio.ui.levels.register.ONRRLevel
+import oss.giussi.cappio.ui.levels.bcast.{BEBLevel, RBLevel, URBLevel}
 import oss.giussi.cappio.ui.{ActionSelection, Diagram, Show}
 import oss.giussi.cappio.{Mod => ModT, _}
 
@@ -20,6 +19,7 @@ object Levels {
     Documentation("broadcast") _,
     _ => BEBLevel.simple(4, 3),
     _ => BEBLevel.broken(4, 3),
+    _ => RBLevel(4,3),
     _ => URBLevel(4, 3),
     //_ => ONRRLevel(4, 6)
   )
@@ -243,8 +243,9 @@ abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Con
 
   val $next = new EventBus[Op[M]]
 
-  def requestPayload(req: M#Req): String
+  final def requestPayload(req: M#Req): String = show2.show(req)
 
+  // TODO use typeclass show?
   val indicationPayload: M#Ind => String
 
   val $snapshots: Signal[Snapshot[M]] = {

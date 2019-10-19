@@ -25,7 +25,5 @@ case class URBLevel(nProcesses: Int, timeout: Int) extends AbstractLevel[URBMod[
     ActionSelection.crash
   )
 
-  override def requestPayload(req: URBBcast[String]): String = req.payload.msg.toString
-
   override val indicationPayload = ind => ind.payload.toString
 }

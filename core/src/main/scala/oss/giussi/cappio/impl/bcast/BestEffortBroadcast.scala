@@ -10,15 +10,9 @@ import oss.giussi.cappio.impl.net.PerfectLink.{PLDeliver, PLModule, PLSend}
 object BestEffortBroadcast {
 
   type BebMod[P] = ModS[PLModule[P]] {
-    type Req = BebBcast[P]
+    type Req = BebBcast[P] // TODO shouldn't be BebBcast[PLModule#Payload] ?
     type S = BasicState[PLModule[P]]
     type Ind = BebDeliver[P]
-  }
-
-  type BebApp[P] = ModS[BebMod[P]] {
-    type Ind = BebDeliver[P]
-    type Req = BebBcast[P]
-    type S = AppState[P,BebMod[P]]
   }
 
   object BebBcast {
@@ -51,14 +45,16 @@ object BestEffortBroadcast {
     AbstractModule.mod[BebMod[T],BebMod[T]#Dep](BasicState(PerfectLink.init[T](timeout)),BestEffortBroadcast.processLocal[T](self,all))
   }
 
-  def app[T](all: Set[ProcessId], timeout: Int)(self: ProcessId): Module[AppMod2[T,BebMod[T]]] = {
-    def appLocal[P] = new ProcessLocalHelper1[BebApp[P],BebMod[P]] {
+  type BebApp[P] = AppMod2[P, BebMod[P]]
+
+  def app[P](all: Set[ProcessId], timeout: Int)(self: ProcessId): Module[BebApp[P]] = {
+    def appLocal = new ProcessLocalHelper1[BebApp[P],BebMod[P]] {
       override def onPublicRequest(req: BebBcast[P], state: State): Output = LocalStep.withRequests(Set(LocalRequest(req)),state)
 
       override def onIndication(ind: DInd, state: State): Output = LocalStep.withIndications(Set(ind),state.update(ind.payload.msg))
     }
-    val beb = BestEffortBroadcast[T](all,timeout)(self)
-    AppState.app[T,BebMod[T]](beb,appLocal[T])
+    val beb = BestEffortBroadcast[P](all,timeout)(self)
+    AppState.app[P,BebMod[P]](beb,appLocal)
   }
 
 }
