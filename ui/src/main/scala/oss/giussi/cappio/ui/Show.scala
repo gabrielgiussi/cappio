@@ -1,8 +1,9 @@
 package oss.giussi.cappio.ui
 
 import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.BebMod
+import oss.giussi.cappio.impl.bcast.CausalOrderReliableBroadcast.{CORBMod, CRBData}
 import oss.giussi.cappio.impl.bcast.ReliableBroadcast.{RBData, RBMod}
-import oss.giussi.cappio.impl.bcast.{BestEffortBroadcast, ReliableBroadcast, UniformReliableBroadcast}
+import oss.giussi.cappio.impl.bcast.{BestEffortBroadcast, CausalOrderReliableBroadcast, ReliableBroadcast, UniformReliableBroadcast}
 import oss.giussi.cappio.impl.bcast.UniformReliableBroadcast.{URBData, URBMod}
 import oss.giussi.cappio.impl.register.OneNRegularRegister
 import oss.giussi.cappio.impl.register.OneNRegularRegister.{ONACK, ONREAD, ONRRMod, ONRRRead, ONRRWrite, ONVALUE, ONWRITE}
@@ -35,6 +36,10 @@ object Show {
     override def show(a: UniformReliableBroadcast.URBBcast[A]): String = s"urb ${a.payload.msg}"
   }
 
+  implicit def showCORB[A](implicit e: Show[A]) = new Show[CORBMod[A]#Req] {
+    override def show(a: CausalOrderReliableBroadcast.CRBBroadcast[A]): String = s"cb ${a.payload.msg}"
+  }
+
   implicit def showONRR[A](implicit e: Show[A]) = new Show[ONRRMod[A]#Req] {
     override def show(a: OneNRegularRegister.ONRRReq[A]): String = a match {
       case ONRRRead => "read"
@@ -55,6 +60,13 @@ object Show {
     override def show(a: :+:[PerfectFailureDetector.HeartbeatMsg, UniformReliableBroadcast.URBData[A] :+: CNil]): String = a match {
       case Inr(Inl(URBData(_, msg))) => s"URBDATA[${e.show(msg)}]"
       case _ => "hearbeat"
+    }
+  }
+
+  implicit def showCORBPayload[A](implicit e: Show[A]) = new Show[CORBMod[A]#Payload] {
+    override def show(a: :+:[PerfectFailureDetector.HeartbeatMsg, ReliableBroadcast.RBData[CausalOrderReliableBroadcast.CRBData[A]] :+: CNil]): String = a match {
+      case Inr(Inl(RBData(sender, CRBData(mpast, msg)))) => s"CRBDATA[${e.show(msg)}]" // TODO show mpast?
+      case _ => "heartbeat"
     }
   }
 

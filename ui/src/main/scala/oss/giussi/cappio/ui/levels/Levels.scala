@@ -9,7 +9,7 @@ import oss.giussi.cappio.impl.net.FairLossLink.FLLSend
 import oss.giussi.cappio.ui.ActionSelection.Inputs
 import oss.giussi.cappio.ui.core._
 import oss.giussi.cappio.ui.levels.Snapshot.Conditions
-import oss.giussi.cappio.ui.levels.bcast.{BEBLevel, RBLevel, URBLevel}
+import oss.giussi.cappio.ui.levels.bcast.{BEBLevel, CausalLevel, RBLevel, URBLevel}
 import oss.giussi.cappio.ui.{ActionSelection, Diagram, Show}
 import oss.giussi.cappio.{Mod => ModT, _}
 
@@ -21,6 +21,7 @@ object Levels {
     _ => BEBLevel.broken(4, 3),
     _ => RBLevel(4,3),
     _ => URBLevel(4, 3),
+    _ => CausalLevel.good(4,3)
     //_ => ONRRLevel(4, 6)
   )
 
@@ -227,6 +228,15 @@ sealed trait LevelResult
 case object LevelPassed extends LevelResult
 
 case object Pending extends LevelResult
+
+object AbstractLevel {
+
+  // TODO
+  def apply[M <: ModT](scheduler: Scheduler[M], conditions: Conditions[M])(implicit show: Show[M#Payload], show2: Show[M#Req]): Level = new AbstractLevel[M](scheduler, conditions)(show, show2){
+    override val indicationPayload: M#Ind => String = ???
+    override val reqTypes: List[Inputs[Req]] = ???
+  }
+}
 
 abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Conditions[M] = List.empty)(implicit show: Show[M#Payload], show2: Show[M#Req]) extends Level {
 

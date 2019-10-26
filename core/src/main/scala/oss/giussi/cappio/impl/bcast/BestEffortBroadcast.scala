@@ -48,13 +48,8 @@ object BestEffortBroadcast {
   type BebApp[P] = AppMod2[P, BebMod[P]]
 
   def app[P](all: Set[ProcessId], timeout: Int)(self: ProcessId): Module[BebApp[P]] = {
-    def appLocal = new ProcessLocalHelper1[BebApp[P],BebMod[P]] {
-      override def onPublicRequest(req: BebBcast[P], state: State): Output = LocalStep.withRequests(Set(LocalRequest(req)),state)
-
-      override def onIndication(ind: DInd, state: State): Output = LocalStep.withIndications(Set(ind),state.update(ind.payload.msg))
-    }
     val beb = BestEffortBroadcast[P](all,timeout)(self)
-    AppState.app[P,BebMod[P]](beb,appLocal)
+    AppState.app2[P,BebMod[P]](beb,(state,ind) => state.update(ind.payload.msg))
   }
 
 }
