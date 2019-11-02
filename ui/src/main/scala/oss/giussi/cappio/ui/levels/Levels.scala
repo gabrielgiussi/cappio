@@ -118,9 +118,10 @@ trait Level extends Selection {
     div(cls := "row wow fadeIn",
       div(cls := "col-md-9 mb-4",
         div(cls := "card",
+          // TODO maybe https://mdbootstrap.com/docs/jquery/components/tabs/ is a better option than collapse.
           div(cls := "card-body p-2",
             button(
-              cls := "btn btn-link btn-lg p-2",
+              cls := "btn btn-link btn-lg pt-2 pb-2",
               dataAttr("toggle") := "collapse",
               dataAttr("target") := "#goalsCollapse",
               `type` := "button",
@@ -351,7 +352,12 @@ abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Con
     shortDescription,
     p("Para pasar este nivel vas a tener que cumplir con los siguientes objetivos"),
     ul(cls := "list-group list-group-flush",
-      conditions.map(_.description).map(li(cls := "list-group-item", _))
+      conditions.map { case ConditionWithDescription(short,full,_) =>
+        li(cls := "list-group-item",
+          h3(short),
+          p(full)
+        )
+      }
     )
   )
 }
