@@ -16,13 +16,12 @@ import oss.giussi.cappio.{Mod => ModT, _}
 object Levels {
 
   val RAW_LEVELS: List[LevelId => Selection] = List(
-    Documentation("broadcast") _,
+    Documentation(Introduction.source) _,
     _ => BEBLevel.simple(4, 3),
     _ => BEBLevel.broken(4, 3),
     _ => RBLevel(4,3),
     _ => URBLevel(4, 3),
     _ => CausalLevel.good(4,3)
-    //_ => ONRRLevel(4, 6)
   )
 
   val INDEXED_LEVELS: Map[LevelId, IndexedLevel] = RAW_LEVELS.zipWithIndex.map { case (level, index) =>
@@ -55,7 +54,7 @@ sealed trait Selection {
   def status: EventStream[LevelPassed.type]
 }
 
-case class Documentation(doc: String)(id: LevelId) extends Selection {
+case class Documentation(doc: ReactiveHtmlElement[org.scalajs.dom.html.Div])(id: LevelId) extends Selection {
   override def render = div(cls := "container-fluid mt-5",
     div(cls := "row wow fadeIn",
       div(cls := "col-md mb-4",
@@ -64,7 +63,9 @@ case class Documentation(doc: String)(id: LevelId) extends Selection {
             doc
           ),
           a(href := s"#${id.next.x}",
-            "Next"
+            cls := "btn btn-primary",
+            role := "button",
+            "Siguiente"
           )
         )
       )
@@ -94,6 +95,8 @@ trait Level extends Selection {
 
   val $conditions: Signal[List[ConditionLevel]]
 
+  val description: Div
+
   def conditions: Div = {
     def renderCondition(id: Int, initial: ConditionLevel, $changes: Signal[ConditionLevel]) = li(cls := "list-group-item",
       child <-- $changes.map(_.result.result match {
@@ -115,6 +118,28 @@ trait Level extends Selection {
     div(cls := "row wow fadeIn",
       div(cls := "col-md-9 mb-4",
         div(cls := "card",
+          div(cls := "card-body p-2",
+            button(
+              cls := "btn btn-link btn-lg p-2",
+              dataAttr("toggle") := "collapse",
+              dataAttr("target") := "#goalsCollapse",
+              `type` := "button",
+              "Descripción y Objetivos"
+            ),
+            div(
+              div(
+                cls := "collapse show",
+                id := "goalsCollapse",
+                description
+              )
+            )
+          )
+        ),
+      )
+    ),
+    div(cls := "row wow fadeIn",
+      div(cls := "col-md-9 mb-4",
+        div(cls := "card",
           div(cls := "card-body",
             diagram
           )
@@ -122,7 +147,7 @@ trait Level extends Selection {
       ),
       div(cls := "col-md-3 mb-4",
         div(cls := "card mb-4",
-          div(cls := "card-header text-center", "Action Selection"),
+          div(cls := "card-header text-center", "Selección de Acciones"),
           div(cls := "card-body",
             actionSelection
           )
@@ -319,5 +344,7 @@ abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Con
 
   override def status: EventStream[LevelPassed.type] = $conditions.changes.filter(_.find(!_.ok).isEmpty).map(_ => LevelPassed)
 
-
+  final val description = div(
+    "Something!"
+  )
 }
