@@ -1,6 +1,6 @@
 package oss.giussi.cappio.ui.levels.register
 
-import oss.giussi.cappio.Conditions.Condition
+import com.raquo.laminar.api.L._
 import oss.giussi.cappio.{ProcessId, Scheduler}
 import oss.giussi.cappio.impl.register.OneNRegularRegister
 import oss.giussi.cappio.impl.register.OneNRegularRegister.{ONRRInd, ONRRMod, ONRRRead, ONRRReadReturn, ONRRReq, ONRRWrite, ONRRWriteReturn}
@@ -38,4 +38,5 @@ case class ONRRLevel(nProcesses: Int, timeout: Int) extends AbstractLevel[ONRR](
     onrrWrite,
     ActionSelection.crash
   )
+  override val shortDescription = div()
 }

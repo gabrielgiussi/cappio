@@ -2,10 +2,6 @@ package oss.giussi.cappio
 
 object Conditions {
 
-  val NO_ERROR: Option[String] = None
-
-  type Validation[I] = I => Option[String]
-
   type ProcessValidation[M <: Mod] = Condition[Process[M]]
 
   type ProcessesValidation[M <: Mod] = Condition[Set[Process[M]]]
@@ -18,25 +14,21 @@ object Conditions {
 
   type StateValidation[M <: Mod] = Condition[M#State]
 
-  type Condition[I] = I => ConditionResult
+  type Condition[I] = I => Result
 
-  def condition[I](short:String, description: String, validation: Validation[I]): Condition[I] = new Function1[I, ConditionResult] {
-    override def apply(v1: I): ConditionResult = validation(v1) match {
-      case None => ConditionResult(short, description, Successful)
-      case Some(msg) => ConditionResult(short, description, Error(msg))
-    }
+  case class ConditionWithDescription[I](short: String, description: String, f: Condition[I]) extends Function1[I,ConditionResult] {
+    override def apply(v1: I): ConditionResult = ConditionResult(short,description, f.apply(v1))
   }
+
+  def condition[I](short:String, description: String, validation: Condition[I]): ConditionWithDescription[I] = ConditionWithDescription(short,description, validation)
 
   object Validations {
-    def ALL_UP[M <: Mod]: Validation[Set[Process[M]]] = processes => {
+    def ALL_UP[M <: Mod]: Condition[Set[Process[M]]] = processes => {
       val down = processes.filter(_.status == Down).map(_.id)
-      if (down.isEmpty) NO_ERROR
-      else Some(s"Processes [${down.mkString(",")}] has crashed")
+      if (down.isEmpty) Successful
+      else Error(s"Processes [${down.mkString(",")}] has crashed")
     }
   }
-
-  // FIXME porque necesito pasarle el Mod si no me interesa para la validacion, solo necesito el estado de los procesos
-  def ALL_UP[M <: Mod] = condition("All Up", "All processes should be Up", Validations.ALL_UP[M])
 
 }
 

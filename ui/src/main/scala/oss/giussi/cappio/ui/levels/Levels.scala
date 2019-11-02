@@ -4,7 +4,7 @@ import com.raquo.laminar.api.L._
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.scalajs.dom.raw.HTMLElement
 import oss.giussi.cappio
-import oss.giussi.cappio.Conditions.Condition
+import oss.giussi.cappio.Conditions.{Condition, ConditionWithDescription}
 import oss.giussi.cappio.impl.net.FairLossLink.FLLSend
 import oss.giussi.cappio.ui.ActionSelection.Inputs
 import oss.giussi.cappio.ui.core._
@@ -236,7 +236,7 @@ object Snapshot {
       s
   }
 
-  type Conditions[M <: oss.giussi.cappio.Mod] = List[Condition[Snapshot[M]]]
+  type Conditions[M <: oss.giussi.cappio.Mod] = List[ConditionWithDescription[Snapshot[M]]]
 
 }
 
@@ -260,6 +260,7 @@ object AbstractLevel {
   def apply[M <: ModT](scheduler: Scheduler[M], conditions: Conditions[M])(implicit show: Show[M#Payload], show2: Show[M#Req]): Level = new AbstractLevel[M](scheduler, conditions)(show, show2){
     override val indicationPayload: M#Ind => String = ???
     override val reqTypes: List[Inputs[Req]] = ???
+    override val shortDescription: Div = ???
   }
 }
 
@@ -344,7 +345,13 @@ abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Con
 
   override def status: EventStream[LevelPassed.type] = $conditions.changes.filter(_.find(!_.ok).isEmpty).map(_ => LevelPassed)
 
-  final val description = div(
-    "Something!"
+  val shortDescription: Div
+
+  lazy final val description = div(
+    shortDescription,
+    p("Para pasar este nivel vas a tener que cumplir con los siguientes objetivos"),
+    ul(cls := "list-group list-group-flush",
+      conditions.map(_.description).map(li(cls := "list-group-item", _))
+    )
   )
 }

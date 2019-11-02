@@ -1,5 +1,6 @@
 package oss.giussi.cappio.ui.levels.bcast
 
+import com.raquo.laminar.api.L._
 import oss.giussi.cappio.{ProcessId, Scheduler}
 import oss.giussi.cappio.impl.bcast.CausalOrderReliableBroadcast
 import oss.giussi.cappio.impl.bcast.CausalOrderReliableBroadcast.{CRBBroadcast, CausalApp}
@@ -27,6 +28,7 @@ object CausalLevel {
       crb,
       ActionSelection.crash
     )
+    override val shortDescription = div()
   }
 
   val good = apply(List()) _

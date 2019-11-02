@@ -1,9 +1,9 @@
 package oss.giussi.cappio.ui.core
 
 import oss.giussi.cappio
-import oss.giussi.cappio.Conditions.{IndicationValidation, NetworkValidation, ProcessValidation, ProcessesValidation, StateValidation, StatesValidation}
+import oss.giussi.cappio.Conditions.{IndicationValidation, NetworkValidation, ProcessValidation, ProcessesValidation, StateValidation, StatesValidation, Validations, condition}
 import oss.giussi.cappio.ui.levels.Snapshot
-import oss.giussi.cappio.{Mod, ProcessId, Scheduler}
+import oss.giussi.cappio.{Conditions, Mod, ProcessId, Scheduler}
 
 object LevelConditions {
 
@@ -34,5 +34,6 @@ object LevelConditions {
 
   def state[M <: Mod](id: ProcessId)(v: StateValidation[M]) = Projections.state(id).andThen(v)
 
+  def ALL_UP[M <: Mod]: Conditions.ConditionWithDescription[Snapshot[M]] = condition("All Up", "All processes should be Up", processes(Validations.ALL_UP[M]))
 
 }

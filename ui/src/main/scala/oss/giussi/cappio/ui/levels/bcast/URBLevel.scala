@@ -1,5 +1,6 @@
 package oss.giussi.cappio.ui.levels.bcast
 
+import com.raquo.laminar.api.L._
 import oss.giussi.cappio.impl.bcast.UniformReliableBroadcast
 import oss.giussi.cappio.impl.bcast.UniformReliableBroadcast.{URBBcast, URBDeliver, URBMod}
 import oss.giussi.cappio.ui.ActionSelection
@@ -26,4 +27,6 @@ case class URBLevel(nProcesses: Int, timeout: Int) extends AbstractLevel[URBMod[
   )
 
   override val indicationPayload = ind => ind.payload.toString
+
+  override val shortDescription = div()
 }
