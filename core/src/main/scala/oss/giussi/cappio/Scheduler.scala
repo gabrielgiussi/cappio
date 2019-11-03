@@ -38,6 +38,7 @@ object DeliverBatch {
 
 // deliver shoulnd't receive a map, just a list of delivers (the packet contains the target process)
 case class DeliverBatch[P](ops: Map[ProcessId, Either[FLLDeliver[P], Drop[P]]]) {
+  /*
   def add(deliver: FLLDeliver[P]) = copy(ops = ops + (deliver.packet.to -> Left(deliver)))
 
   def add(drop: Drop[P]) = copy(ops = ops + (drop.packet.to -> Right(drop)))
@@ -47,6 +48,8 @@ case class DeliverBatch[P](ops: Map[ProcessId, Either[FLLDeliver[P], Drop[P]]]) 
   def remove(drop: Drop[P]) = copy(ops = ops - drop.packet.to)
 
   def clear = DeliverBatch.empty
+
+   */
 }
 
 sealed trait Step[M <: Mod] {
@@ -120,9 +123,7 @@ case class Scheduler[M <: Mod](processes: Map[ProcessId, Process[M]], network: N
     val (fi, fs, fp) = processes.values.foldLeft[(Set[IndicationFrom[M#Ind]], Set[Send], Set[P])]((Set.empty, Set.empty, Set.empty)) {
       case ((ind, send, ps), p) =>
         val NextStateProcess(i, s, ns) = p.tick
-        //<editor-fold desc="Description">
         val a = i.map(IndicationFrom(p.id, _))
-        //</editor-fold>
         (ind ++ a, send ++ s, ps + ns)
     }
     NextStateScheduler(fs, fi, copy(processes = fp.map(p => p.id -> p).toMap, network = network.send(fs), step = step + 1))

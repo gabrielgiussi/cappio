@@ -15,16 +15,6 @@ object ActionSelection {
 
   type Select = ReactiveHtmlElement[dom.html.Select]
 
-
-  /*
-  def baseSelect(options: List[String]) = {
-    select(
-      cls := "browser-default custom-select mb-4"
-    )
-  }
-
-   */
-
   def payloadInput(obs: Observer[Option[String]]) = div(
     //cls := "md-form",
     input(
@@ -59,6 +49,7 @@ object ActionSelection {
           button(
             `type` := "button",
             cls := "btn btn-link p-0",
+            disabled := (packet.p.packet.from == packet.p.packet.to),
             span(
               cls := "fas fa-trash-alt",
               cls <-- $changes.map(p => if (p.op == DropOp) "red-text" else ""),
