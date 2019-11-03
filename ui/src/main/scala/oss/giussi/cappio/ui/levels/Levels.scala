@@ -4,13 +4,13 @@ import com.raquo.laminar.api.L._
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.scalajs.dom.raw.HTMLElement
 import oss.giussi.cappio
-import oss.giussi.cappio.Conditions.{Condition, ConditionWithDescription}
+import oss.giussi.cappio.Conditions.ConditionWithDescription
 import oss.giussi.cappio.impl.net.FairLossLink.FLLSend
 import oss.giussi.cappio.ui.ActionSelection.Inputs
 import oss.giussi.cappio.ui.core._
 import oss.giussi.cappio.ui.levels.Snapshot.Conditions
 import oss.giussi.cappio.ui.levels.bcast.{BEBLevel, CausalLevel, RBLevel, URBLevel}
-import oss.giussi.cappio.ui.{ActionSelection, Diagram, Show}
+import oss.giussi.cappio.ui.{ActionSelection, Diagram, Show, ShowDOM}
 import oss.giussi.cappio.{Mod => ModT, _}
 
 object Levels {
@@ -257,15 +257,16 @@ case object Pending extends LevelResult
 
 object AbstractLevel {
 
-  // TODO
+  /* TODO
   def apply[M <: ModT](scheduler: Scheduler[M], conditions: Conditions[M])(implicit show: Show[M#Payload], show2: Show[M#Req]): Level = new AbstractLevel[M](scheduler, conditions)(show, show2){
     override val indicationPayload: M#Ind => String = ???
     override val reqTypes: List[Inputs[Req]] = ???
     override val shortDescription: Div = ???
   }
+   */
 }
 
-abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Conditions[M] = List.empty)(implicit show: Show[M#Payload], show2: Show[M#Req]) extends Level {
+abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Conditions[M] = List.empty)(implicit show: Show[M#Payload], show2: Show[M#Req], showDOM: ShowDOM[M#State]) extends Level {
 
   type Payload = M#Payload
   type State = M#State
@@ -294,6 +295,8 @@ abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Con
 
   override val $actions = $snapshots.map(_.last)
 
+  val $states: Signal[List[ProcessState]] = $steps.map(_.scheduler.processes.values.toList.sortBy(_.id.id).map { case Process(id,stack,status) => ProcessState(id,stack.state,status) })
+
   val reqTypes: List[Inputs[Req]]
 
   override def actionSelection: Div = {
@@ -319,24 +322,26 @@ abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Con
     )
   }
 
-  def renderState(id: ProcessId, initial: ProcessState, $states: Signal[ProcessState]) = div(
-    cls := "col-md-4 mb-4",
-    div(
-      cls := "card",
-      div(
-        cls := "card-body",
-        renderStateI(id, initial, $states)
-      )
-    )
-  )
+  import oss.giussi.cappio.ui.ShowDOMSyntax._
 
-  // TODO make it optional (beb doesn't have state)
-  def renderStateI(id: ProcessId, initial: ProcessState, $states: Signal[ProcessState]): Modifier[Div] = label(id.toString)
+  def renderState(processId: ProcessId, initial: ProcessState, $states: Signal[ProcessState]) = div(cls := "col-md-4 mb-4",
+    div(cls := "card",
+      borderColor <-- $states.map { case ProcessState(_, _, Up) => "green" case _ => "red" },
+      div(
+        cls := "card-header",
+        s"Process ${processId.id}",
+      ),
+      div(
+        id := s"processState${processId.toString}",
+        cls := "card-body",
+        borderStyle := "solid",
+        borderWidth := "10",
+        child <-- $states.map(_.state.toDOM)
+      )))
 
   override def states: Div = div(
     cls := "row wow fadeIn",
-    // https://stackoverflow.com/a/10635041
-    //children <-- $states.split(_.id)(renderState) TODO
+    children <-- $states.split(_.id)(renderState)
   )
 
   override val $conditions = {

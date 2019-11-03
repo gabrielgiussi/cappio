@@ -115,7 +115,7 @@ object Arrows {
     val py = gridConf.y(action.to)
     val orientation = if (p.y > py) Up else Down
     val a = shortArrow(p, orientation, gridConf, arrowHead)
-    a.events(onClick).mapToValue(action.uuid).foreach(println)(a) // TODO
+    a.events(onClick).mapToValue(action.uuid).foreach(println)(a) // TODO this is not pure because I'm mutating stuf (creating subscriptions) so Why laminar is FRP?
     a
   }
 

@@ -4,7 +4,7 @@ import com.raquo.laminar.api.L._
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.scalajs.dom
 import org.scalajs.dom.{document, html}
-import oss.giussi.cappio.ui.levels.{Documentation, IndexedLevel, Level, LevelId, LevelPassed, Levels, Pending}
+import oss.giussi.cappio.ui.levels.{Documentation, IndexedLevel, LevelId, Levels}
 
 import scala.util.Try
 

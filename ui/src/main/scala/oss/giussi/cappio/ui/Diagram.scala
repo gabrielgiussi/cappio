@@ -98,6 +98,10 @@ object Diagram {
           s.y1 := py,
           s.y2 := py,
           s.r := "30",
+          // TODO https://github.com/raquo/Laminar/blob/master/docs/Documentation.md#focus-receiver How to get the ref of the element because here im using
+          // the API of scalajs but I need the api of laminar, but I don't know how to get a laminar element by id.
+          // another option is https://stackoverflow.com/a/10635041 but im using hashtags for routing
+          onClick.mapToValue(()) --> Observer.apply[Unit](_ => org.scalajs.dom.document.querySelector(s"#processState${p.toString}").scrollIntoView())
         )
       },
       children <-- $actions.splitIntoSignals(_.id)(renderAction($gridConf))
