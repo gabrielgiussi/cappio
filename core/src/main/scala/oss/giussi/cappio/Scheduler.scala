@@ -9,11 +9,13 @@ object Scheduler {
 
   def init[M <: Mod](processes: Set[ProcessId], f: ProcessId => Module[M]): Scheduler[M] = Scheduler(processes.map(pId => pId -> Process(pId, f(pId))).toMap, Network.init[M#Payload], 0)
 
+  // TODO deprecated
   def requestAndTick[M <: Mod](scheduler: Scheduler[M]) = scheduler.request _ andThen { case NextStateScheduler(sent0, ind0, sch0) =>
     val NextStateScheduler(sent1, ind1, sch1) = sch0.tick
     NextStateScheduler(sent0 ++ sent1, ind0 ++ ind1, sch1)
   }
 
+  // TODO deprecated
   def deliverAndTick[M <: Mod](scheduler: Scheduler[M]) = scheduler.deliver _ andThen { case NextStateScheduler(sent0, ind0, sch0) =>
     val NextStateScheduler(sent1, ind1, sch1) = sch0.tick
     NextStateScheduler(sent0 ++ sent1, ind0 ++ ind1, sch1)
@@ -126,7 +128,16 @@ case class Scheduler[M <: Mod](processes: Map[ProcessId, Process[M]], network: N
         (ind ++ a, send ++ s, ps + ns)
     }
 
-    NextStateScheduler(fs, fi, copy(processes = processes ++ (crashed ++ fp).map(p => p.id -> p), network = network.send(fs)))
+    autodelivery(NextStateScheduler(fs, fi, copy(processes = processes ++ (crashed ++ fp).map(p => p.id -> p), network = network.send(fs))))
+  }
+
+  private def autodelivery(ns: Next): Next = {
+    val NextStateScheduler(sent0,ind0,sch0) = ns
+    val autodeliveries = sent0.filter(p => p.packet.from == p.packet.to)
+      .map(p => FLLDeliver(p.packet)).map(p => p.packet.to -> Left(p)).toMap
+
+    val NextStateScheduler(sent1,ind1,sch1) = sch0.deliver(DeliverBatch(autodeliveries)) // FIXME delete restriction on one deliver per process or make this call recursive until no autodeliveries left
+    NextStateScheduler(sent0 ++ sent1,ind0 ++ ind1,sch1)
   }
 
   def tick: Next = {
@@ -136,7 +147,7 @@ case class Scheduler[M <: Mod](processes: Map[ProcessId, Process[M]], network: N
         val a = i.map(IndicationFrom(p.id, _))
         (ind ++ a, send ++ s, ps + ns)
     }
-    NextStateScheduler(fs, fi, copy(processes = fp.map(p => p.id -> p).toMap, network = network.tick.send(fs), step = step + 1))
+    autodelivery(NextStateScheduler(fs, fi, copy(processes = fp.map(p => p.id -> p).toMap, network = network.tick.send(fs), step = step + 1)))
   }
 
   // TODO aca deberia tener algun control de q digo deliver a 0, el paquete 1 -> 0
