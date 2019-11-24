@@ -197,15 +197,22 @@ object Snapshot {
 
   def sendToUndelivered[P](index: Index)(send: FLLSend[P]): Undelivered = Undelivered(send.packet.from, send.packet.to, send.packet.id, send.packet.payload.toString, index)
 
+  // TODO refactor required
   def next[M <: ModT](indicationPayload: M#Ind => String, reqPayload: M#Req => String)(snapshot: Snapshot[M], op: Op[M]): Snapshot[M] = (snapshot, op) match {
     case (c@Snapshot(current, actions, pastInd, wr@WaitingRequest(_), _), NextReq(req)) =>
       val RequestResult(sent, ind, wd) = wr.request(req.requests.values.toSeq)
       val sends = sent.map(sendToUndelivered(current))
       val requests = req.requests.map { case (p, r) => toRequest(reqPayload)(p, r, current) }
       val indications = ind.map(toIndication(indicationPayload)(current))
-      Snapshot(current.next, actions ++ indications ++ requests ++ sends, pastInd ++ ind, wd, Some(c))
+      Snapshot(current, actions ++ indications ++ requests ++ sends, pastInd ++ ind, wd, Some(c))
     case (c@Snapshot(current, actions,pastInd, wd@WaitingDeliver(_), _), NextDeliver(del)) =>
-      val DeliverResult(sent, ind, wr) = wd.deliver(del)
+      val result = if (del.ops.isEmpty) wd.tick else wd.deliver(del)
+      val sent = result.sent
+      val ind = result.ind
+      val (nextIndex, wd2) = result match {
+        case DeliverResult(_,_,w) => (current.next,w)
+        case RequestResult(_,_,w) => (current, w)
+      }
       val sends = sent.map(sendToUndelivered(current))
       val delivers = del.ops.values.flatMap {
         case Left(FLLDeliver(Packet(id, payload, from, to, _))) => Some(Delivered(from, to, id, payload.toString, actions.collectFirst {
@@ -229,7 +236,7 @@ object Snapshot {
           case _ => true
         }
       }
-      Snapshot(current.next, filtered ++ indications ++ delivers ++ sends ++ drops, pastInd ++ ind, wr, Some(c))
+      Snapshot(nextIndex, filtered ++ indications ++ delivers ++ sends ++ drops, pastInd ++ ind, wd2, Some(c))
     case (Snapshot(_, _, _,_, Some(prev)), Prev()) => prev
     case (Snapshot(_, _, _,_, Some(prev)), Reset()) => next(indicationPayload, reqPayload)(prev, Reset()) // FIXME TEMPORAL SOLUTION, store a list of all snapshots instead. or some structure that allows access to root in O (1)
     case (s, input) =>

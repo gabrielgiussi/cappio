@@ -56,23 +56,33 @@ sealed trait Step[M <: Mod] {
   val scheduler: Scheduler[M]
 }
 
-case class RequestResult[M <: Mod](sent: Set[FLLSend[M#Payload]], ind: Set[IndicationFrom[M#Ind]], waiting: WaitingDeliver[M]) {
+trait NextResult[M <: Mod] {
+  def sent: Set[FLLSend[M#Payload]]
+  def ind: Set[IndicationFrom[M#Ind]]
+}
+
+case class RequestResult[M <: Mod](sent: Set[FLLSend[M#Payload]], ind: Set[IndicationFrom[M#Ind]], waiting: WaitingDeliver[M]) extends NextResult[M] {
   def deliver = waiting.deliver
 }
 
-case class DeliverResult[M <: Mod](sent: Set[FLLSend[M#Payload]], ind: Set[IndicationFrom[M#Ind]], waiting: WaitingRequest[M]) {
+case class DeliverResult[M <: Mod](sent: Set[FLLSend[M#Payload]], ind: Set[IndicationFrom[M#Ind]], waiting: WaitingRequest[M]) extends NextResult[M] {
   def request = waiting.request
 }
 
 case class WaitingRequest[M <: Mod](scheduler: Scheduler[M]) extends Step[M] {
-  def request = Scheduler.requestAndTick(scheduler) andThen { case NextStateScheduler(sent, ind, sch) =>
+  def request = (scheduler.request _).andThen { case NextStateScheduler(sent, ind, sch) =>
     RequestResult(sent, ind, WaitingDeliver(sch))
   }
 }
 
 case class WaitingDeliver[M <: Mod](scheduler: Scheduler[M]) extends Step[M] {
-  def deliver = Scheduler.deliverAndTick(scheduler) andThen { case NextStateScheduler(sent, ind, sch) =>
-    DeliverResult(sent, ind, WaitingRequest(sch))
+  def deliver = (scheduler.deliver _).andThen { case NextStateScheduler(sent, ind, sch) =>
+    RequestResult(sent,ind,WaitingDeliver(sch))
+  }
+
+  def tick = {
+    val NextStateScheduler(sent,indications,sch) = scheduler.tick
+    DeliverResult(sent,indications,WaitingRequest(sch))
   }
 }
 
@@ -126,7 +136,7 @@ case class Scheduler[M <: Mod](processes: Map[ProcessId, Process[M]], network: N
         val a = i.map(IndicationFrom(p.id, _))
         (ind ++ a, send ++ s, ps + ns)
     }
-    NextStateScheduler(fs, fi, copy(processes = fp.map(p => p.id -> p).toMap, network = network.send(fs), step = step + 1))
+    NextStateScheduler(fs, fi, copy(processes = fp.map(p => p.id -> p).toMap, network = network.tick.send(fs), step = step + 1))
   }
 
   // TODO aca deberia tener algun control de q digo deliver a 0, el paquete 1 -> 0

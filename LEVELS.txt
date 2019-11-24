@@ -1,0 +1,125 @@
+# Introduccion
+  Motivacion
+  Arquitectura (procesos, links y mensajes)
+  Process failures & Link failures
+  Clases de algoritmos (fail-stop, fail-noisy, etc) Tal vez lo puedo explicar mas adelante
+  System models
+  Safety and liveness? (deberia comentarlo al menos, pero tengo que ver como entra en juego en mi implementacion,
+                        para el caso de liveness no puedo testearlo porque siempre podes seguir)
+
+# Que es broadcast?
+
+# Que es best effort broadcast? Cual es el caso de uso?
+Level beb
+# En que ocasiones puede fallar broadcast
+Level broken beb
+# Como puedo arreglar esta situacion con rb?
+Level RB
+# en que condiciones puede fallar?
+Level broken Rb
+
+
+
+
+1. Introduccion
+   a. Que son los sistemas distribuidos? Que particularidades tienen (partial failures) y cuales son las ventajas (usados para fault tolerance, loa balancing y fast sharing pag 6)
+2. Basic abstractions
+   a. Procesos y Links
+   b. Failures (crashes & messages lost)
+   c. Mencionar byzantine faults
+   d. System models (async, sync y partial) pag 44
+   e. Clases de algoritmos (fail-stop, fail-noisy, etc) pag 16 y 63
+
+
+3. Arquitectura usada en el libro
+   a. Abstractions (aca quiero explicar que las abstractions son a nivel broadcast o atomic register porque son cosas que se pueden reutilizar
+      en muchas situaciones y por eso los autores proponen implementarlas separadas de la logica de la aplicacion, (ver End-to-End Argument pag 7)
+   b. Composition moduel, modulos/componentes, software stacks (cada proceso ejecuta la misma composicion).
+   c. Request, indications y guarantees (safety y liveness) (pag 22)
+   d. Eventos y event handlers. How the events flow trougth the layers (pag 10, 11 y 12)
+   e. Ejemplo: job handler.
+
+4. cappIO
+
+5. Broadcast
+  a. Motivation
+
+
+############################################
+
+Introduccion
+Distributed computing addresses algorithms for a set of processes that seek to
+achieve some form of cooperation. Besides executing concurrently, some of the
+processes of a distributed system might stop operating, for instance, by crashing
+or being disconnected, while others might stay alive and keep operating. This very
+notion of partial failures is a characteristic of a distributed system. In fact, this notion can be useful if one really feels the need to differentiate a distributed system
+from a concurrent system. It is in order to quote Leslie Lamport here:
+“A distributed system is one in which the failure of a computer you did not
+even know existed can render your own computer unusable.”
+When a subset of the processes have failed, or become disconnected, the challenge
+is usually for the processes that are still operating, or connected to the majority of
+
+# Qué son los sistemas distribuidos?
+
+"Un sistema distribuido es aquel en el cual la falla de una computadora que ni siquiera sabias que existía
+puede hacer que tu propia computadora quede inutilizable" Leslie Lamport
+
+La programacion distribuida implementa algoritmos para un conjunto de procesos que cooperan
+para lograr cierto objetivo.
+La particularidad que distingue a los sistemas distribuidos es la posibilidad de fallas parciales, es decir,
+alguno de los procesos puede dejar de ejecutar el algoritmo porque el proceso terminó (por ejemplo si la máquina
+se apagó) mientras que el resto de los procesos continua ejecutandose.
+El desafío a la hora de implementar sistemas distribuidos es asegurarnos que incluso ante la ocurrencia de fallas
+parciales, el resto de los procesos continua ejecutando el algoritmo de una manera correcta.
+Esto es aun más complejo debido a que estos no son los únicos tipos de errores que pueden ocurrir, como veremos más adelante,
+los procesos se comunican mediante mensajes que se envían sobre una red que puede a su vez tener errores, por ejemplo algunos
+de los mensajes se pueden perder, lo que hace que en ciertos casos sea imposible detectar con precisión un proceso
+que falló porque no podemos distinguir si el error esta en la red o en los procesos.
+(Aca deberia explicar que cappio no considera byzantine faults).
+
+# Por qué desarrollamos sistemas distribuidos?
+
+Pero, si implementar sistemas distribuidos es tan complejo, ¿por qué lo hacemos?
+En realidad, muchos de los programas que usamos hoy en día son distribuidos, una página
+web es un ejemplo de la forma más simple de un sistema distribuido donde un único proceso servidor
+provee el contenido html a un conjunto de procesos clientes.
+Sin embargo, los sistemas distribuidos más complejos y que serán nuestro objeto de interés son aquellos donde múltiples
+procesos ejecutan un mismo algoritmo y deben coordinar entre sí para proveer las mismas garantías, al menos desde un punto
+de vista práctico, que si fuera un único proceso. Los objetivos de este tipo de sistemas son
+ - tolerancia a fallas: si un proceso deja de ejecutarse el resto de los procesos pueden seguir proveyendo el servicio
+ - escalabilidad (horizontal): para poder atender un mayor número de usuarios de nuestro servicio podemos distribuir la carga entre un conjunto de procesos
+ - reducción de la latencia: si queremos que nuestros servicios respondan rápidamente a nuestros usuarios que están distribuidos en todo el mundo podemos disponer de equipos
+   que estén físicamente cercanos a ellos. (TODO reescribir)
+
+
+# Qué es cappIO?
+
+cappIO es una herramienta didáctica con un entorno gráfico para entender los conceptos y el lenguaje básico usados en la teoría de los sistemas distribuidos.
+Está basado en el libro Introduction to Reliable and Secure Distributed Programming del cual toma las definiciones de un conjunto de abstracciones utilizadas
+para resolver problemas fundamentales como broadcast, memoria compartida y consenso. (TODO aca seria mejor poner cuales son los problemas y entre parentesis cual
+es la abstraccion que vamos a ver q ataca ese problema)
+
+El objetivo de los autores es capturar un conjunto de propiedades que son comunes a un gran conjunto de aplicaciones distribuidas agrupandolas en abstracciones que contienen
+los puntos fundamentales de manera que sea fácil reutilizarlas y así prevenir que los ingenieros deban reinventar las mismas soluciones con pequeñas diferencias.
+Veamos un caso concreto; en muchos sistemas distribuidos nos encontramos con la necesidad de detectar cuando un proceso falla para poder actuar en consecuencia, por ejemplo
+indicando a otro de los procesos que asuma el rol del que falló. Para cumplir con este requisito los autores proponen usar un componente conocido como Failure Detector.
+(TODO en principio esta bien esto pero no tengo claro si el Failure Detector es un componente o una abstraccion, los autores lo proponen como una manera de abstraer el tiempo).
+
+(pag 8, 9)
+El libro define algoritmos en pseudocódigo que reflejan un modelo reactivo en el que los componentes del mismo proceso se comunican mediante el intercambio de eventos: un algoritmo
+se describe como un conjunto de controladores de eventos. Estos reaccionan a los eventos entrantes y posiblemente disparan nuevos eventos.
+Cada componente proporciona una interfaz en forma de eventos que el componente acepta y produce. Las abstracciones de programación distribuida generalmente están formadas
+por una colección de componentes, al menos uno para cada proceso, que tienen el objetivo de satisfacer algunas propiedades comunes.
+Los componentes pueden ser compuestos para construir software stacks. En cada proceso, un componente representa una capa específica del stack. La capa de aplicación está en la
+parte superior de la pila, mientras que la capa de red suele estar en la parte inferior. Las capas de las abstracciones de programación distribuida que consideraremos están
+típicamente en el medio. Los componentes dentro de la misma pila se comunican a través del intercambio de eventos.
+TODO layering image
+Según este modelo, cada componente se construye como una máquina de estado cuyas transiciones se desencadenan por la recepción de eventos. Los eventos pueden llevar información
+como un mensaje de datos o información de group membership.
+Cada evento es procesado a través de un handler dedicado por el proceso (es decir, por el componente correspondiente). Un handler se formula en términos de una secuencia de instrucciones.
+El procesamiento de un evento puede dar como resultado la creación de nuevos eventos. Cada evento desencadenado por un componente del mismo proceso eventualmente se procesa, si el proceso es
+correcto. Los eventos del mismo componente se procesan en el orden en que se activaron. Este orden first in first out (FIFO) solo se aplica en eventos intercambiados
+entre componentes locales de un stack.
+TODO mostrar el pseudocodigo del job handler. O le borro la interfaz que implementa y el nombre de la instancia o antes tengo que explicar brevemente que son.
+
+TODO imagen 1.3 de pag 15

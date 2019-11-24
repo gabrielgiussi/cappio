@@ -38,7 +38,7 @@ object Network {
     def drop: Drop[T]
   }
 
-  def init[T] = Network(Set.empty[Packet[T]],Set.empty[Packet[T]])
+  def init[T] = Network(0, Set.empty[IndexedPacket[T]],Set.empty[Packet[T]])
 
 }
 /*
@@ -62,30 +62,33 @@ sealed abstract case class FLLDeliver[P](packet: Packet[P]) {
   def withPayload[NP](newPayload: NP) = new FLLDeliver(packet.copy(payload = newPayload)) {}
 }
 
-// TODO I added alreadyDelivered only to be able to check the "liveness" condition (see BEBLevel broken) but maybe I shlould save this info somewhere else.
-case class Network[T](packets: Set[Packet[T]], alreadyDelivered: Set[Packet[T]]) {
+case class IndexedPacket[T](sent: Int, packet: Packet[T])
 
+// TODO I added alreadyDelivered only to be able to check the "liveness" condition (see BEBLevel broken) but maybe I shlould save this info somewhere else.
+case class Network[T](index: Int, packets: Set[IndexedPacket[T]], alreadyDelivered: Set[Packet[T]]) {
 
   def drop(drops: Set[Drop[T]]): Try[Network[T]] = {
-    val p = drops.map(_.packet)
-    if (p.forall(packets.contains)) Success(copy(packets -- p)) else Failure(new RuntimeException("Some packets are not in transit"))
+    val toDrop = drops.map(_.packet)
+    if (toDrop.forall(packets.map(_.packet).contains)) Success(copy(packets = packets.filterNot(p => toDrop.contains(p.packet)))) else Failure(new RuntimeException("Some packets are not in transit"))
   }
 
   def deliver(delivered: Set[FLLDeliver[T]]): Try[Network[T]] = {
-    val p = delivered.map(_.packet)
-    if (p.forall(packets.contains))
-      Success(copy(packets -- p, alreadyDelivered ++ p))
+    val toDeliver = delivered.map(_.packet)
+    if (toDeliver.forall(packets.map(_.packet).contains))
+      Success(copy(packets = (packets.filterNot(p => toDeliver.contains(p.packet))), alreadyDelivered = (alreadyDelivered ++ toDeliver)))
     else Failure(new RuntimeException)
   }
 
-  def send(sent: Set[FLLSend[T]]): Network[T] = copy(packets ++ sent.map(_.packet))
+  def send(sent: Set[FLLSend[T]]): Network[T] = copy(packets = packets ++ sent.map(_.packet).map(IndexedPacket(index,_)))
 
-  def inTransit: Set[InTransitPacket[T]] = packets.map(p => new InTransitPacket[T] {
-    val packet = p
+  def tick = copy(index = index + 1)
+
+  def inTransit: Set[InTransitPacket[T]] = packets.filter(_.sent < index).map(p => new InTransitPacket[T] {
+    val packet = p.packet
 
     override def deliver: FLLDeliver[T] = new FLLDeliver(packet) {}
 
-    override def drop: Drop[T] = Drop(p)
+    override def drop: Drop[T] = Drop(packet)
   })
 
 

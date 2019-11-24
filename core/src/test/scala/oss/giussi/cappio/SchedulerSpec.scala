@@ -60,7 +60,7 @@ class SchedulerSpec extends CappIOSpec {
         .deliver(DeliverBatch(Map(p1 -> Left(FLLDeliver(packet)))))
         .ind should contain theSameElementsAs Set(IndicationFrom(p1,packet.slDeliver))
     }
-    "send tick after each step" in  {
+    "send tick after each empty delivery batch" in  {
       trait M extends Mod {
         override type Req = Unit
         override type Ind = String
@@ -73,7 +73,7 @@ class SchedulerSpec extends CappIOSpec {
 
         override def tick: Next = {
           val ns = state + 1
-          if (ns == 5) next(copy(0), Set("ok"))
+          if (ns == 2) next(copy(0), Set("ok"))
           else next(copy(ns))
         }
       }
@@ -82,9 +82,9 @@ class SchedulerSpec extends CappIOSpec {
       WaitingRequest(Scheduler.init(processes))
         .request(Seq.empty)
         .deliver(DeliverBatch.empty)
-        .request(Seq.empty)
-        .deliver(DeliverBatch.empty)
-        .request(Seq.empty)
+        .waiting.tick
+        .waiting.request(Seq.empty)
+        .waiting.tick
         .ind shouldBe ALL_SET.map(IndicationFrom(_,"ok"))
 
     }
