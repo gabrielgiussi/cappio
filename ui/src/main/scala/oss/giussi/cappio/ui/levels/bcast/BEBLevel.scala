@@ -42,6 +42,7 @@ object BEBLevel {
     ),
     List(
       ALL_UP[ModLevel],
+      boundedDelay(3),
       condition("Entregar [A] a todos", "El estado de todos los procesos debería contener el mensaje [A]", states[ModLevel](s => if (s.values.forall(_.value.contains("A"))) Successful else Error("Not all processes delivered 'A'")))
     )
   ) _
