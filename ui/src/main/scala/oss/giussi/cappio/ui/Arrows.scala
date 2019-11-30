@@ -46,7 +46,7 @@ object Arrows {
   case object Down extends Orientation
 
   def indication(ind: Indication, gridConf: GridConf) = {
-    shortArrow(gridConf.point(ind.index,ind.process),Up,gridConf,Markers.ArrowHead)
+    shortArrow(gridConf.point(ind.index,ind.process),Up,gridConf,Markers.ArrowHeadEmpty)
   }
 
   // FIXME request at index 0 will not appear. Alternatives: make vertix at half of the round or start timelines at (n,0) instead of (0,0)

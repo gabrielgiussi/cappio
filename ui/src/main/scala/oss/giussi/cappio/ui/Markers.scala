@@ -8,6 +8,8 @@ object Markers {
 
   val ArrowHeadX = "arrowheadx"
 
+  val ArrowHeadEmpty = "arrowheadempty"
+
   def defs(arrowHeadSize: Double, crossSize: Double) = svg.defs(
     svg.marker(
       svg.id := ArrowHead,
@@ -36,8 +38,22 @@ object Markers {
       ),
       // TODO or another path?
       Arrows.cross(Point(arrowHeadSize,arrowHeadSize / 2), crossSize) // FIXME se ve cortada la X
+    ),
+    svg.marker(
+      svg.id := ArrowHeadEmpty,
+      svg.markerWidth := arrowHeadSize.toString,
+      svg.markerHeight := arrowHeadSize.toString,
+      svg.markerUnits := "userSpaceOnUse",
+      svg.orient := "auto",
+      svg.refX := arrowHeadSize.toString, // TODO
+      svg.refY := (arrowHeadSize / 2).toString,
+      svg.path(
+        svg.d := s"M0,0 L0,${arrowHeadSize} L${arrowHeadSize},${arrowHeadSize / 2} z",
+        svg.stroke := "black",
+        svg.fill := "white"
 
-    )
+      )
+    ),
   )
 
 }

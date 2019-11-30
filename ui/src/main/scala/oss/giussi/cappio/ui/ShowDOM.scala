@@ -4,12 +4,13 @@ import com.raquo.laminar.api.L._
 import oss.giussi.cappio.BasicState
 import oss.giussi.cappio.impl.AppState
 import oss.giussi.cappio.impl.bcast.CausalOrderReliableBroadcast.{CORBDep, CRBState}
-import oss.giussi.cappio.impl.bcast.ReliableBroadcast.RBcastState
+import oss.giussi.cappio.impl.bcast.ReliableBroadcast.{RBDep, RBcastState}
 import oss.giussi.cappio.impl.bcast.UniformReliableBroadcast.URBState
 import oss.giussi.cappio.impl.net.PerfectLink.PLState
 import oss.giussi.cappio.impl.net.StubLink
 import oss.giussi.cappio.impl.net.StubbornLink.StubbornLinkState
 import oss.giussi.cappio.impl.register.OneNRegularRegister.ONRRState
+import oss.giussi.cappio.impl.time.PerfectFailureDetector.{PFDMod, PFDState}
 
 trait ShowDOM[A] {
 
@@ -33,7 +34,9 @@ object ShowDOM {
   }
 
   implicit def showCausal[P](implicit dep: ShowDOM[CORBDep[P]#State]) = new ShowDOM[CRBState[P]] {
-    override def toDOM(a: CRBState[P]): Div = div()
+    override def toDOM(a: CRBState[P]): Div = div(
+      a.module.state.toDOM
+    )
   }
 
   implicit def showPL[P](implicit dep: ShowDOM[StubLink[P]#State]) = new ShowDOM[PLState[P]] {
@@ -65,8 +68,8 @@ object ShowDOM {
     )
   }
 
-  implicit def showRB[P] = new ShowDOM[RBcastState[P]] {
-    override def toDOM(a: RBcastState[P]): Div = div()
+  implicit def showRB[P](implicit dep: ShowDOM[PFDMod#State]) = new ShowDOM[RBcastState[P]] {
+    override def toDOM(a: RBcastState[P]): Div = a.module.state._1.toDOM
   }
 
   implicit def showURBState[P] = new ShowDOM[URBState[P]] {
@@ -75,6 +78,12 @@ object ShowDOM {
 
   implicit def showONRRState[P] = new ShowDOM[ONRRState[P]] {
     override def toDOM(a: ONRRState[P]): Div = div()
+  }
+
+  implicit  def showPFDState = new ShowDOM[PFDState] {
+    override def toDOM(a: PFDState): Div = div(
+      label("dead: " + a.detected.mkString(","))
+    )
   }
 
 }
