@@ -40,7 +40,7 @@ case class Indication(process: ProcessId, index: Index, payload: String) extends
   override def id: String = s"indication-$process-$index"
 }
 
-case class Undelivered(from: ProcessId, to: ProcessId, uuid: UUID, payload: String, sent: Index) extends NetworkAction(from,to,uuid,payload,sent)
+case class Undelivered(from: ProcessId, to: ProcessId, uuid: UUID, payload: String, sent: Index, alreadyDelivered: Boolean) extends NetworkAction(from,to,uuid,payload,sent)
 
 case class Delivered(from: ProcessId, to:ProcessId, uuid: UUID, payload: String, sent: Index, received: Index) extends NetworkAction(from,to,uuid,payload,sent)
 

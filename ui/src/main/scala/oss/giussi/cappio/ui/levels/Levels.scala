@@ -195,17 +195,19 @@ object Snapshot {
 
   final def toIndication[Ind](indicationPayload: Ind => String)(i: Index)(ind: IndicationFrom[Ind]) = Indication(ind.p, i, indicationPayload(ind.i))
 
-  def sendToUndelivered[P](index: Index)(send: FLLSend[P]): Undelivered = Undelivered(send.packet.from, send.packet.to, send.packet.id, send.packet.payload.toString, index)
+  def sendToUndelivered[P](index: Index)(send: FLLSend[P], alreadyDelivered: Boolean): Undelivered = Undelivered(send.packet.from, send.packet.to, send.packet.id, send.packet.payload.toString, index, alreadyDelivered)
+
+  def delivered[P](network: Network[P], s: FLLSend[P]) = network.alreadyDelivered.contains(s.packet)
 
   // TODO refactor required
   def next[M <: ModT](indicationPayload: M#Ind => String, reqPayload: M#Req => String)(snapshot: Snapshot[M], op: Op[M]): Snapshot[M] = (snapshot, op) match {
-    case (c@Snapshot(current, actions, pastInd, wr@WaitingRequest(_), _), NextReq(req)) =>
+    case (c@Snapshot(current, actions, pastInd, wr@WaitingRequest(Scheduler(_, network, _)), _), NextReq(req)) =>
       val RequestResult(sent, ind, wd) = wr.request(req.requests.values.toSeq)
-      val sends = sent.map(sendToUndelivered(current))
+      val sends = sent.map(s => sendToUndelivered(current)(s,delivered(network,s)))
       val requests = req.requests.map { case (p, r) => toRequest(reqPayload)(p, r, current) }
       val indications = ind.map(toIndication(indicationPayload)(current))
       Snapshot(current, actions ++ indications ++ requests ++ sends, pastInd ++ ind, wd, Some(c))
-    case (c@Snapshot(current, actions,pastInd, wd@WaitingDeliver(_), _), NextDeliver(del)) =>
+    case (c@Snapshot(current, actions,pastInd, wd@WaitingDeliver(Scheduler(_, network, _)), _), NextDeliver(del)) =>
       val result = if (del.ops.isEmpty) wd.tick else wd.deliver(del)
       val sent = result.sent
       val ind = result.ind
@@ -213,16 +215,16 @@ object Snapshot {
         case DeliverResult(_,_,w) => (current.next,w)
         case RequestResult(_,_,w) => (current, w)
       }
-      val sends = sent.map(sendToUndelivered(current))
+      val sends = sent.map(s => sendToUndelivered(current)(s,delivered(network,s)))
       val delivers = del.ops.values.flatMap {
         case Left(FLLDeliver(Packet(id, payload, from, to, _))) => Some(Delivered(from, to, id, payload.toString, actions.collectFirst {
-          case Undelivered(`from`, `to`, `id`, _, s) => s
+          case Undelivered(`from`, `to`, `id`, _, s, _) => s
         }.get, current)) // FIXME refactor code
         case _ => None
       }
       val drops = del.ops.values.flatMap {
-        case Right(Drop(Packet(id, payload, from, to, instance))) => Some(Dropped(from, to, id, payload.toString, actions.collectFirst {
-          case Undelivered(`from`, `to`, `id`, _, s) => s
+        case Right(Drop(Packet(id, payload, from, to, _))) => Some(Dropped(from, to, id, payload.toString, actions.collectFirst {
+          case Undelivered(`from`, `to`, `id`, _, s, _) => s
         }.get, current))
         case _ => None
       }
@@ -311,7 +313,7 @@ abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Con
       div(
         child <-- $steps.map {
           case WaitingRequest(sch) => ActionSelection.reqBatchInput(reqTypes, sch.availableProcesses.toList, $next.writer.contramap[RequestBatch[M#Req]](r => NextReq(r)))
-          case WaitingDeliver(sch) => ActionSelection.networkInput(sch.availablePackets, $next.writer.contramap[DelBatch](r => NextDeliver(r)))
+          case WaitingDeliver(sch) => ActionSelection.networkInput(sch.availablePackets(false), $next.writer.contramap[DelBatch](r => NextDeliver(r)))
         }
       ),
       div(

@@ -35,7 +35,7 @@ object Diagram {
     s.svg(
       child <-- signal.combineWith($gridConf).map {
         case (d: Delivered,gridConf) => Arrows.delivered(d,gridConf)
-        case (u: Undelivered, gridConf) => Arrows.undelivered(u,gridConf)
+        case (u: Undelivered, gridConf) => if (u.alreadyDelivered) s.svg() else Arrows.undelivered(u,gridConf)
         case (c: Crashed,gridConf) => Arrows.crashed(c,gridConf)
         case (r: Request,gridConf) => Arrows.request(r,gridConf)
         case (i: Indication,gridConf) => Arrows.indication(i,gridConf)

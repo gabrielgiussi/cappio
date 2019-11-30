@@ -171,5 +171,9 @@ case class Scheduler[M <: Mod](processes: Map[ProcessId, Process[M]], network: N
 
   def availableProcesses: Set[ProcessId] = processes.filter(_._2.status == Up).keySet
 
-  def availablePackets: Set[InTransitPacket[M#Payload]] = network.inTransit.filterNot(p => isDown(p.packet.to).get)
+  def availablePackets(showDelivered: Boolean): Set[InTransitPacket[M#Payload]] = network
+    .inTransit
+    .filterNot(p => isDown(p.packet.to).get)
+    .filter(p => showDelivered || !network.alreadyDelivered.contains(p.packet))
+
 }
