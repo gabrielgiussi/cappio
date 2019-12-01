@@ -39,7 +39,7 @@ object Diagram {
         case (c: Crashed,gridConf) => Arrows.crashed(c,gridConf)
         case (r: Request,gridConf) => Arrows.request(r,gridConf)
         case (i: Indication,gridConf) => Arrows.indication(i,gridConf)
-        case (d: Dropped,gridConf) => Arrows.dropped(d,gridConf)
+        case (d: Dropped,gridConf) => Arrows.dropped(d,gridConf) // TODO dropped show near the process target
         case (r: PendingRead,gridConf) => Arrows.pendingRead(r,gridConf)
         case (r: ReadReturned,gridConf) => Arrows.readReturned(r,gridConf)
         case (r: PendingWrite,gridConf) => Arrows.pendingWrite(r,gridConf)

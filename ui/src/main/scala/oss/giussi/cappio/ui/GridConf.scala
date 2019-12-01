@@ -3,7 +3,11 @@ package oss.giussi.cappio.ui
 import oss.giussi.cappio.{ProcessId, Processes}
 import oss.giussi.cappio.ui.core.Index
 
-case class Point(x: Double, y: Double)
+case class Point(x: Double, y: Double) {
+
+  def adjustX(adjust: Double) = copy(x + adjust, y)
+
+}
 
 case class GridConfImpl(roundWidth: Double, p: Processes) extends GridConf {
 

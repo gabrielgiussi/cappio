@@ -46,7 +46,7 @@ object Arrows {
   case object Down extends Orientation
 
   def indication(ind: Indication, gridConf: GridConf) = {
-    shortArrow(gridConf.point(ind.index,ind.process),Up,gridConf,Markers.ArrowHeadEmpty)
+    indicationArrow(gridConf.point(ind.index,ind.process),gridConf,Markers.ArrowHeadEmpty)
   }
 
   // FIXME request at index 0 will not appear. Alternatives: make vertix at half of the round or start timelines at (n,0) instead of (0,0)
@@ -102,10 +102,16 @@ object Arrows {
     )
   }
 
+  private def indicationArrow(p: Point, gridConf: GridConf, arrowHead: String) = {
+    val y = p.y - (gridConf.roundHeight / 3) // issue 79
+    arrow(p, Point(p.x + (gridConf.roundWidth / 6), y), arrowHead)
+  }
+
+
   private def shortArrow(p: Point, orientation: Orientation, gridConf: GridConf, arrowHead: String) = {
     val y = orientation match {
-      case Up => p.y - (gridConf.roundHeight / 2)
-      case Down => p.y + (gridConf.roundHeight / 2)
+      case Up => p.y - (gridConf.roundHeight / 3)
+      case Down => p.y + (gridConf.roundHeight / 3)
     }
     arrow(p, Point(p.x + (gridConf.roundWidth / 2), y), arrowHead)
   }
@@ -151,7 +157,7 @@ object Arrows {
       )
     }
     if (action.from == action.to) selfDelivered
-    else arrow(p1, p2)
+    else arrow(p1, p2.adjustX(action.to.id * 10)) // issue 74
   }
 
 

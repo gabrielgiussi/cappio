@@ -206,14 +206,14 @@ object Snapshot {
       val sends = sent.map(s => sendToUndelivered(current)(s,delivered(network,s)))
       val requests = req.requests.map { case (p, r) => toRequest(reqPayload)(p, r, current) }
       val indications = ind.map(toIndication(indicationPayload)(current))
-      Snapshot(current, actions ++ indications ++ requests ++ sends, pastInd ++ ind, wd, Some(c))
+      Snapshot(current.next, actions ++ indications ++ requests ++ sends, pastInd ++ ind, wd, Some(c))
     case (c@Snapshot(current, actions,pastInd, wd@WaitingDeliver(Scheduler(_, network, _)), _), NextDeliver(del)) =>
       val result = if (del.ops.isEmpty) wd.tick else wd.deliver(del)
       val sent = result.sent
       val ind = result.ind
       val (nextIndex, wd2) = result match {
         case DeliverResult(_,_,w) => (current.next,w)
-        case RequestResult(_,_,w) => (current, w)
+        case RequestResult(_,_,w) => (current.next, w)
       }
       val sends = sent.map(s => sendToUndelivered(current)(s,delivered(network,s)))
       val delivers = del.ops.values.flatMap {
