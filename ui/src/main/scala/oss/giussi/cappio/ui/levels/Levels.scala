@@ -195,7 +195,11 @@ object Snapshot {
 
   final def toIndication[Ind](indicationPayload: Ind => String)(i: Index)(ind: IndicationFrom[Ind]) = Indication(ind.p, i, indicationPayload(ind.i))
 
-  def sendToUndelivered[P](index: Index)(send: FLLSend[P], alreadyDelivered: Boolean): Undelivered = Undelivered(send.packet.from, send.packet.to, send.packet.id, send.packet.payload.toString, index, alreadyDelivered)
+  def sendToUndelivered[P](index: Index)(send: FLLSend[P], alreadyDelivered: Boolean): Option[Undelivered] = send match {
+    case FLLSend(Packet(id, payload, from, to, _)) =>
+      if (from == to) None else Some(Undelivered(from, to, id, payload.toString, index, alreadyDelivered))
+  }
+
 
   def delivered[P](network: Network[P], s: FLLSend[P]) = network.alreadyDelivered.contains(s.packet)
 
@@ -203,7 +207,7 @@ object Snapshot {
   def next[M <: ModT](indicationPayload: M#Ind => String, reqPayload: M#Req => String)(snapshot: Snapshot[M], op: Op[M]): Snapshot[M] = (snapshot, op) match {
     case (c@Snapshot(current, actions, pastInd, wr@WaitingRequest(Scheduler(_, network, _)), _), NextReq(req)) =>
       val RequestResult(sent, ind, wd) = wr.request(req.requests.values.toSeq)
-      val sends = sent.map(s => sendToUndelivered(current)(s,delivered(network,s)))
+      val sends = sent.flatMap(s => sendToUndelivered(current)(s,delivered(network,s)))
       val requests = req.requests.map { case (p, r) => toRequest(reqPayload)(p, r, current) }
       val indications = ind.map(toIndication(indicationPayload)(current))
       Snapshot(current.next, actions ++ indications ++ requests ++ sends, pastInd ++ ind, wd, Some(c))
@@ -215,7 +219,7 @@ object Snapshot {
         case DeliverResult(_,_,w) => (current.next,w)
         case RequestResult(_,_,w) => (current.next, w)
       }
-      val sends = sent.map(s => sendToUndelivered(current)(s,delivered(network,s)))
+      val sends = sent.flatMap(s => sendToUndelivered(current)(s,delivered(network,s)))
       val delivers = del.ops.values.flatMap {
         case Left(FLLDeliver(Packet(id, payload, from, to, _))) => Some(Delivered(from, to, id, payload.toString, actions.collectFirst {
           case Undelivered(`from`, `to`, `id`, _, s, _) => s

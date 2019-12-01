@@ -17,11 +17,11 @@ case class GridConfImpl(roundWidth: Double, p: Processes) extends GridConf {
 
   private val indexes = processes.zipWithIndex.toMap
 
-  override def point(index: Index, process: ProcessId): Point = Point(x(index).toInt + (roundWidth / 2),y(process))
+  override def point(index: Index, process: ProcessId): Point = Point(x(index,process).toInt + (roundWidth / 2),y(process))
 
   override def y(process: ProcessId): Double = (indexes(process) + 1) * roundHeight
 
-  override def x(index: Index): Double = index.i * roundWidth
+  override def x(index: Index, process: ProcessId): Double = (index.i * roundWidth) + (process.id * 10)
 
   override def crossSize: Double = roundWidth * 0.2
 
@@ -45,7 +45,7 @@ sealed trait GridConf {
 
   def y(process: ProcessId): Double
 
-  def x(index: Index): Double
+  def x(index: Index, process: ProcessId): Double
 
   def processes: List[ProcessId]
 

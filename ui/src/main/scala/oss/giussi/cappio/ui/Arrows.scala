@@ -102,10 +102,10 @@ object Arrows {
     )
   }
 
-  private def indicationArrow(p: Point, gridConf: GridConf, arrowHead: String) = {
-    val y = p.y - (gridConf.roundHeight / 3) // issue 79
-    arrow(p, Point(p.x + (gridConf.roundWidth / 6), y), arrowHead)
-  }
+    private def indicationArrow(p: Point, gridConf: GridConf, arrowHead: String) = {
+      val y = p.y - (gridConf.roundHeight / 3) // issue 79
+      arrow(p, Point(p.x + (gridConf.roundWidth / 6), y), arrowHead)
+    }
 
 
   private def shortArrow(p: Point, orientation: Orientation, gridConf: GridConf, arrowHead: String) = {
@@ -157,7 +157,7 @@ object Arrows {
       )
     }
     if (action.from == action.to) selfDelivered
-    else arrow(p1, p2.adjustX(action.to.id * 10)) // issue 74
+    else arrow(p1, p2)
   }
 
 

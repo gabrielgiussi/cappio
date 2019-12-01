@@ -1,6 +1,6 @@
 package oss.giussi.cappio.ui
 
-import oss.giussi.cappio.Processes
+import oss.giussi.cappio.{ProcessId, Processes}
 import com.raquo.laminar.api.L.{svg => s, _}
 import oss.giussi.cappio.ui.core.{Action, Crashed, Delivered, Dropped, Indication, PendingRead, PendingWrite, ReadReturned, Request, Undelivered, WriteReturned}
 import oss.giussi.cappio.ui.levels.LastSnapshot
@@ -27,7 +27,7 @@ object Diagram {
       )
       //,input(`type` := "number", inContext(thisNode => onChange.mapTo(thisNode.ref.value).map(w => gridConf.copy(roundWidth = w.toInt)) --> $bus)) TODO
     )
-    $actions.combineWith($gridConf).foreach { case (LastSnapshot(index,_),gconf) => diag.ref.scrollLeft = gconf.x(index.copy(index.i - 10)) }(diag)
+    $actions.combineWith($gridConf).foreach { case (LastSnapshot(index,_),gconf) => diag.ref.scrollLeft = gconf.x(index.copy(index.i - 10), processes.all.maxBy(_.id)) }(diag)
     diag
   }
 

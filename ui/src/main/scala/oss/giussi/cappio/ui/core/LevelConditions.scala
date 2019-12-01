@@ -1,9 +1,8 @@
 package oss.giussi.cappio.ui.core
 
-import oss.giussi.cappio
-import oss.giussi.cappio.Conditions.{ConditionWithDescription, IndicationValidation, NetworkValidation, ProcessValidation, ProcessesValidation, StateValidation, StatesValidation, Validations, condition}
+import oss.giussi.cappio.Conditions._
 import oss.giussi.cappio.ui.levels.Snapshot
-import oss.giussi.cappio.{Conditions, Error, Mod, ProcessId, Scheduler, Successful}
+import oss.giussi.cappio.{Error, Mod, ProcessId, Successful}
 
 object LevelConditions {
 
