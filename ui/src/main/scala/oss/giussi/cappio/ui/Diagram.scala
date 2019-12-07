@@ -24,11 +24,16 @@ object Diagram {
         labels(gridConf, labelWidth, height),
         timelines(gridConf, $gridConf, labelWidth + 1, $actions.map(_.actions)),
         grid(gridConf,labelWidth + 1, height)
-      )
-      //,input(`type` := "number", inContext(thisNode => onChange.mapTo(thisNode.ref.value).map(w => gridConf.copy(roundWidth = w.toInt)) --> $bus)) TODO
+      ),
+      //,input(`type` := "number", inContext(thisNode => onChange.mapTo(thisNode.ref.value).map(w => gridConf.copy(roundWidth = w.toInt)) --> $bus)) TODO issue #43
     )
     $actions.combineWith($gridConf).foreach { case (LastSnapshot(index,_),gconf) => diag.ref.scrollLeft = gconf.x(index.copy(index.i - 10), processes.all.maxBy(_.id)) }(diag)
-    diag
+    div(
+      diag,
+      child <-- Arrows.actionSelected.events.map {
+        case a => label(s"Action ${a.id}")
+      }
+    )
   }
 
   def renderAction($gridConf: Signal[GridConf])(id: String, initial: Action, signal: Signal[Action]) = {
@@ -39,7 +44,7 @@ object Diagram {
         case (c: Crashed,gridConf) => Arrows.crashed(c,gridConf)
         case (r: Request,gridConf) => Arrows.request(r,gridConf)
         case (i: Indication,gridConf) => Arrows.indication(i,gridConf)
-        case (d: Dropped,gridConf) => Arrows.dropped(d,gridConf) // TODO dropped show near the process target
+        case (d: Dropped,gridConf) => Arrows.dropped(d,gridConf)
         case (r: PendingRead,gridConf) => Arrows.pendingRead(r,gridConf)
         case (r: ReadReturned,gridConf) => Arrows.readReturned(r,gridConf)
         case (r: PendingWrite,gridConf) => Arrows.pendingWrite(r,gridConf)

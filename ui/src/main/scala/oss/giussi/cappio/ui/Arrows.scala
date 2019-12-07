@@ -3,8 +3,11 @@ package oss.giussi.cappio.ui
 import java.util.UUID
 
 import com.raquo.laminar.api.L._
+import com.raquo.laminar.nodes.ReactiveSvgElement
+import org.scalajs.dom.raw.SVGElement
+import org.scalajs.dom.svg.Circle
 import oss.giussi.cappio.{Network, ProcessId}
-import oss.giussi.cappio.ui.core.{Crashed, Delivered, Dropped, Index, Indication, NetworkAction, PendingRead, PendingWrite, ReadReturned, Request, Undelivered, WriteReturned}
+import oss.giussi.cappio.ui.core.{Action, Crashed, Delivered, Dropped, Index, Indication, NetworkAction, PendingRead, PendingWrite, ReadReturned, Request, Undelivered, WriteReturned}
 
 
 /*
@@ -17,6 +20,9 @@ ver si puedo tipar el payload de las actions
  */
 
 object Arrows {
+
+  val actionSelected = new EventBus[Action]
+  actionSelected.events.addObserver(Observer.apply(println))(unsafeWindowOwner)
 
   // TODO donde va esto?
   def cross(point: Point, size: Double) = {
@@ -46,14 +52,20 @@ object Arrows {
   case object Down extends Orientation
 
   def indication(ind: Indication, gridConf: GridConf) = {
-    indicationArrow(gridConf.point(ind.index,ind.process),gridConf,Markers.ArrowHeadEmpty)
+    val p = gridConf.point(ind.index,ind.process)
+    val y = p.y - (gridConf.roundHeight / 3) // issue 79
+    val a = arrow(p, Point(p.x + (gridConf.roundWidth / 6), y), Markers.ArrowHeadEmpty)
+    a.events(onClick).mapToValue(ind).addObserver(actionSelected.writer)(a)
+    a
   }
 
   // FIXME request at index 0 will not appear. Alternatives: make vertix at half of the round or start timelines at (n,0) instead of (0,0)
   def request(req: Request, gridConf: GridConf) = {
     val p2 = gridConf.point(req.index, req.process)
     val p1 = Point(p2.x - (gridConf.roundWidth / 2), p2.y - (gridConf.roundWidth / 2))
-    arrow(p1, p2)
+    val a = arrow(p1, p2)
+    a.events(onClick).mapToValue(req).addObserver(actionSelected.writer)(a)
+    a
   }
 
   def crashed(crashed: Crashed, gridConf: GridConf) = cross(gridConf.point(crashed.index, crashed.process), gridConf.crossSize)
@@ -65,6 +77,7 @@ object Arrows {
     val Point(x2, y2) = p2
     //val x2 = x - (grid.arrowHeadSize / 2)
     //val y2 = if (y1 > y) y + (grid.arrowHeadSize / 2) else  y - (grid.arrowHeadSize / 2) FIXME que la linea se acorte y no se pise con el marker-end
+
     svg.line(
       svg.x1 := x1.toString,
       svg.x2 := x2.toString,
@@ -102,12 +115,6 @@ object Arrows {
     )
   }
 
-    private def indicationArrow(p: Point, gridConf: GridConf, arrowHead: String) = {
-      val y = p.y - (gridConf.roundHeight / 3) // issue 79
-      arrow(p, Point(p.x + (gridConf.roundWidth / 6), y), arrowHead)
-    }
-
-
   private def shortArrow(p: Point, orientation: Orientation, gridConf: GridConf, arrowHead: String) = {
     val y = orientation match {
       case Up => p.y - (gridConf.roundHeight / 3)
@@ -121,7 +128,7 @@ object Arrows {
     val py = gridConf.y(action.to)
     val orientation = if (p.y > py) Up else Down
     val a = shortArrow(p, orientation, gridConf, arrowHead)
-    a.events(onClick).mapToValue(action.uuid).foreach(println)(a) // TODO this is not pure because I'm mutating stuf (creating subscriptions) so Why laminar is FRP?
+    a.events(onClick).mapToValue(action).addObserver(actionSelected.writer)(a)
     a
   }
 

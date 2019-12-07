@@ -26,3 +26,8 @@
 @media (max-width: 1199.98px) {
   .sidebar-fixed {
     display: none; } }
+
+line:hover {
+  stroke: red;
+  cursor: pointer;
+}
