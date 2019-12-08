@@ -10,7 +10,7 @@ import oss.giussi.cappio.ui.ActionSelection.Inputs
 import oss.giussi.cappio.ui.core._
 import oss.giussi.cappio.ui.levels.Snapshot.Conditions
 import oss.giussi.cappio.ui.levels.bcast.{BEBLevel, CausalLevel, RBLevel, URBLevel}
-import oss.giussi.cappio.ui.{ActionSelection, AppState, Diagram, Show, ShowDOM}
+import oss.giussi.cappio.ui.{ActionSelection, AppStore, Diagram, Show, ShowDOM}
 import oss.giussi.cappio.{Mod => ModT, _}
 
 object Levels {
@@ -83,7 +83,7 @@ case class LastSnapshot(current: Index, actions: List[Action])
 
 trait Level[M <: oss.giussi.cappio.Mod] extends Selection {
 
-  val state = new AppState[M]
+  val state = new AppStore[M]
 
   val processes: Processes
 
