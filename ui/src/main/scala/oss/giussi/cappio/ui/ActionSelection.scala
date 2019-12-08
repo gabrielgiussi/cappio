@@ -34,7 +34,8 @@ object ActionSelection {
   def networkInput[P : Show](available: Set[InTransitPacket[P]], $out: Observer[DeliverBatch[P]]) = {
     def renderDeliverTo(obs: Observer[NetworkCommand])(to: ProcessId, initial: DeliverTo, $changes: Signal[DeliverTo]) = {
       def renderPacket(id: UUID, packet: PacketWithOp, $changes: Signal[PacketWithOp]) = li(
-        p(
+        cls := "list-group-item p-0",
+        div(
           s"Deliver ${packet.p.packet.from}--[${packet.p.packet.payload.show}]-->${packet.p.packet.to}   ",
           button(
             `type` := "button",
@@ -140,15 +141,22 @@ object ActionSelection {
       case ResetCommand(id) => batch.update(_.reset(id))
     }
 
+    val a_div = if (available.isEmpty) div(h1("Network is empty"))
+    else div(
+      children <-- batch.signal.map(_.values.toList).split(_.processId)(renderDeliverTo(commandObs))
+    )
+
     div(
-      child <-- batch.signal.map(b => if (b.isEmpty) label("Network is empty") else label("")),
-      children <-- batch.signal.map(_.values.toList).split(_.processId)(renderDeliverTo(commandObs)),
-      button(`type` := "reset", cls := "btn btn-primary", "Next",
-        onClick.mapTo(batch.now()).map(b => DeliverBatch(b.ops : _*)) --> $out
-      ),
-      button(`type` := "button", cls := "btn btn-danger", "Clear",
-        //disabled <-- $batch.signal.map(_.ops.isEmpty),
-        onClick.mapToValue(()) --> Observer.apply[Unit](_ => batch.update(_.clear))
+      cls := "text-center",
+      a_div,
+      div(
+        button(`type` := "reset", cls := "btn btn-primary", "Next",
+          onClick.mapTo(batch.now()).map(b => DeliverBatch(b.ops : _*)) --> $out
+        ),
+        button(`type` := "button", cls := "btn btn-danger", "Clear",
+          disabled <-- batch.signal.map(_.ops.isEmpty),
+          onClick.mapToValue(()) --> Observer.apply[Unit](_ => batch.update(_.clear))
+        )
       )
     )
   }
@@ -173,7 +181,7 @@ object ActionSelection {
 
   case class RemoveReq(id: ProcessId) extends BatchCommand[Nothing]
 
-  type Inputs[R] = (List[ProcessId], Observer[AddCommand[R]]) => ReactiveHtmlElement[html.Div]
+  type Inputs[R] = (List[ProcessId], Observer[AddCommand[R]]) => ReactiveHtmlElement[html.Div] // FIXME refactor this
 
   def reqBatchInput[Req : Show](inputs: List[Inputs[Req]], processes: List[ProcessId], $obs: Observer[RequestBatch[Req]]) = {
     val $commands = new EventBus[BatchCommand[Req]]
@@ -218,15 +226,17 @@ object ActionSelection {
         inputs.map(_.apply(processes, $commands.writer))
       ),
       renderBatch,
-      input(`type` := "submit", cls := "btn btn-primary", value := "Next", // TODO input or button?
-        inContext { thisNode =>
-          val a = $batch.observe(thisNode)
-          onClick.preventDefault.mapTo(a.now()) --> $obs
-        }
-      ),
-      input(`type` := "reset", cls := "btn btn-danger", value := "Clear",
-        disabled <-- $batch.map(_.requests.isEmpty),
-        onClick.preventDefault.mapToValue(Reset) --> $commands
+      div(cls := "text-center",
+        input(`type` := "submit", cls := "btn btn-primary", value := "Next", // TODO input or button?
+          inContext { thisNode =>
+            val a = $batch.observe(thisNode)
+            onClick.preventDefault.mapTo(a.now()) --> $obs
+          }
+        ),
+        input(`type` := "reset", cls := "btn btn-danger", value := "Clear",
+          disabled <-- $batch.map(_.requests.isEmpty),
+          onClick.preventDefault.mapToValue(Reset) --> $commands
+        )
       )
     )
   }
@@ -242,7 +252,7 @@ object ActionSelection {
     onClick.mapToValue(Click) --> obs
   )
 
-  def plusDiv = (plus _).tupled.andThen(x => div(cls := "col-sm mb-2", x))
+  def plusDiv = (plus _).tupled.andThen(x => div(cls := "col-sm-2", x))
 
   def crash[R] = noPayloadRequest[R]("Crash")(_ => CrashP) _
 
@@ -250,8 +260,8 @@ object ActionSelection {
     val process: Var[Option[ProcessId]] = Var(None)
     val click = new EventBus[Click.type]
     val d = div(cls := "form-row",
-      div(cls := "col-sm mb-2", description),
-      selectDiv((processes, process.writer, Seq.empty)),
+      div(cls := "col-sm-3 text-center", label(description)),
+      selectDiv("col-sm-6")((processes, process.writer, Seq.empty)),
       plusDiv(process.signal.map(_.isDefined), click.writer)
     )
     click.events.mapTo(process.now().map(id => AddReq(id, f(id))))
@@ -264,9 +274,9 @@ object ActionSelection {
     val payload: Var[Option[String]] = Var(None)
     val click = new EventBus[Click.type]
     val d = div(cls := "form-row",
-      div(cls := "col-sm mb-2", description),
-      selectDiv((processes, process.writer, Seq.empty)),
-      div(cls := "col-sm mb-2",
+      div(cls := "col-sm-3 text-center", label(description)),
+      selectDiv("col-sm-3")((processes, process.writer, Seq.empty)),
+      div(cls := "col-sm-3",
         //label(forId := "bebPayload", "Payload"),
         input(
           cls := "form-control",
@@ -305,7 +315,7 @@ object ActionSelection {
   }
 
   // IMPROVE
-  def selectDiv = (selectProcess _).tupled.andThen(x => div(cls := "col-sm mb-2",
+  def selectDiv(c: String) = (selectProcess _).tupled.andThen(x => div(cls := c,
     //label(forId := "processId", "Process"),
     x
   ))

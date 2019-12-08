@@ -31,7 +31,7 @@ object Diagram {
     div(
       diag,
       child <-- Arrows.actionSelected.events.map {
-        case a => label(s"Action ${a.id}")
+        case a => label(s"Action ${a.id}") // TODO
       }
     )
   }

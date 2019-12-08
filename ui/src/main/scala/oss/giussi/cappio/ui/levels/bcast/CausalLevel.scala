@@ -22,7 +22,7 @@ object CausalLevel {
     Scheduler.init(all,CausalOrderReliableBroadcast.app[Payload](all,timeout))
   }
 
-  def apply(cond: Conditions[ModLevel])(nProcesses: Int, timeout: Int): Level = new AbstractLevel[ModLevel](scheduler(nProcesses,timeout),cond) {
+  def apply(cond: Conditions[ModLevel])(nProcesses: Int, timeout: Int): Level[ModLevel] = new AbstractLevel[ModLevel](scheduler(nProcesses,timeout),cond) {
     override val indicationPayload = _.msg
     override val reqTypes = List(
       crb,

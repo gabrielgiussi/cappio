@@ -10,7 +10,7 @@ import oss.giussi.cappio.ui.ActionSelection.Inputs
 import oss.giussi.cappio.ui.core._
 import oss.giussi.cappio.ui.levels.Snapshot.Conditions
 import oss.giussi.cappio.ui.levels.bcast.{BEBLevel, CausalLevel, RBLevel, URBLevel}
-import oss.giussi.cappio.ui.{ActionSelection, Diagram, Show, ShowDOM}
+import oss.giussi.cappio.ui.{ActionSelection, AppState, Diagram, Show, ShowDOM}
 import oss.giussi.cappio.{Mod => ModT, _}
 
 object Levels {
@@ -81,7 +81,9 @@ case class ConditionLevel(id: Int, result: ConditionResult) {
 
 case class LastSnapshot(current: Index, actions: List[Action])
 
-trait Level extends Selection {
+trait Level[M <: oss.giussi.cappio.Mod] extends Selection {
+
+  val state = new AppState[M]
 
   val processes: Processes
 
@@ -114,6 +116,23 @@ trait Level extends Selection {
     )
   }
 
+  def prevAndReset = div(cls := "d-flex justify-content-end",
+    button(
+      cls := "btn btn-link p-0",
+      span(
+        cls := "fas fa-reply",
+        onClick.mapToValue(Prev[M]()) --> state.ops.writer,
+      )
+    ),
+    button(
+      cls := "btn btn-link p-0",
+      span(
+        cls := "fas fa-redo",
+        onClick.mapToValue(Reset[M]()) --> state.ops.writer
+      )
+    )
+  )
+
   final override def render = div(cls := "container-fluid mt-5",
     div(cls := "row wow fadeIn",
       div(cls := "col-md-9 mb-4",
@@ -142,6 +161,7 @@ trait Level extends Selection {
       div(cls := "col-md-9 mb-4",
         div(cls := "card",
           div(cls := "card-body",
+            prevAndReset,
             diagram
           )
         )
@@ -279,7 +299,7 @@ object AbstractLevel {
    */
 }
 
-abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Conditions[M] = List.empty)(implicit show: Show[M#Payload], show2: Show[M#Req], showDOM: ShowDOM[M#State]) extends Level {
+abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Conditions[M] = List.empty)(implicit show: Show[M#Payload], show2: Show[M#Req], showDOM: ShowDOM[M#State]) extends Level[M] {
 
   type Payload = M#Payload
   type State = M#State
@@ -292,8 +312,6 @@ abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Con
 
   case class ProcessState(id: ProcessId, state: State, status: ProcessStatus)
 
-  val $next = new EventBus[Op[M]]
-
   final def requestPayload(req: M#Req): String = show2.show(req)
 
   // TODO use typeclass show?
@@ -301,7 +319,7 @@ abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Con
 
   val $snapshots: Signal[Snapshot[M]] = {
     val ns = Snapshot.next[M](indicationPayload, requestPayload) _
-    $next.events.fold(Snapshot.init(WaitingRequest(scheduler)))(ns)
+    state.ops.events.fold(Snapshot.init(WaitingRequest(scheduler)))(ns)
   }
 
   val $steps: Signal[Step[M]] = $snapshots.map(_.step)
@@ -316,21 +334,9 @@ abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Con
     div(
       div(
         child <-- $steps.map {
-          case WaitingRequest(sch) => ActionSelection.reqBatchInput(reqTypes, sch.availableProcesses.toList, $next.writer.contramap[RequestBatch[M#Req]](r => NextReq(r)))
-          case WaitingDeliver(sch) => ActionSelection.networkInput(sch.availablePackets(false), $next.writer.contramap[DelBatch](r => NextDeliver(r)))
+          case WaitingRequest(sch) => ActionSelection.reqBatchInput(reqTypes, sch.availableProcesses.toList, state.ops.writer.contramap[RequestBatch[M#Req]](r => NextReq(r)))
+          case WaitingDeliver(sch) => ActionSelection.networkInput(sch.availablePackets(false), state.ops.writer.contramap[DelBatch](r => NextDeliver(r)))
         }
-      ),
-      div(
-        button(
-          cls := "btn btn-secondary",
-          onClick.mapToValue(Prev[M]()) --> $next.writer,
-          "Previous"
-        ),
-        button(
-          cls := "btn btn-secondary",
-          onClick.mapToValue(Reset[M]()) --> $next.writer,
-          "Reset"
-        )
       )
     )
   }
