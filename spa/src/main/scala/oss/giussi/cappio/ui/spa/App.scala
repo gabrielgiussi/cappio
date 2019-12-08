@@ -24,7 +24,9 @@ object App {
 */
       dom.window.location.hash
 
-      val hashes = EventStream.merge(EventStream.fromValue(dom.window.location.hash, true), windowEvents.onHashChange.map(_.newURL))
+      val firstHash = new EventBus[String]
+
+      val hashes = EventStream.merge(firstHash.events, windowEvents.onHashChange.map(_.newURL))
         .filter(_.contains("#")).map(_.split("#")(1))
 
       val levelSelection: EventStream[IndexedLevel] = hashes.map(x =>
@@ -63,6 +65,8 @@ object App {
           child <-- levelSelection.map(_.s.render)
         ))
         render(getElementById("sidebar"), leftMenu)
+
+        firstHash.writer.onNext(dom.window.location.hash) // emit the initial hash after all subscriptions are created
 
       }(unsafeWindowOwner)
     }

@@ -135,7 +135,7 @@ trait Level[M <: oss.giussi.cappio.Mod] extends Selection {
 
 
   def diagramPanel = div(
-    div(cls := "row wow fadeIn",
+    div(cls := "row wow",
       div(cls := "col-md-9 mb-4",
         div(cls := "card",
           div(cls := "card-body",
@@ -162,10 +162,8 @@ trait Level[M <: oss.giussi.cappio.Mod] extends Selection {
   def goalsPanel = div(cls := "row wow",
     div(cls := "col mb-4",
       div(cls := "card",
-        div(cls := "card-body p-2",
-          div(
-            description
-          )
+        div(cls := "card-body",
+          description
         )
       ),
     )
