@@ -19,9 +19,9 @@ object Levels {
     Documentation(Introduction.source) _,
     _ => BEBLevel.simple(4, 3),
     _ => BEBLevel.broken(4, 3),
-    _ => RBLevel(4,3),
+    _ => RBLevel(4, 3),
     _ => URBLevel(4, 3),
-    _ => CausalLevel.good(4,3)
+    _ => CausalLevel.good(4, 3)
   )
 
   val INDEXED_LEVELS: Map[LevelId, IndexedLevel] = RAW_LEVELS.zipWithIndex.map { case (level, index) =>
@@ -32,7 +32,7 @@ object Levels {
   val LEVELS = INDEXED_LEVELS.values.toList.sortBy(_.x)
 
   val $pendingLevels: StrictSignal[Map[LevelId, LevelResult]] = {
-    val pendingLevels: Var[Map[LevelId, LevelResult]] = Var(INDEXED_LEVELS.map{ case (k,_) => k -> Pending })
+    val pendingLevels: Var[Map[LevelId, LevelResult]] = Var(INDEXED_LEVELS.map { case (k, _) => k -> Pending })
 
     INDEXED_LEVELS.map { case (id, level) => level.s.status.addObserver(Observer {
       _ => pendingLevels.update(_.updated(id, LevelPassed))
@@ -133,30 +133,8 @@ trait Level[M <: oss.giussi.cappio.Mod] extends Selection {
     )
   )
 
-  final override def render = div(cls := "container-fluid mt-5",
-    div(cls := "row wow fadeIn",
-      div(cls := "col-md-9 mb-4",
-        div(cls := "card",
-          // TODO maybe https://mdbootstrap.com/docs/jquery/components/tabs/ is a better option than collapse.
-          div(cls := "card-body p-2",
-            button(
-              cls := "btn btn-link btn-lg pt-2 pb-2",
-              dataAttr("toggle") := "collapse",
-              dataAttr("target") := "#goalsCollapse",
-              `type` := "button",
-              "Descripción y Objetivos"
-            ),
-            div(
-              div(
-                cls := "collapse show",
-                id := "goalsCollapse",
-                description
-              )
-            )
-          )
-        ),
-      )
-    ),
+
+  def diagramPanel = div(
     div(cls := "row wow fadeIn",
       div(cls := "col-md-9 mb-4",
         div(cls := "card",
@@ -180,6 +158,51 @@ trait Level[M <: oss.giussi.cappio.Mod] extends Selection {
       states
     )
   )
+
+  def goalsPanel = div(cls := "row wow",
+    div(cls := "col mb-4",
+      div(cls := "card",
+        div(cls := "card-body p-2",
+          div(
+            description
+          )
+        )
+      ),
+    )
+  )
+
+  final override def render = {
+    def tablink(title: String, target: String, active: Boolean = false) = li(cls := "nav-item",
+      a(cls := s"nav-link ${if (active) "active" else ""}",
+        id := s"tab-to-$target",
+        dataAttr("toggle") := "tab",
+        href := s"#$target",
+        role := "tab",
+        title
+      )
+    )
+
+    def tabcontent(target: String, content: Div, active: Boolean = false) = div(
+      cls := s"tab-pane fade show ${if (active) "active" else ""}",
+      id := target,
+      role := "tabpanel",
+      content
+    )
+
+    div(cls := "container-fluid mt-5",
+      ul(cls := "nav nav-tabs",
+        id := "myTab",
+        role := "tablist",
+        tablink("Home", "goals-panel", true),
+        tablink("Diagram", "diagram-panel"),
+      ),
+      div(cls := "tab-content",
+        id := "myTabContent",
+        tabcontent("goals-panel", goalsPanel, true),
+        tabcontent("diagram-panel", diagramPanel)
+      )
+    )
+  }
 
 }
 
@@ -206,7 +229,7 @@ case class Reset[M <: ModT]() extends Op[M]
 
 object Snapshot {
 
-  def init[M <: oss.giussi.cappio.Mod](step: Step[M]): Snapshot[M] = Snapshot(Index(0),List.empty,Set.empty[IndicationFrom[M#Ind]],step,None)
+  def init[M <: oss.giussi.cappio.Mod](step: Step[M]): Snapshot[M] = Snapshot(Index(0), List.empty, Set.empty[IndicationFrom[M#Ind]], step, None)
 
   final def toRequest[R](reqPayload: R => String)(p: ProcessId, req: ProcessInput[R], i: Index): Action = req match {
     case ProcessRequest(_, req) => Request(p, i, reqPayload(req))
@@ -227,19 +250,19 @@ object Snapshot {
   def next[M <: ModT](indicationPayload: M#Ind => String, reqPayload: M#Req => String)(snapshot: Snapshot[M], op: Op[M]): Snapshot[M] = (snapshot, op) match {
     case (c@Snapshot(current, actions, pastInd, wr@WaitingRequest(Scheduler(_, network, _)), _), NextReq(req)) =>
       val RequestResult(sent, ind, wd) = wr.request(req.requests.values.toSeq)
-      val sends = sent.flatMap(s => sendToUndelivered(current)(s,delivered(network,s)))
+      val sends = sent.flatMap(s => sendToUndelivered(current)(s, delivered(network, s)))
       val requests = req.requests.map { case (p, r) => toRequest(reqPayload)(p, r, current) }
       val indications = ind.map(toIndication(indicationPayload)(current))
       Snapshot(current.next, actions ++ indications ++ requests ++ sends, pastInd ++ ind, wd, Some(c))
-    case (c@Snapshot(current, actions,pastInd, wd@WaitingDeliver(Scheduler(_, network, _)), _), NextDeliver(del)) =>
+    case (c@Snapshot(current, actions, pastInd, wd@WaitingDeliver(Scheduler(_, network, _)), _), NextDeliver(del)) =>
       val result = if (del.ops.isEmpty) wd.tick else wd.deliver(del)
       val sent = result.sent
       val ind = result.ind
       val (nextIndex, wd2) = result match {
-        case DeliverResult(_,_,w) => (current.next,w)
-        case RequestResult(_,_,w) => (current.next, w)
+        case DeliverResult(_, _, w) => (current.next, w)
+        case RequestResult(_, _, w) => (current.next, w)
       }
-      val sends = sent.flatMap(s => sendToUndelivered(current)(s,delivered(network,s)))
+      val sends = sent.flatMap(s => sendToUndelivered(current)(s, delivered(network, s)))
       val delivers = del.ops.values.flatMap {
         case Left(FLLDeliver(Packet(id, payload, from, to, _))) => Some(Delivered(from, to, id, payload.toString, actions.collectFirst {
           case Undelivered(`from`, `to`, `id`, _, s, _) => s
@@ -263,8 +286,8 @@ object Snapshot {
         }
       }
       Snapshot(nextIndex, filtered ++ indications ++ delivers ++ sends ++ drops, pastInd ++ ind, wd2, Some(c))
-    case (Snapshot(_, _, _,_, Some(prev)), Prev()) => prev
-    case (Snapshot(_, _, _,_, Some(prev)), Reset()) => next(indicationPayload, reqPayload)(prev, Reset()) // FIXME TEMPORAL SOLUTION, store a list of all snapshots instead. or some structure that allows access to root in O (1)
+    case (Snapshot(_, _, _, _, Some(prev)), Prev()) => prev
+    case (Snapshot(_, _, _, _, Some(prev)), Reset()) => next(indicationPayload, reqPayload)(prev, Reset()) // FIXME TEMPORAL SOLUTION, store a list of all snapshots instead. or some structure that allows access to root in O (1)
     case (s, input) =>
       //org.scalajs.dom.console.log(s"%c Bad input $input for step ${s.step} ", "background: #222; color: #bada55")
       s
@@ -326,7 +349,7 @@ abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Con
 
   override val $actions = $snapshots.map(_.last)
 
-  val $states: Signal[List[ProcessState]] = $steps.map(_.scheduler.processes.values.toList.sortBy(_.id.id).map { case Process(id,stack,status) => ProcessState(id,stack.state,status) })
+  val $states: Signal[List[ProcessState]] = $steps.map(_.scheduler.processes.values.toList.sortBy(_.id.id).map { case Process(id, stack, status) => ProcessState(id, stack.state, status) })
 
   val reqTypes: List[Inputs[Req]]
 
@@ -376,7 +399,7 @@ abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Con
     shortDescription,
     p("Para pasar este nivel vas a tener que cumplir con los siguientes objetivos"),
     ul(cls := "list-group list-group-flush",
-      conditions.map { case ConditionWithDescription(short,full,_) =>
+      conditions.map { case ConditionWithDescription(short, full, _) =>
         li(cls := "list-group-item",
           h3(short),
           p(full)
