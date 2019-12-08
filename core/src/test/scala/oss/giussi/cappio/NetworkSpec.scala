@@ -16,24 +16,28 @@ class NetworkSpec extends CappIOSpec {
       network.inTransit shouldBe empty
     }
     "return in transit packets" in {
-      network.send(packets.map(FLLSend.apply)).inTransit.map(_.packet) should contain theSameElementsAs packets
+      network.send(packets.map(FLLSend.apply))
+        .tick
+        .inTransit.map(_.packet) should contain theSameElementsAs packets
     }
     "drop packets" in {
-      val n = network.send(packets.map(FLLSend.apply))
+      val n = network.send(packets.map(FLLSend.apply)).tick
       val drop = n.inTransit.filter(_.packet == packetA).head.drop
       n.drop(Set(drop))
         .get.inTransit.map(_.packet) should contain theSameElementsAs Set(packetB)
     }
     "prepare a deliver for a packet" in {
       network.send(packets.map(FLLSend.apply))
+        .tick
         .inTransit.map(_.deliver.packet) should contain theSameElementsAs packets
     }
     "prepare a drop for a packet" in {
       network.send(packets.map(FLLSend.apply))
+        .tick
         .inTransit.map(_.drop.packet) should contain theSameElementsAs packets
     }
     "deliver a packet in transit" in {
-      val n = network.send(packets.map(FLLSend.apply))
+      val n = network.send(packets.map(FLLSend.apply)).tick
       val deliver = n.inTransit.filter(_.packet == packetA).head.deliver
       n.deliver(Set(deliver)).get.inTransit.map(_.packet) should contain theSameElementsAs Set(packetB)
     }

@@ -56,17 +56,18 @@ trait CappIOSpec extends WordSpec with Matchers {
       else throw new RuntimeException("Some required packets are not present in the network")
     }
 
-    // TODO this should receive a PacketId, not a Packet
     def deliver(ps: PacketId[M#Payload]*) = {
       val delivers = findInTransit(ps.toSet).map(_.deliver).map(p => p.packet.to -> Left(p)).toMap
       sch.deliver(DeliverBatch(delivers))
     }
 
-    def req(ps: (ProcessId, M#Req)*) = sch.request(ps.map { case (id,req) => ProcessRequest(id,req) } : _*)
+    def req(ps: (ProcessId, M#Req)*): NextStateScheduler[M] = sch.request(ps.map { case (id,req) => ProcessRequest(id,req) } : _*)
+
+    def tick: NextStateScheduler[M] = sch.tick
 
     // TODO def send(packet: Packet[M#Req]) = sch.request(Seq(Request(packet.from,SLSend(packet))))
 
-    def crash(ids: ProcessId*) = sch.request(ids.map(Crash) : _*)
+    def crash(ids: ProcessId*): NextStateScheduler[M] = sch.request(ids.map(Crash) : _*)
 
     def drop(packets: PacketId[M#Payload]*) = {
       /*
@@ -138,7 +139,7 @@ trait SchedulerSupport[M <: Mod] {
       ops match {
         case Nil => indications
         case Req(p, r) :: tail =>
-          val NextStateScheduler(_, ind, nsch) = requestAndTick(scheduler)(Seq(ProcessRequest(p, r)))
+          val NextStateScheduler(_, ind, nsch) = requestAndTick(scheduler)(Seq(ProcessRequest(p, r))) // TODO this is deprecated
           sch(nsch, tail, indications ++ ind) // TODO duplicated code
         case Del(id) :: tail =>
           val inTransit = findPacket(id)

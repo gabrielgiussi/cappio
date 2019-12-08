@@ -31,7 +31,7 @@ class BestEffortBroadcastSpec extends CappIOSpec with SchedulerSupport[BebMod[St
       val payload = Payload(msg)
       schedule(scheduler,List(
         req(p0,BebBcast(payload,instance)),
-        deliver(PacketId(p0,p0,msg)),
+        //deliver(PacketId(p0,p0,msg)), TODO autodelivery
         deliver(PacketId(p0,p1,msg)),
         deliver(PacketId(p0,p2,msg))
       )) should contain theSameElementsInOrderAs List(p0,p1,p2).map(to => IndicationFrom(to,BebDeliver(p0,payload)))
@@ -42,7 +42,7 @@ class BestEffortBroadcastSpec extends CappIOSpec with SchedulerSupport[BebMod[St
       val payload = Payload(msg)
       schedule(scheduler,List(
         req(p0,BebBcast(payload,instance)),
-        deliver(PacketId(p0,p0,msg)),
+        //deliver(PacketId(p0,p0,msg)), TODO autodelivery
         deliver(PacketId(p0,p1,msg)),
         drop(PacketId(p0,p2,msg)),
         tick,

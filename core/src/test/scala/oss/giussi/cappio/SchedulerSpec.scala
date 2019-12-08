@@ -15,7 +15,10 @@ class SchedulerSpec extends CappIOSpec {
       val _1_to_0 = Packet(p1,p0,"p10",Instance("sl"))
       scheduler
         .req(p0 -> _0_to_1.slSend, p1 -> _1_to_0.slSend)
-        .scheduler.network.inTransit.map(_.packet) should contain theSameElementsAs Set(_0_to_1,_1_to_0)
+        .tick
+        .scheduler
+        .network
+        .inTransit.map(_.packet) should contain theSameElementsAs Set(_0_to_1,_1_to_0)
     }
 
     "trigger indications" in {
@@ -23,6 +26,7 @@ class SchedulerSpec extends CappIOSpec {
       val _1_to_0 = Packet(p1,p0,"p10",Instance("sl"))
       scheduler
         .req(p0 -> _0_to_1.slSend, p1 -> _1_to_0.slSend) // con este codigo yo puedo testear p0 -> Packet(p1,p2)
+        .tick
         .deliver(_0_to_1.asId, _1_to_0.asId)
         .indications should contain theSameElementsAs Set(IndicationFrom(p1,_0_to_1.slDeliver), IndicationFrom(p0, _1_to_0.slDeliver))
     }
@@ -31,6 +35,7 @@ class SchedulerSpec extends CappIOSpec {
       val _0_to_1 = p0 -->> (p1, "p01")
       scheduler
         .req(p0 -> _0_to_1.slSend)
+        .tick
         .drop(_0_to_1.asId)
         .network.inTransit shouldBe empty
     }
