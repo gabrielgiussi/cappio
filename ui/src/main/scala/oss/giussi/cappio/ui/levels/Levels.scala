@@ -17,6 +17,7 @@ object Levels {
 
   val RAW_LEVELS: List[LevelId => Selection] = List(
     Documentation(Introduction.source) _,
+    _ => DemoLevel.good(4,3),
     _ => BEBLevel.simple(4, 3),
     _ => BEBLevel.broken(4, 3),
     _ => RBLevel(4, 3),

@@ -1,9 +1,13 @@
 package oss.giussi.cappio.impl.net
 import oss.giussi.cappio.Messages.ProcessLocal
 import oss.giussi.cappio.impl.net.StubbornLink.{SLDeliver, SLSend}
-import oss.giussi.cappio.{AbstractModule, ModS, Module, Packet, StateWithModule}
+import oss.giussi.cappio.{AbstractModule, Instance, ModS, Module, Packet, ProcessId, StateWithModule}
 
 object PerfectLink {
+
+  object PLSend {
+    def external[P](from: ProcessId, to: ProcessId, payload: P): PLSend[P] = new PLSend(Packet(from,to,payload,Instance.ANY))
+  }
 
   case class PLSend[P](packet: Packet[P])
 

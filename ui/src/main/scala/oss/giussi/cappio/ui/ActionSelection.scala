@@ -269,6 +269,7 @@ object ActionSelection {
     d
   }
 
+  // TODO I never seen code as ugly as this!
   def payloadRequest[R](description: String)(f: (ProcessId, String) => R)(processes: List[ProcessId], obs: Observer[AddCommand[R]]): ReactiveHtmlElement[html.Div] = {
     val process: Var[Option[ProcessId]] = Var(None)
     val payload: Var[Option[String]] = Var(None)
@@ -294,6 +295,38 @@ object ActionSelection {
         id <- process.now()
         msg <- payload.now()
       } yield AddReq(id, f(id, msg))
+    }.collect { case Some(r) => r }.addObserver(obs)(d)
+    d
+  }
+
+  def fromToPayloadRequest[R](description: String)(f: (ProcessId,ProcessId, String) => R)(processes: List[ProcessId], obs: Observer[AddCommand[R]]) = {
+    val from: Var[Option[ProcessId]] = Var(None)
+    val to: Var[Option[ProcessId]] = Var(None)
+    val payload: Var[Option[String]] = Var(None)
+    val click = new EventBus[Click.type]
+    val d = div(cls := "form-row",
+      div(cls := "col-sm-2 text-center", label(description)),
+      selectDiv("col-sm-3")((processes, from.writer, Seq.empty)),
+      selectDiv("col-sm-3")((processes, to.writer, Seq.empty)),
+      div(cls := "col-sm-2",
+        //label(forId := "bebPayload", "Payload"),
+        input(
+          cls := "form-control",
+          inContext { thisNode =>
+            @inline def updatePayload = Option(thisNode.ref.value).filterNot(_.isEmpty)
+
+            onKeyUp.stopPropagation.mapTo(updatePayload) --> payload.writer // there is some way to throttle events in airstream?
+          }
+        )
+      ),
+      plusDiv(payload.signal.combineWith(from.signal).combineWith(to.signal).map { case ((from,to),ps) => ps.isDefined && from.isDefined && to.isDefined }, click.writer)
+    )
+    click.events.mapTo {
+      for {
+        fid <- from.now()
+        tid <- to.now()
+        msg <- payload.now()
+      } yield AddReq(fid, f(fid,tid, msg))
     }.collect { case Some(r) => r }.addObserver(obs)(d)
     d
   }

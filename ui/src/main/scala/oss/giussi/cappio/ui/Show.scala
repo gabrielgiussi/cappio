@@ -5,6 +5,8 @@ import oss.giussi.cappio.impl.bcast.CausalOrderReliableBroadcast.{CORBMod, CRBDa
 import oss.giussi.cappio.impl.bcast.ReliableBroadcast.{RBData, RBMod}
 import oss.giussi.cappio.impl.bcast.{BestEffortBroadcast, CausalOrderReliableBroadcast, ReliableBroadcast, UniformReliableBroadcast}
 import oss.giussi.cappio.impl.bcast.UniformReliableBroadcast.{URBData, URBMod}
+import oss.giussi.cappio.impl.net.PerfectLink
+import oss.giussi.cappio.impl.net.PerfectLink.PLModule
 import oss.giussi.cappio.impl.register.OneNRegularRegister
 import oss.giussi.cappio.impl.register.OneNRegularRegister.{ONACK, ONREAD, ONRRMod, ONRRRead, ONRRWrite, ONVALUE, ONWRITE}
 import oss.giussi.cappio.impl.time.PerfectFailureDetector
@@ -45,6 +47,10 @@ object Show {
       case ONRRRead => "read"
       case ONRRWrite(v) => s"write $v"
     }
+  }
+
+  implicit def showPL[A](implicit e: Show[A]) = new Show[PLModule[A]#Req] {
+    override def show(a: PerfectLink.PLSend[A]): String = s"send ${a.packet.payload}"
   }
 
   // Show payloads
