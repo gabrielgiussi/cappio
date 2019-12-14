@@ -192,8 +192,8 @@ trait Level[M <: oss.giussi.cappio.Mod] extends Selection {
       ul(cls := "nav nav-tabs",
         id := "myTab",
         role := "tablist",
-        tablink("Home", "goals-panel", true),
-        tablink("Diagram", "diagram-panel"),
+        tablink("Descripcion", "goals-panel", true),
+        tablink("Diagrama", "diagram-panel"),
       ),
       div(cls := "tab-content",
         id := "myTabContent",
@@ -370,7 +370,7 @@ abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Con
       borderColor <-- $states.map { case ProcessState(_, _, Up) => "green" case _ => "red" },
       div(
         cls := "card-header",
-        s"Process ${processId.id}",
+        s"Proceso ${processId.id}",
       ),
       div(
         id := s"processState${processId.toString}",

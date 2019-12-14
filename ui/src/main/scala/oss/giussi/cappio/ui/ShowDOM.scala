@@ -27,7 +27,7 @@ object ShowDOM {
     override def toDOM(a: AppState[P, M]): Div = div(
       div(
         borderStyle := "solid",
-        label(s"Current value: ${a.value.map(_.show).getOrElse("-")}")
+        label(s"Valor actual: ${a.value.map(_.show).getOrElse("-")}")
       ),
       a.module.state.toDOM
     )

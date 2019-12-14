@@ -43,7 +43,7 @@ object App {
         }
         a(href := s"#${l.x}", className := "list-group-item list-group-item-action waves-effect p-2 mt-1",
           className <-- levelSelection.map { active => if (active.x == l.x) "active" else "" },
-          i(className := s"fas $icon mr-3", " Level " + l.x),
+          i(className := s"fas $icon mr-3", " Nivel " + l.x),
           //disabled <-- Levels.$pendingLevels.map(x => { println(x); x }).map(!_.get(LevelId(l.x - 1)).contains(LevelPassed)) TODO <a> does not support disabled
         )
       }

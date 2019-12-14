@@ -141,7 +141,7 @@ object ActionSelection {
       case ResetCommand(id) => batch.update(_.reset(id))
     }
 
-    val a_div = if (available.isEmpty) div(h1("Network is empty"))
+    val a_div = if (available.isEmpty) div(h2("No hay paquetes para entregar"))
     else div(
       children <-- batch.signal.map(_.values.toList).split(_.processId)(renderDeliverTo(commandObs))
     )
@@ -150,10 +150,10 @@ object ActionSelection {
       cls := "text-center",
       a_div,
       div(
-        button(`type` := "reset", cls := "btn btn-primary", "Next",
+        button(`type` := "reset", cls := "btn btn-primary", "Siguiente",
           onClick.mapTo(batch.now()).map(b => DeliverBatch(b.ops : _*)) --> $out
         ),
-        button(`type` := "button", cls := "btn btn-danger", "Clear",
+        button(`type` := "button", cls := "btn btn-danger", "Limpiar",
           disabled <-- batch.signal.map(_.ops.isEmpty),
           onClick.mapToValue(()) --> Observer.apply[Unit](_ => batch.update(_.clear))
         )
@@ -227,13 +227,13 @@ object ActionSelection {
       ),
       renderBatch,
       div(cls := "text-center",
-        input(`type` := "submit", cls := "btn btn-primary", value := "Next", // TODO input or button?
+        input(`type` := "submit", cls := "btn btn-primary", value := "Siguiente", // TODO input or button?
           inContext { thisNode =>
             val a = $batch.observe(thisNode)
             onClick.preventDefault.mapTo(a.now()) --> $obs
           }
         ),
-        input(`type` := "reset", cls := "btn btn-danger", value := "Clear",
+        input(`type` := "reset", cls := "btn btn-danger", value := "Limpiar",
           disabled <-- $batch.map(_.requests.isEmpty),
           onClick.preventDefault.mapToValue(Reset) --> $commands
         )
@@ -254,7 +254,7 @@ object ActionSelection {
 
   def plusDiv = (plus _).tupled.andThen(x => div(cls := "col-sm-2", x))
 
-  def crash[R] = noPayloadRequest[R]("Crash")(_ => CrashP) _
+  def crash[R] = noPayloadRequest[R]("Terminar")(_ => CrashP) _
 
   def noPayloadRequest[R](description: String)(f: ProcessId => AddReqInput[R])(processes: List[ProcessId], obs: Observer[AddCommand[R]]): ReactiveHtmlElement[html.Div] = {
     val process: Var[Option[ProcessId]] = Var(None)
