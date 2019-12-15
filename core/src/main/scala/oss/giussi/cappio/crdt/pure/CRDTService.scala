@@ -1,7 +1,6 @@
 package oss.giussi.cappio.crdt.pure
 
 import oss.giussi.cappio.crdt.VectorTime
-import oss.giussi.cappio.crdt.pure.CRDTTypes.Operation
 import oss.giussi.cappio.crdt.pure.StabilityProtocol.TCStable
 
 import scala.language.higherKinds
@@ -12,8 +11,9 @@ import scala.util._
  *
  * @tparam A CRDT type
  * @tparam B CRDT value type
+ * @tparam Op CRDT value type
  */
-trait CRDTServiceOps[A, B] {
+trait CRDTServiceOps[A, B, Op] {
 
   /**
    * Default CRDT instance.
@@ -37,12 +37,12 @@ trait CRDTServiceOps[A, B] {
   /**
    * Update phase 1 ("atSource"). Prepares an operation for phase 2.
    */
-  def prepare(crdt: A, operation: Operation): Try[Option[Operation]] = Success(Some(operation))
+  def prepare(crdt: A, operation: Op): Try[Option[Op]] = Success(Some(operation))
 
   /**
    * Update phase 2 ("downstream").
    */
-  def effect(crdt: A, op: Operation, vt: VectorTime, systemTimestamp: Long = 0L, creator: String = ""): A
+  def effect(crdt: A, op: Op, vt: VectorTime, systemTimestamp: Long = 0L, creator: String = ""): A
 
   /**
    * This mechanism allows to discard stable operations, not only timestamps, if they have no
@@ -55,120 +55,4 @@ trait CRDTServiceOps[A, B] {
    */
   def stable(crdt: A, stable: TCStable) = crdt
 
-}
-
-object CRDTService {
-
-  /**
-   * Persistent event with update operation.
-   *
-   * @param operation update operation.
-   */
-  case class ValueUpdated(operation: Operation)
-
-}
-
-/**
- * A generic, replicated CRDT service that manages a map of CRDTs identified by name.
- * Replication is based on the replicated event `log` that preserves causal ordering
- * of events.
- *
- * @tparam A CRDT type
- * @tparam B CRDT value type
- */
-trait CRDTService[A, B] {
-
-  import CRDTService._
-
-  /**
-   * CRDT service id.
-   */
-  def serviceId: String
-
-  /**
-   * CRDT service operations.
-   */
-  def ops: CRDTServiceOps[A, B]
-
-
-  /**
-   * Returns the current value of the CRDT identified by `id`.
-   */
-  def value(id: String): B
-
-  protected def op(id: String, operation: Operation): B
-
-  private case class OnChange(crdt: A, operation: Option[Operation])
-
-  private case class OnStable(crdt: A, stable: TCStable)
-
-  /*
-  private class CRDTActor(crdtId: String, override val eventLog: ActorRef, stabilityConf: Option[StabilityConf]) extends EventsourcedActor {
-    override val id =
-      s"${serviceId}_${crdtId}"
-
-    override val aggregateId =
-      Some(s"${ops.zero.getClass.getSimpleName}_${crdtId}")
-
-    var crdt: A =
-      ops.zero
-
-    var lastTCStable: Option[TCStable] = None
-    var rtm: Option[RTM] = stabilityConf.map(RTM.apply)
-
-    override def stateSync: Boolean = ops.precondition
-
-    override def onCommand = {
-      case Get(`crdtId`) =>
-        sender() ! GetReply(crdtId, ops.value(crdt))
-      case Update(`crdtId`, operation) =>
-        ops.prepare(crdt, operation) match {
-          case Success(Some(op)) =>
-            persist(ValueUpdated(op)) {
-              case Success(evt) =>
-                sender() ! UpdateReply(crdtId, ops.value(crdt))
-              case Failure(err) =>
-                sender() ! Status.Failure(err)
-            }
-          case Success(None) =>
-            sender() ! UpdateReply(crdtId, ops.value(crdt))
-          case Failure(err) =>
-            sender() ! Status.Failure(err)
-        }
-      case Save(`crdtId`) =>
-        save(crdt) {
-          case Success(md) =>
-            sender() ! SaveReply(crdtId, md)
-          case Failure(err) =>
-            sender() ! Status.Failure(err)
-        }
-    }
-
-    override def onEvent = {
-      case evt @ ValueUpdated(operation) =>
-        crdt = ops.effect(crdt, operation, lastVectorTimestamp, lastSystemTimestamp, lastEmitterId)
-        updateStability(lastProcessId, lastVectorTimestamp)
-        context.parent ! OnChange(crdt, Some(operation))
-    }
-
-    def updateStability(processId: String, vt: VectorTime) = {
-      rtm = rtm.map(_.update(processId, vt))
-      rtm.flatMap(_.stable()).filterNot(s => lastTCStable.fold(false)(_ equiv s)).foreach { tcstable =>
-        lastTCStable = Some(tcstable)
-        crdt = ops.stable(crdt, tcstable)
-        context.parent ! OnStable(crdt, tcstable)
-      }
-    }
-
-    override def onSnapshot = {
-      case snapshot =>
-        crdt = snapshot.asInstanceOf[A]
-        context.parent ! OnChange(crdt, None)
-    }
-
-  }
-
-   */
-
-  private[crdt] def onStable(crdt: A, stable: TCStable): Unit = ()
 }

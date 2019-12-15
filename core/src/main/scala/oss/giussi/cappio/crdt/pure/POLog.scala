@@ -1,7 +1,7 @@
 package oss.giussi.cappio.crdt.pure
 
 import oss.giussi.cappio.crdt.Versioned
-import oss.giussi.cappio.crdt.pure.CRDTTypes.{CausalRedundancy, Operation, Redundancy_}
+import oss.giussi.cappio.crdt.pure.CRDTTypes.{CausalRedundancy, Redundancy_}
 import oss.giussi.cappio.crdt.pure.StabilityProtocol.TCStable
 
 /**

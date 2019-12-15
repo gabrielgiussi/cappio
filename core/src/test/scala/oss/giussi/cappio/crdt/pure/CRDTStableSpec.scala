@@ -2,12 +2,14 @@ package oss.giussi.cappio.crdt.pure
 
 import org.scalatest.Matchers
 import org.scalatest.WordSpec
-import oss.giussi.cappio.crdt.pure.CRDTTestDSL.VectorTimeControl
+import oss.giussi.cappio.crdt.pure.CRDTTestDSL.{AWCartCRDT, LWWRegisterCRDT, MVRegisterCRDT, VectorTimeControl}
 import oss.giussi.cappio.crdt.pure.impl.AWSetService
 
 class CRDTStableSpec extends WordSpec with Matchers {
 
-  val crdt = CRDT.zero
+  val mvReg = MVRegisterCRDT.ops.zero
+  val lwwReg = LWWRegisterCRDT.ops.zero
+  val awCart = AWCartCRDT.ops.zero
   val awSet = AWSetService.zero[Int]
 
   "An AWSet" should {
@@ -52,7 +54,7 @@ class CRDTStableSpec extends WordSpec with Matchers {
   "A MVRegister" should {
     import CRDTTestDSL.MVRegisterCRDT._
     "discard stable operations" in new VectorTimeControl {
-      val updated = crdt
+      val updated = mvReg
         .assign(1, vt(1, 0))
         .assign(2, vt(0, 1))
         .stable(stableVT(1, 1))
@@ -61,7 +63,7 @@ class CRDTStableSpec extends WordSpec with Matchers {
       updated.state.size shouldBe 2
     }
     "clear stable operations" in new VectorTimeControl {
-      crdt
+      mvReg
         .assign(1, vt(1, 0))
         .assign(2, vt(0, 1))
         .stable(stableVT(1, 1))
@@ -74,7 +76,7 @@ class CRDTStableSpec extends WordSpec with Matchers {
   "A LWWRegister" should {
     import CRDTTestDSL.LWWRegisterCRDT._
     "discard stable operations" in new VectorTimeControl {
-      val updated = crdt
+      val updated = lwwReg
         .assign(1, vt(1, 0), 0, "emitter1")
         .assign(2, vt(0, 1), 1, "emitter2")
         .assign(3, vt(2, 0), 2, "emitter2")
@@ -84,7 +86,7 @@ class CRDTStableSpec extends WordSpec with Matchers {
       updated.state.size shouldBe 1
     }
     "clear stable operations" in new VectorTimeControl {
-      val updated = crdt
+      val updated = lwwReg
         .assign(1, vt(1, 0), 0, "emitter1")
         .assign(2, vt(0, 1), 1, "emitter2")
         .stable(stableVT(0, 1))
@@ -98,7 +100,7 @@ class CRDTStableSpec extends WordSpec with Matchers {
   "An AWCart" should {
     import CRDTTestDSL.AWCartCRDT._
     "discard stable operations" in new VectorTimeControl {
-      val updated = crdt
+      val updated = awCart
         .add("a", 1, vt(1, 0))
         .add("b", 2, vt(2, 0))
         .add("a", 5, vt(0, 1))
@@ -108,7 +110,7 @@ class CRDTStableSpec extends WordSpec with Matchers {
       updated.state.size shouldBe 2
     }
     "clear stable operations" in new VectorTimeControl {
-      val updated = crdt
+      val updated = awCart
         .add("a", 1, vt(1, 0))
         .add("b", 2, vt(2, 0))
         .stable(stableVT(2, 0))

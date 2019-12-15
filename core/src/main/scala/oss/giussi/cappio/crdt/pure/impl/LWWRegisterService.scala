@@ -6,7 +6,9 @@ import oss.giussi.cappio.crdt.pure.CvRDTPureOpSimple
 
 object LWWRegisterService {
 
-  def zero(): SimpleCRDT = LWWRegisterServiceOps.zero
+  type LWWRegister = SimpleCRDT[RegisterOp]
+
+  def zero(): LWWRegister = LWWRegisterServiceOps.zero
 
   implicit def LWWOrdering[A] = new Ordering[Versioned[_]] {
     override def compare(x: Versioned[_], y: Versioned[_]): Int =
@@ -16,16 +18,16 @@ object LWWRegisterService {
         x.systemTimestamp.compareTo(y.systemTimestamp)
   }
 
-  implicit def LWWRegisterServiceOps[A] = new CvRDTPureOpSimple[Option[A]] {
+  implicit def LWWRegisterServiceOps[A] = new CvRDTPureOpSimple[Option[A], RegisterOp] {
 
-    override def customEval(ops: Seq[Versioned[Operation]]): Option[A] =
-      ops.sorted(LWWRegisterService.LWWOrdering[A]).lastOption.map(_.value.asInstanceOf[AssignOp].value.asInstanceOf[A])
+    override def customEval(ops: Seq[Versioned[RegisterOp]]): Option[A] =
+      ops.sorted(LWWRegisterService.LWWOrdering[A]).lastOption.map(_.value.asInstanceOf[AssignOp].value.asInstanceOf[A]) // TODO remove asInstanceOf
 
-    val r: Redundancy[Operation] = (op, _) => op.value equals ClearOp
+    val r: Redundancy[RegisterOp] = (op, _) => op.value equals ClearRegOp
 
-    val r0: Redundancy_[Operation] = newOp => op => op.vectorTimestamp < newOp.vectorTimestamp
+    val r0: Redundancy_[RegisterOp] = newOp => op => op.vectorTimestamp < newOp.vectorTimestamp
 
-    override implicit val causalRedundancy: CausalRedundancy[Operation] = new CausalRedundancy(r, r0)
+    override implicit val causalRedundancy: CausalRedundancy[RegisterOp] = new CausalRedundancy(r, r0)
 
   }
 

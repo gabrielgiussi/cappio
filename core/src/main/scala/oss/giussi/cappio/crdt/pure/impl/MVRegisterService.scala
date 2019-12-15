@@ -6,20 +6,27 @@ import oss.giussi.cappio.crdt.pure.CvRDTPureOpSimple
 
 object MVRegisterService {
 
-  def zero(): SimpleCRDT = MVRegisterServiceOps.zero
+  type MVRegister = SimpleCRDT[RegisterOp]
 
-  implicit def MVRegisterServiceOps[A] = new CvRDTPureOpSimple[Set[A]] {
+  def zero(): MVRegister = MVRegisterServiceOps.zero
 
-    override protected def customEval(ops: Seq[Versioned[Operation]]): Set[A] = ops.map(_.value.asInstanceOf[AssignOp].value.asInstanceOf[A]).toSet
+  implicit def MVRegisterServiceOps[A] = new CvRDTPureOpSimple[Set[A],RegisterOp] {
 
-    val r: Redundancy[Operation] = (op, _) => op.value.isInstanceOf[ClearOp.type]
+    override protected def customEval(ops: Seq[Versioned[RegisterOp]]): Set[A] = ops.map(_.value).collect {
+      case AssignOp(v) => v.asInstanceOf[A]
+    }.toSet
 
-    val r0: Redundancy_[Operation] = op1 => op2 => op2.vectorTimestamp < op1.vectorTimestamp
+    val r: Redundancy[RegisterOp] = (op, _) => op.value match {
+      case ClearRegOp => true
+      case _ => false
+    }
 
-    override implicit val causalRedundancy: CausalRedundancy[Operation] = new CausalRedundancy[Operation](r, r0)
+    val r0: Redundancy_[RegisterOp] = op1 => op2 => op2.vectorTimestamp < op1.vectorTimestamp
 
-    override val optimizedUpdateState: PartialFunction[(Operation, Seq[Operation]), Seq[Operation]] = {
-      case (ClearOp, _) => Seq.empty
+    override implicit val causalRedundancy: CausalRedundancy[RegisterOp] = new CausalRedundancy(r, r0)
+
+    override val optimizedUpdateState: PartialFunction[(RegisterOp, Seq[RegisterOp]), Seq[RegisterOp]] = {
+      case (ClearRegOp, _) => Seq.empty
       case (_, state)   => state
     }
 
@@ -27,7 +34,11 @@ object MVRegisterService {
 
 }
 
+sealed trait RegisterOp
+
 /**
  * Persistent assign operation used for MVRegister and LWWRegister.
  */
-case class AssignOp(value: Any) // TODO type payload
+case class AssignOp(value: Any) extends RegisterOp // TODO type payload
+
+case object ClearRegOp extends RegisterOp

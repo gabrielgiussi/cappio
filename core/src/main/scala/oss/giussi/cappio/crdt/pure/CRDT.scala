@@ -1,12 +1,10 @@
 package oss.giussi.cappio.crdt.pure
 
-import oss.giussi.cappio.crdt.pure.CRDTTypes.Operation
-
 object CRDT {
 
-  def apply[A](state: A): CRDT[A] = CRDT(POLog(), state)
+  def apply[A,Op](state: A): CRDT[A,Op] = CRDT(POLog(), state)
 
-  def zero: CRDT[Seq[Operation]] = CRDT(POLog(), Seq.empty)
+  def zero[Op]: CRDT[Seq[Op],Op] = CRDT(POLog(), Seq.empty)
 }
 
 /**
@@ -19,4 +17,4 @@ object CRDT {
  *              implementation according to the domain" e.g., a bitmap for dense sets of integers in an AWSet
  * @tparam B state type
  */
-case class CRDT[B](polog: POLog[Operation], state: B)
+case class CRDT[B,Op](polog: POLog[Op], state: B)

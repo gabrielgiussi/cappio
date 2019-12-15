@@ -4,8 +4,6 @@ import oss.giussi.cappio.crdt.Versioned
 
 object CRDTTypes {
 
-  type Operation = Any
-
   /**
    * Returns true if the operation is itself redundant or it is redundant by the operations
    * currently on the POLog.
@@ -47,6 +45,6 @@ object CRDTTypes {
    * A CRDT wich state is a sequence of stable operations (that's why they doesn't contain a related VectorTime)
    * This is the CRDT to use if it is not needed to define a specific state type (like a HashSet for AWSet)
    */
-  type SimpleCRDT = CRDT[Seq[Operation]]
+  type SimpleCRDT[Op] = CRDT[Seq[Op],Op]
 
 }

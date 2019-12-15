@@ -10,12 +10,12 @@ import oss.giussi.cappio.crdt.pure.StabilityProtocol.TCStable
  * @tparam C CRDT state type
  * @tparam B CRDT value type
  */
-trait CvRDTPureOp[C, B] extends CRDTServiceOps[CRDT[C], B] {
+trait CvRDTPureOp[C, B, Op] extends CRDTServiceOps[CRDT[C,Op], B,Op] {
 
   /**
    * The data-type specific relations r,r0 and r1 used for reducing the POLog size via causal redundancy
    */
-  implicit def causalRedundancy: CausalRedundancy[Operation]
+  implicit def causalRedundancy: CausalRedundancy[Op]
 
   /**
    * Data-type specific method that updates the stable state with the newly delivered operation, that
@@ -29,7 +29,7 @@ trait CvRDTPureOp[C, B] extends CRDTServiceOps[CRDT[C], B] {
    * @param state     the current CRDT state
    * @return the updated state
    */
-  protected def updateState(op: Operation, redundant: Boolean, state: C): C
+  protected def updateState(op: Op, redundant: Boolean, state: C): C
 
   /**
    * Adds the operation to the POLog using the causal redundancy relations and also updates the state
@@ -42,7 +42,7 @@ trait CvRDTPureOp[C, B] extends CRDTServiceOps[CRDT[C], B] {
    * @param creator         operation's metadata
    * @return a copy of the CRDT with its POLog and state updated
    */
-  final def effect(crdt: CRDT[C], op: Operation, vt: VectorTime, systemTimestamp: Long = 0L, creator: String = ""): CRDT[C] = {
+  final def effect(crdt: CRDT[C,Op], op: Op, vt: VectorTime, systemTimestamp: Long = 0L, creator: String = ""): CRDT[C,Op] = {
     val versionedOp = Versioned(op, vt, systemTimestamp, creator)
     val (updatedPolog, redundant) = crdt.polog.add(versionedOp)
     val updatedState = updateState(op, redundant, crdt.state)
@@ -58,7 +58,7 @@ trait CvRDTPureOp[C, B] extends CRDTServiceOps[CRDT[C], B] {
    * @param stable
    * @return
    */
-  protected def stabilize(polog: POLog[Operation], stable: TCStable): POLog[Operation] = polog
+  protected def stabilize(polog: POLog[Op], stable: TCStable): POLog[Op] = polog
 
   /**
    * Updates the current [[CRDT.state]] with the sequence of stable operations that were removed
@@ -69,7 +69,7 @@ trait CvRDTPureOp[C, B] extends CRDTServiceOps[CRDT[C], B] {
    * @param stableOps the sequence of stable operations that were removed from the POLog
    * @return the updated state
    */
-  protected def stabilizeState(state: C, stableOps: Seq[Operation]): C
+  protected def stabilizeState(state: C, stableOps: Seq[Op]): C
 
   /**
    * "The stable
@@ -83,7 +83,7 @@ trait CvRDTPureOp[C, B] extends CRDTServiceOps[CRDT[C], B] {
    * @param tcstable a stable VectorTime fed by the middleware
    * @return a possible optimized crdt after discarding operations and removing timestamps
    */
-  override def stable(crdt: CRDT[C], tcstable: TCStable) = {
+  override def stable(crdt: CRDT[C,Op], tcstable: TCStable) = {
     val (stabilizedPOLog, stableOps) = stabilize(crdt.polog, tcstable).stable(tcstable)
     val stabilizedState = stabilizeState(crdt.state, stableOps)
     crdt.copy(stabilizedPOLog, stabilizedState)
@@ -102,7 +102,7 @@ trait CvRDTPureOp[C, B] extends CRDTServiceOps[CRDT[C], B] {
  *
  * @tparam B CRDT value type
  */
-trait CvRDTPureOpSimple[B] extends CvRDTPureOp[Seq[Operation], B] {
+trait CvRDTPureOpSimple[B,Op] extends CvRDTPureOp[Seq[Op], B,Op] {
 
   /**
    * This VectorTime is used during state update (due to a newly operation being delivered).
@@ -112,7 +112,7 @@ trait CvRDTPureOpSimple[B] extends CvRDTPureOp[Seq[Operation], B] {
    */
   private val NON_ZERO_VECTOR_TIME = VectorTime.Zero.increment("ST")
 
-  final override def zero: SimpleCRDT = CRDT.zero
+  final override def zero: SimpleCRDT[Op] = CRDT.zero
 
   /**
    * Adds the stable operations to the state of the CRDT
@@ -121,14 +121,14 @@ trait CvRDTPureOpSimple[B] extends CvRDTPureOp[Seq[Operation], B] {
    * @param stableOps the causaly stable operations
    * @return the updated state
    */
-  override protected def stabilizeState(state: Seq[Operation], stableOps: Seq[Operation]): Seq[Operation] = state ++ stableOps
+  override protected def stabilizeState(state: Seq[Op], stableOps: Seq[Op]): Seq[Op] = state ++ stableOps
 
   /**
    * To simplify the eval method, it asociates the [[VectorTime.Zero]] to each stable operation and calls [[customEval]]
    * over the full sequence of operations, the ones from the POLog and the ones from the state.
    * Note: this has to be a sequence instead of a Set because now the VectorTime is not unique
    */
-  override final def eval(crdt: SimpleCRDT): B = {
+  override final def eval(crdt: SimpleCRDT[Op]): B = {
     val stableOps = crdt.state.map(op => Versioned(op, VectorTime.Zero))
     customEval(stableOps ++ crdt.polog.log)
   }
@@ -140,7 +140,7 @@ trait CvRDTPureOpSimple[B] extends CvRDTPureOp[Seq[Operation], B] {
    * @param ops the full sequence of ops, stable (with the [[VectorTime.Zero]]) and non-stable
    * @return the value of the crdt
    */
-  protected def customEval(ops: Seq[Versioned[Operation]]): B
+  protected def customEval(ops: Seq[Versioned[Op]]): B
 
   /**
    * Allows to define a custom implementation with improved performance to update the state.
@@ -148,7 +148,7 @@ trait CvRDTPureOpSimple[B] extends CvRDTPureOp[Seq[Operation], B] {
    *
    * @return the updated state
    */
-  def optimizedUpdateState: PartialFunction[(Operation, Seq[Operation]), Seq[Operation]] = PartialFunction.empty
+  def optimizedUpdateState: PartialFunction[(Op, Seq[Op]), Seq[Op]] = PartialFunction.empty
 
   /**
    * The default implementation to update the state uses a [[CausalRedundancy]] relation.
@@ -157,7 +157,7 @@ trait CvRDTPureOpSimple[B] extends CvRDTPureOp[Seq[Operation], B] {
    * @param stateAndOp a pair conformed by the current state of the CRDT and the newly delivered op
    * @return the updated state
    */
-  private def defaultUpdateState(redundancy: Redundancy_[Operation])(stateAndOp: (Operation, Seq[Operation])) = {
+  private def defaultUpdateState(redundancy: Redundancy_[Op])(stateAndOp: (Op, Seq[Op])) = {
     val (op, state) = stateAndOp
     val redundant = redundancy(Versioned(op, NON_ZERO_VECTOR_TIME))
     state.map(Versioned(_, VectorTime.Zero)) filterNot redundant map (_.value)
@@ -172,7 +172,7 @@ trait CvRDTPureOpSimple[B] extends CvRDTPureOp[Seq[Operation], B] {
    * @param state     the current CRDT state
    * @return the updated state
    */
-  override final protected def updateState(op: Operation, redundant: Boolean, state: Seq[Operation]): Seq[Operation] =
+  override final protected def updateState(op: Op, redundant: Boolean, state: Seq[Op]): Seq[Op] =
     optimizedUpdateState.applyOrElse((op, state), defaultUpdateState(causalRedundancy.redundancyFilter(redundant)))
 
 }
