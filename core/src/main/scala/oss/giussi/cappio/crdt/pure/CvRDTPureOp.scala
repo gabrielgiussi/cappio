@@ -15,7 +15,7 @@ trait CvRDTPureOp[C, B] extends CRDTServiceOps[CRDT[C], B] {
   /**
    * The data-type specific relations r,r0 and r1 used for reducing the POLog size via causal redundancy
    */
-  implicit def causalRedundancy: CausalRedundancy
+  implicit def causalRedundancy: CausalRedundancy[Operation]
 
   /**
    * Data-type specific method that updates the stable state with the newly delivered operation, that
@@ -58,7 +58,7 @@ trait CvRDTPureOp[C, B] extends CRDTServiceOps[CRDT[C], B] {
    * @param stable
    * @return
    */
-  protected def stabilize(polog: POLog, stable: TCStable): POLog = polog
+  protected def stabilize(polog: POLog[Operation], stable: TCStable): POLog[Operation] = polog
 
   /**
    * Updates the current [[CRDT.state]] with the sequence of stable operations that were removed
@@ -157,7 +157,7 @@ trait CvRDTPureOpSimple[B] extends CvRDTPureOp[Seq[Operation], B] {
    * @param stateAndOp a pair conformed by the current state of the CRDT and the newly delivered op
    * @return the updated state
    */
-  private def defaultUpdateState(redundancy: Redundancy_)(stateAndOp: (Operation, Seq[Operation])) = {
+  private def defaultUpdateState(redundancy: Redundancy_[Operation])(stateAndOp: (Operation, Seq[Operation])) = {
     val (op, state) = stateAndOp
     val redundant = redundancy(Versioned(op, NON_ZERO_VECTOR_TIME))
     state.map(Versioned(_, VectorTime.Zero)) filterNot redundant map (_.value)

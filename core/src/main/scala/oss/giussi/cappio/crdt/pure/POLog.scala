@@ -9,7 +9,7 @@ import oss.giussi.cappio.crdt.pure.StabilityProtocol.TCStable
  *
  * @param log the set of operations with its timestamp and optional metadata (i.e. systemTimestamp, creator)
  */
-case class POLog(log: Set[Versioned[Operation]] = Set.empty) {
+case class POLog[Op](log: Set[Versioned[Op]] = Set.empty[Versioned[Op]]) {
 
   /**
    * "Prunes the PO-Log once an operation is causally delivered in the effect. The aim is to
@@ -26,7 +26,7 @@ case class POLog(log: Set[Versioned[Operation]] = Set.empty) {
    * @param r     a function that receives a new operation o and returns a filter that returns true if an operation o' is redundant by o
    * @return the set of operations that conform the POLog and are not redundant by newOp
    */
-  private def prune(ops: Set[Versioned[Operation]], newOp: Versioned[Operation], r: Redundancy_): Set[Versioned[Operation]] = {
+  private def prune(ops: Set[Versioned[Op]], newOp: Versioned[Op], r: Redundancy_[Op]): Set[Versioned[Op]] = {
     val redundant = r(newOp)
     ops filterNot redundant
   }
@@ -44,7 +44,7 @@ case class POLog(log: Set[Versioned[Operation]] = Set.empty) {
    *         - the resulting POLog after adding and pruning.
    *         Note that the operation received may not be present in the returned POLog if it was redundant
    */
-  def add(op: Versioned[Operation])(implicit red: CausalRedundancy): (POLog, Boolean) = {
+  def add(op: Versioned[Op])(implicit red: CausalRedundancy[Op]): (POLog[Op], Boolean) = {
     val redundant = red.r(op, this)
     val updatedLog = if (redundant) log else log + op
     val r = red.redundancyFilter(redundant)
@@ -60,8 +60,8 @@ case class POLog(log: Set[Versioned[Operation]] = Set.empty) {
    *         at the received [[TCStable]], and the set of operations that are stable
    *         at the received [[TCStable]]
    */
-  def stable(stable: TCStable): (POLog, Seq[Operation]) = {
-    val (stableOps, nonStableOps) = log.foldLeft((Seq.empty[Operation], Seq.empty[Versioned[Operation]])) {
+  def stable(stable: TCStable): (POLog[Op], Seq[Op]) = {
+    val (stableOps, nonStableOps) = log.foldLeft((Seq.empty[Op], Seq.empty[Versioned[Op]])) {
       case ((stOps, nonStOps), op) =>
         if (stable.isStable(op.vectorTimestamp)) (stOps :+ op.value, nonStOps)
         else (stOps, nonStOps :+ op)

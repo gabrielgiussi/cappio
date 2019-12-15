@@ -27,13 +27,13 @@ object AWCartService {
       case (acc, Versioned(RemoveOp(_), _, _, _)) => acc
     }
 
-    val r: Redundancy = (v, _) => v.value match {
+    val r: Redundancy[Operation] = (v, _) => v.value match {
       case _: RemoveOp => true
       case ClearOp     => true
       case _           => false
     }
 
-    val r0: Redundancy_ = newOp => op => {
+    val r0: Redundancy_[Operation] = newOp => op => {
       ((op.vectorTimestamp, op.value), (newOp.vectorTimestamp, newOp.value)) match {
         case ((t1, AddOp(AWCartEntry(k1, _))), (t2, RemoveOp(k2))) => (t1 < t2) && (k1 equals k2)
         case ((t1, AddOp(_)), (t2, ClearOp)) => t1 < t2
@@ -41,7 +41,7 @@ object AWCartService {
       }
     }
 
-    override implicit val causalRedundancy: CausalRedundancy = new CausalRedundancy(r, r0)
+    override implicit val causalRedundancy: CausalRedundancy[Operation] = new CausalRedundancy(r, r0)
 
     override val optimizedUpdateState: PartialFunction[(Operation, Seq[Operation]), Seq[Operation]] = {
       case (RemoveOp(key), state) => state.filterNot(_.asInstanceOf[AWCartEntry[_]].key equals key)

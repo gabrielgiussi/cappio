@@ -19,4 +19,4 @@ object CRDT {
  *              implementation according to the domain" e.g., a bitmap for dense sets of integers in an AWSet
  * @tparam B state type
  */
-case class CRDT[B](polog: POLog, state: B)
+case class CRDT[B](polog: POLog[Operation], state: B)

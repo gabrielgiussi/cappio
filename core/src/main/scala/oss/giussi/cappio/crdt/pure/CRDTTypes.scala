@@ -11,13 +11,13 @@ object CRDTTypes {
    * currently on the POLog.
    * "In most cases this can be decided by looking only at the delivered operation itself"
    */
-  type Redundancy = (Versioned[Operation], POLog) => Boolean
+  type Redundancy[Op] = (Versioned[Op], POLog[Op]) => Boolean
 
   /**
    * Returns true if the second operation (the operation currently in the POLog is made redundant by
    * the first one (the new delivered one)
    */
-  type Redundancy_ = Versioned[Operation] => Versioned[Operation] => Boolean
+  type Redundancy_[Op] = Versioned[Op] => Versioned[Op] => Boolean
 
   /**
    * A triple containing the data type specific relations R, R0 and R1 used by a CRDT for causal redundancy.
@@ -27,12 +27,12 @@ object CRDTTypes {
    * @param r0 "is used when the new delivered operation is discarded being redundant."
    * @param r1 "is used if the new delivered operation is added to the PO-Log."
    */
-  case class CausalRedundancy(r: Redundancy, r0: Redundancy_, r1: Redundancy_) {
+  case class CausalRedundancy[Op](r: Redundancy[Op], r0: Redundancy_[Op], r1: Redundancy_[Op]) {
 
     /**
      * For most data types, the relations r0 and r1 will be equal
      */
-    def this(r: Redundancy, r0: Redundancy_) = this(r, r0, r0)
+    def this(r: Redundancy[Op], r0: Redundancy_[Op]) = this(r, r0, r0)
 
     /**
      * Returns the [[Redundancy_]] relation that should be used to prune the POLog and the stable state, depending on wether the newly delivered operation was redundant or not.
@@ -40,7 +40,7 @@ object CRDTTypes {
      * @param redundant a flag that indicates if the newly delivered operation was marked redundant by the [[CausalRedundancy.r]] relation (hence not added to the POLog)
      * @return the redundancy relation to use
      */
-    def redundancyFilter(redundant: Boolean): Redundancy_ = if (redundant) r0 else r1
+    def redundancyFilter(redundant: Boolean): Redundancy_[Op] = if (redundant) r0 else r1
   }
 
   /**

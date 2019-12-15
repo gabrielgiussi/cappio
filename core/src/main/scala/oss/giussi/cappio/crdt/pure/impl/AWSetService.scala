@@ -14,13 +14,13 @@ object AWSetService {
 
   implicit def AWSetServiceOps[A] = new CvRDTPureOp[Set[A], Set[A]] {
 
-    val r: Redundancy = (v, _) => v.value match {
+    val r: Redundancy[Operation] = (v, _) => v.value match {
       case _: RemoveOp => true
       case ClearOp     => true
       case _           => false
     }
 
-    val r0: Redundancy_ = newOp => op => {
+    val r0: Redundancy_[Operation] = newOp => op => {
       ((op.vectorTimestamp, op.value), (newOp.vectorTimestamp, newOp.value)) match {
         case ((t1, AddOp(v1)), (t2, AddOp(v2)))    => (t1 < t2) && (v1 equals v2)
         case ((t1, AddOp(v1)), (t2, RemoveOp(v2))) => (t1 < t2) && (v1 equals v2)
@@ -28,7 +28,7 @@ object AWSetService {
       }
     }
 
-    override implicit val causalRedundancy: CausalRedundancy = new CausalRedundancy(r, r0)
+    override implicit val causalRedundancy: CausalRedundancy[Operation] = new CausalRedundancy(r, r0)
 
     override def eval(crdt: AWSet[A]): Set[A] =
       crdt.polog.log.map(_.value.asInstanceOf[AddOp].entry.asInstanceOf[A]) ++ crdt.state

@@ -21,11 +21,11 @@ object LWWRegisterService {
     override def customEval(ops: Seq[Versioned[Operation]]): Option[A] =
       ops.sorted(LWWRegisterService.LWWOrdering[A]).lastOption.map(_.value.asInstanceOf[AssignOp].value.asInstanceOf[A])
 
-    val r: Redundancy = (op, _) => op.value equals ClearOp
+    val r: Redundancy[Operation] = (op, _) => op.value equals ClearOp
 
-    val r0: Redundancy_ = newOp => op => op.vectorTimestamp < newOp.vectorTimestamp
+    val r0: Redundancy_[Operation] = newOp => op => op.vectorTimestamp < newOp.vectorTimestamp
 
-    override implicit val causalRedundancy: CausalRedundancy = new CausalRedundancy(r, r0)
+    override implicit val causalRedundancy: CausalRedundancy[Operation] = new CausalRedundancy(r, r0)
 
   }
 
