@@ -54,8 +54,10 @@ object Messages {
   object LocalStep {
     def withState[S, I, UR, UI,P](s: S): LocalStep[S, I, UR, UI,P] = LocalStep(Set.empty, Set.empty, Set.empty, Set.empty, s)
 
+    // TODO receive UR and wrap inside LocalRequest inside the method
     def withRequests[S, I, UR, UI,P](requests: Set[LocalRequest[UR]], ns: S): LocalStep[S, I, UR, UI,P] = LocalStep(Set.empty, Set.empty, requests, Set.empty, ns)
 
+    // TODO receive UI and wrap inside LocalIndication inside the method
     def withEvents[S, I, UR, UI,P](events: Set[LocalIndication[UI]], sends: Set[FLLSend[P]], ns: S): LocalStep[S, I, UR, UI,P] = new LocalStep(Set.empty, events, Set.empty, sends, ns)
 
     def withIndications[S, I, UR, UI,P](indications: Set[I], ns: S): LocalStep[S, I, UR, UI,P] = new LocalStep(indications, Set.empty, Set.empty, Set.empty, ns)

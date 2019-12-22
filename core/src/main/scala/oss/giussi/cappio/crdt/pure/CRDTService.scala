@@ -42,7 +42,7 @@ trait CRDTServiceOps[A, B, Op] {
   /**
    * Update phase 2 ("downstream").
    */
-  def effect(crdt: A, op: Op, vt: VectorTime, systemTimestamp: Long = 0L, creator: String = ""): A
+  def effect(crdt: A, op: Op, vt: VectorTime, systemTimestamp: Long = 0L, creator: String = ""): A // TODO remove unused args
 
   /**
    * This mechanism allows to discard stable operations, not only timestamps, if they have no

@@ -9,7 +9,7 @@ import oss.giussi.cappio.impl.net.FairLossLink.FLLSend
 import oss.giussi.cappio.ui.ActionSelection.Inputs
 import oss.giussi.cappio.ui.core._
 import oss.giussi.cappio.ui.levels.Snapshot.Conditions
-import oss.giussi.cappio.ui.levels.bcast.{BEBLevel, CausalLevel, RBLevel, URBLevel}
+import oss.giussi.cappio.ui.levels.bcast.{BEBLevel, CRDTLevel, CausalLevel, RBLevel, URBLevel}
 import oss.giussi.cappio.ui.{ActionSelection, AppStore, Diagram, Show, ShowDOM}
 import oss.giussi.cappio.{Mod => ModT, _}
 
@@ -22,7 +22,8 @@ object Levels {
     _ => BEBLevel.broken(4, 3),
     _ => RBLevel(4, 3),
     _ => URBLevel(4, 3),
-    _ => CausalLevel.good(4, 3)
+    _ => CausalLevel.good(4, 3),
+    _ => CRDTLevel.good(4,3)
   )
 
   val INDEXED_LEVELS: Map[LevelId, IndexedLevel] = RAW_LEVELS.zipWithIndex.map { case (level, index) =>

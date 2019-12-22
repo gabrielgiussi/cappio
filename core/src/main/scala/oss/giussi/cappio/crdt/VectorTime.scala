@@ -33,7 +33,7 @@ case class VectorTime(value: Map[String, Long] = Map.empty) {
   /**
    * Increments local time of given `processId` by `count`.
    */
-  def increment(processId: String): VectorTime = value.get(processId) match {
+  def increment(processId: String): VectorTime = value.get(processId) match { // FIXME replace String by ProcessId
     case Some(v) => copy(value + (processId -> (v + 1L)))
     case None    => copy(value + (processId -> 1L))
   }
@@ -100,6 +100,8 @@ case class VectorTime(value: Map[String, Long] = Map.empty) {
 object VectorTime {
   val Zero: VectorTime =
     VectorTime()
+
+  def initial(processes: Set[String]) = VectorTime(processes.map(_ -> 0L).toMap)
 
   def apply(entries: (String, Long)*): VectorTime =
     VectorTime(Map(entries: _*))

@@ -46,7 +46,7 @@ object AWSetService {
   }
 }
 
-sealed trait SetOp
+sealed trait SetOp // TODO type payload
 
 /**
  * Persistent add operation used for [[AWSet]] and AWCart.

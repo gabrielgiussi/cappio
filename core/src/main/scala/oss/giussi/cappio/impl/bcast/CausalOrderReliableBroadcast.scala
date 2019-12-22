@@ -8,6 +8,8 @@ import oss.giussi.cappio.impl.AppState
 import oss.giussi.cappio.impl.AppState.AppMod2
 import oss.giussi.cappio.impl.bcast.ReliableBroadcast.{RBBcast, RBDeliver, RBMod}
 
+// FIXME implement gargabe collection!
+
 object CausalOrderReliableBroadcast {
 
   object CRBBroadcast {

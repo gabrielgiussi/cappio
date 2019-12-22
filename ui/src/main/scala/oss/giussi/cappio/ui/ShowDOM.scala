@@ -3,6 +3,7 @@ package oss.giussi.cappio.ui
 import com.raquo.laminar.api.L._
 import oss.giussi.cappio.BasicState
 import oss.giussi.cappio.impl.AppState
+import oss.giussi.cappio.impl.CRDTApp.CRDTState
 import oss.giussi.cappio.impl.bcast.CausalOrderReliableBroadcast.{CORBDep, CRBState}
 import oss.giussi.cappio.impl.bcast.ReliableBroadcast.{RBDep, RBcastState}
 import oss.giussi.cappio.impl.bcast.UniformReliableBroadcast.URBState
@@ -83,6 +84,16 @@ object ShowDOM {
   implicit  def showPFDState = new ShowDOM[PFDState] {
     override def toDOM(a: PFDState): Div = div(
       label("dead: " + a.detected.mkString(","))
+    )
+  }
+
+  implicit def showCRDTState = new ShowDOM[CRDTState] {
+    import oss.giussi.cappio.crdt.pure.impl.AWSetService.AWSetServiceOps
+    val ops = AWSetServiceOps[String]
+
+    override def toDOM(a: CRDTState): Div = div(
+      label(s"Pending: ${a.module.state.pending.size}"),
+      label(s"Set: [${ops.eval(a.crdt).mkString(",")}]")
     )
   }
 
