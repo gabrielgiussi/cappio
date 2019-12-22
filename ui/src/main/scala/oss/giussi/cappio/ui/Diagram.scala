@@ -27,7 +27,10 @@ object Diagram {
       ),
       //,input(`type` := "number", inContext(thisNode => onChange.mapTo(thisNode.ref.value).map(w => gridConf.copy(roundWidth = w.toInt)) --> $bus)) TODO issue #43
     )
-    $actions.combineWith($gridConf).foreach { case (LastSnapshot(index,_),gconf) => diag.ref.scrollLeft = gconf.x(index.copy(index.i - 10), processes.all.maxBy(_.id)) }(diag)
+    $actions.combineWith($gridConf).foreach { case (LastSnapshot(index,_),gconf) =>
+      if (index.i > 12) // FIXME #109
+        diag.ref.scrollLeft = gconf.x(index.copy(index.i - 12), processes.all.maxBy(_.id))
+    }(diag) // TODO issue #109
     div(
       diag,
       child <-- Arrows.actionSelected.events.map {

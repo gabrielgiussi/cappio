@@ -9,11 +9,15 @@ case class Point(x: Double, y: Double) {
 
 }
 
-case class GridConfImpl(roundWidth: Double, p: Processes) extends GridConf {
+case class GridConfImpl(baseRoundWidth: Double, p: Processes) extends GridConf {
 
-  override val roundHeight = roundWidth * 2
+  val widthAdjustment = 10
 
-  override val arrowHeadSize: Double = roundWidth * 0.25
+  override val roundWidth = baseRoundWidth + ((p.all.size - 1) * widthAdjustment)
+
+  override val roundHeight = roundWidth * 1.2
+
+  override val arrowHeadSize: Double = roundWidth * 0.15
 
   private val indexes = processes.zipWithIndex.toMap
 
@@ -21,7 +25,7 @@ case class GridConfImpl(roundWidth: Double, p: Processes) extends GridConf {
 
   override def y(process: ProcessId): Double = (indexes(process) + 1) * roundHeight
 
-  override def x(index: Index, process: ProcessId): Double = (index.i * roundWidth) + (process.id * 10)
+  override def x(index: Index, process: ProcessId): Double = (index.i * roundWidth) + (process.id * widthAdjustment)
 
   override def crossSize: Double = roundWidth * 0.2
 
