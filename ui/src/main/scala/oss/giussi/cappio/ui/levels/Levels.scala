@@ -248,13 +248,13 @@ object Snapshot {
 
   // TODO refactor required
   def next[M <: ModT](indicationPayload: M#Ind => String, reqPayload: M#Req => String)(snapshot: Snapshot[M], op: Op[M]): Snapshot[M] = (snapshot, op) match {
-    case (c@Snapshot(current, actions, pastInd, wr@WaitingRequest(Scheduler(_, network, _)), _), NextReq(req)) =>
+    case (c@Snapshot(current, actions, pastInd, wr@WaitingRequest(Scheduler(_, network, _,_)), _), NextReq(req)) =>
       val RequestResult(sent, ind, wd) = wr.request(req.requests.values.toSeq)
       val sends = sent.flatMap(s => sendToUndelivered(current)(s, delivered(network, s)))
       val requests = req.requests.map { case (p, r) => toRequest(reqPayload)(p, r, current) }
       val indications = ind.map(toIndication(indicationPayload)(current))
       Snapshot(current, actions ++ indications ++ requests ++ sends, pastInd ++ ind, wd, Some(c))
-    case (c@Snapshot(current, actions, pastInd, wd@WaitingDeliver(Scheduler(_, network, _)), _), NextDeliver(del)) =>
+    case (c@Snapshot(current, actions, pastInd, wd@WaitingDeliver(Scheduler(_, network, _,_)), _), NextDeliver(del)) =>
       val result = if (del.ops.isEmpty) wd.tick else wd.deliver(del)
       val sent = result.sent
       val ind = result.ind

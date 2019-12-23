@@ -23,7 +23,9 @@ object Packet {
 }
 
 // Deberian poder ser creados solo por las abstraction de network
-case class Packet[T](id: UUID, payload: T, from: ProcessId, to: ProcessId, instance: Instance)
+case class Packet[T](id: UUID, payload: T, from: ProcessId, to: ProcessId, instance: Instance) {
+  def toSelf = from == to
+}
 
 case class Drop[T](packet: Packet[T]) // TODO drop may be just the uuid
 

@@ -92,8 +92,9 @@ object ShowDOM {
     val ops = AWSetServiceOps[String]
 
     override def toDOM(a: CRDTState): Div = div(
-      label(s"Pending: ${a.module.state.pending.size}"),
-      label(s"Set: [${ops.eval(a.crdt).mkString(",")}]")
+      div(s"Pending: ${a.module.state.pending.size}"),
+      div(s"Set: [${ops.eval(a.crdt).mkString(",")}]"),
+      div(s"Dead: [${a.module.state.module.state.module.state._1.detected.mkString(",")}]")
     )
   }
 

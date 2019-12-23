@@ -5,9 +5,19 @@ import oss.giussi.cappio.impl.net.FairLossLink.FLLSend
 
 object Scheduler {
 
-  def init[M <: Mod](processes: Set[Process[M]]): Scheduler[M] = Scheduler(processes.map(p => p.id -> p).toMap, Network.init[M#Payload], 0)
+  type AutoDeliver[P] = Packet[P] => Boolean
 
-  def init[M <: Mod](processes: Set[ProcessId], f: ProcessId => Module[M]): Scheduler[M] = Scheduler(processes.map(pId => pId -> Process(pId, f(pId))).toMap, Network.init[M#Payload], 0)
+  // TODO Why I can't say AutoDeliver[_] here
+  def selfDelivery[P]: AutoDeliver[P] = packet => packet.from == packet.to
+
+  def init[M <: Mod](processes: Set[Process[M]]): Scheduler[M] = Scheduler(processes.map(p => p.id -> p).toMap, Network.init[M#Payload], 0, selfDelivery)
+
+  def init[M <: Mod](processes: Set[ProcessId], f: ProcessId => Module[M]): Scheduler[M] = Scheduler(processes.map(pId => pId -> Process(pId, f(pId))).toMap, Network.init[M#Payload], 0, selfDelivery)
+
+  def withAutoDeliver[M <: Mod](processes: Set[ProcessId], f: ProcessId => Module[M], autoDeliver: AutoDeliver[M#Payload]): Scheduler[M] = {
+    val ad: AutoDeliver[M#Payload] = packet => selfDelivery(packet) || autoDeliver(packet)
+    Scheduler(processes.map(pId => pId -> Process(pId, f(pId))).toMap, Network.init[M#Payload], 0, ad)
+  }
 
   // TODO deprecated
   def requestAndTick[M <: Mod](scheduler: Scheduler[M]) = scheduler.request _ andThen { case NextStateScheduler(sent0, ind0, sch0) =>
@@ -92,7 +102,7 @@ case class NextStateScheduler[M <: Mod](sent: Set[FLLSend[M#Payload]], indicatio
 
 case class IndicationFrom[I](p: ProcessId, i: I)
 
-case class Scheduler[M <: Mod](processes: Map[ProcessId, Process[M]], network: Network[M#Payload], step: Int) {
+case class Scheduler[M <: Mod](processes: Map[ProcessId, Process[M]], network: Network[M#Payload], step: Int, autodeliver: Packet[M#Payload] => Boolean) {
 
   type Self = Scheduler[M]
 
@@ -133,26 +143,36 @@ case class Scheduler[M <: Mod](processes: Map[ProcessId, Process[M]], network: N
 
   private def autodelivery(ns: Next): Next = {
     val NextStateScheduler(sent0,ind0,sch0) = ns
-    val autodeliveries = sent0.filter(p => p.packet.from == p.packet.to)
-      .map(p => FLLDeliver(p.packet)).map(p => p.packet.to -> Left(p)).toMap
 
-    val NextStateScheduler(sent1,ind1,sch1) = sch0.deliver(DeliverBatch(autodeliveries)) // FIXME delete restriction on one deliver per process or make this call recursive until no autodeliveries left
+    val maybe = ns.scheduler.network.inTransit.map(_.packet) ++ sent0.map(_.packet).filter(_.toSelf) // TODO patch I should only be able to autodeliver packets in the same step if they are toSelf.
+    val autodeliveries = maybe.filter(autodeliver)
+      .map(p => DeliverBatch(Map(p.to -> Left(FLLDeliver(p)))))
+
+    val (sch1,sent1,ind1) = autodeliveries.foldLeft[(Scheduler[M],Set[FLLSend[M#Payload]],Set[IndicationFrom[M#Ind]])]((sch0,Set.empty,Set.empty)){ case ((sch,accSent,accInd),batch) =>
+      val NextStateScheduler(nextSend,nextInd,nextSch) = sch deliver batch
+      (nextSch,accSent ++ nextSend, accInd ++ nextInd)
+    }
     NextStateScheduler(sent0 ++ sent1,ind0 ++ ind1,sch1)
   }
 
   def tick: Next = {
-    val (fi, fs, fp) = processes.values.foldLeft[(Set[IndicationFrom[M#Ind]], Set[Send], Set[P])]((Set.empty, Set.empty, Set.empty)) {
+    val (fi, fs, fp) = processes.filter(_._2.status == Up).values.foldLeft[(Set[IndicationFrom[M#Ind]], Set[Send], Set[P])]((Set.empty, Set.empty, Set.empty)) {
       case ((ind, send, ps), p) =>
         val NextStateProcess(i, s, ns) = p.tick
         val a = i.map(IndicationFrom(p.id, _))
         (ind ++ a, send ++ s, ps + ns)
     }
-    autodelivery(NextStateScheduler(fs, fi, copy(processes = fp.map(p => p.id -> p).toMap, network = network.tick.send(fs), step = step + 1)))
+    autodelivery(NextStateScheduler(fs, fi, copy(processes = fp.map(p => p.id -> p).toMap ++ processes.filter(_._2.status == Down), network = network.tick.send(fs), step = step + 1)))
   }
 
   // TODO aca deberia tener algun control de q digo deliver a 0, el paquete 1 -> 0
   def deliver(ds: DeliverBatch[M#Payload]) = {
-    def deliver(d: Deliver) = processes(d.packet.to).deliver(d)
+    def deliver(d: Deliver) = {
+      processes(d.packet.to) match {
+        case p@Process(_, _, Up) => p deliver d
+        case p => NextStateProcess[M](Set.empty,Set.empty,p) // TODO patch
+      }
+    }
 
     val d = ds.ops.values.collect { case Left(value) => value }.toSet
     val drops = ds.ops.values.collect { case Right(value) => value }
