@@ -34,19 +34,7 @@ object Diagram {
     }(diag) // TODO issue #109
     div(
       diag,
-      child <-- Arrows.actionSelected.events.map { action =>
-        div(
-          div(
-            action match {
-              case Undelivered(from, to, uuid, p, sent, _, _) => s"Mensaje enviado de $from a $to"
-              case Delivered(from, to, uuid, p, sent, _, _) => s"Mensaje enviado de $from a $to"
-              case Request(name, process, index, _payload) => s"$name de $process"
-              case Indication(process, index, payload) => ""
-            },
-            action.payload.map(p => div(s"Payload: $p"))
-          )
-        )
-      }
+      child <-- Arrows.actionSelected.events.map(Actions.showAction)
     )
   }
 

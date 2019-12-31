@@ -18,6 +18,7 @@ object ActionDescription {
 
   def withName(name: String, payload: String, tags: Set[ActionTag] = Set.empty): ActionDescription = new ActionDescription(Some(name), payload, tags)
 
+  // OR create PayloadDescription?
   def withoutName(payload: String, tags: Set[ActionTag] = Set.empty): ActionDescription = new ActionDescription(None, payload, tags)
 }
 
@@ -35,11 +36,11 @@ object DescribeAction {
   import ShowSyntax._
 
   implicit def describeBcast[P : Show] = new DescribeAction[BebMod[P]#Req] {
-    override def describe(action: BestEffortBroadcast.BebBcast[P]): ActionDescription = ActionDescription.withName("bcast",action.payload.msg.show)
+    override def describe(action: BestEffortBroadcast.BebBcast[P]): ActionDescription = ActionDescription.withName("beb-bcast",action.payload.msg.show)
   }
 
   implicit def describeBdeliver[P : Show] = new DescribeAction[BebMod[P]#Ind] {
-    override def describe(action: BestEffortBroadcast.BebDeliver[P]): ActionDescription = ActionDescription.withName("bdeliver",action.payload.msg.show)
+    override def describe(action: BestEffortBroadcast.BebDeliver[P]): ActionDescription = ActionDescription.withName("beb-deliver",action.payload.msg.show)
   }
 
   implicit def describeHeartbeat = new DescribeAction[HeartbeatMsg] {
@@ -107,19 +108,19 @@ object DescribeAction {
   }
 
   implicit def describeRBReq[P : Show] = new DescribeAction[RBBcast[P]] {
-    override def describe(action: RBBcast[P]): ActionDescription = ActionDescription.withName("bcast",action.show)
+    override def describe(action: RBBcast[P]): ActionDescription = ActionDescription.withName("rb-bcast",action.show)
   }
 
   implicit def describeRBInd[P : Show] = new DescribeAction[RBDeliver[P]] {
-    override def describe(action: RBDeliver[P]): ActionDescription = ActionDescription.withName("bdeliver",action.payload.msg.show)
+    override def describe(action: RBDeliver[P]): ActionDescription = ActionDescription.withName("rb-deliver",action.payload.msg.show)
   }
 
-  implicit def describeURBReq[P] = new DescribeAction[URBBcast[P]] {
-    override def describe(action: URBBcast[P]): ActionDescription = ActionDescription.withName("TODO","TODO")
+  implicit def describeURBReq[P : Show] = new DescribeAction[URBBcast[P]] {
+    override def describe(action: URBBcast[P]): ActionDescription = ActionDescription.withName("urb-bcast",action.payload.msg.show)
   }
 
-  implicit def describeURBInd[P] = new DescribeAction[URBDeliver[P]] {
-    override def describe(action: URBDeliver[P]): ActionDescription = ActionDescription.withName("TODO","TODO")
+  implicit def describeURBInd[P : Show] = new DescribeAction[URBDeliver[P]] {
+    override def describe(action: URBDeliver[P]): ActionDescription = ActionDescription.withName("urb-deliver",action.payload.show)
   }
 
   implicit def describeCRDTRequest = new DescribeAction[SetRequest] {
@@ -129,16 +130,16 @@ object DescribeAction {
     }
   }
 
-  implicit def describeCRDTDeliver[P] = new DescribeAction[WCDeliver[P]] {
-    override def describe(action: WCDeliver[P]): ActionDescription = ActionDescription.withName("deliver","TODO")
+  implicit def describeCRDTDeliver[P : Show] = new DescribeAction[WCDeliver[P]] {
+    override def describe(action: WCDeliver[P]): ActionDescription = ActionDescription.withName("updated",action.msg.show)
   }
 
   implicit def describeCausalBcast[P : Show] = new DescribeAction[CRBBroadcast[P]] {
-    override def describe(action: CRBBroadcast[P]): ActionDescription = ActionDescription.withName("bcast",action.payload.msg.show)
+    override def describe(action: CRBBroadcast[P]): ActionDescription = ActionDescription.withName("crb-bcast",action.payload.msg.show)
   }
 
   implicit def describeCausalDeliver[P : Show] = new DescribeAction[CRBDeliver[P]] {
-    override def describe(action: CRBDeliver[P]): ActionDescription = ActionDescription.withName("","")
+    override def describe(action: CRBDeliver[P]): ActionDescription = ActionDescription.withName("crb-deliver",action.msg.show)
   }
 }
 

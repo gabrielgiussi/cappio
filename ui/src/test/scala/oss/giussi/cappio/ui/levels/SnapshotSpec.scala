@@ -16,6 +16,7 @@ class SnapshotSpec extends WordSpec with Matchers {
 
   "Snapshot" must {
     "" ignore {
+      /*
       val step = WaitingRequest(Scheduler.init(all,BestEffortBroadcast[String](all,3)))
       val next = Snapshot.next[BebMod[String]](_.toString,_.toString) _
       val req = RequestBatch[BebBcast[String]](Map.empty)
@@ -39,7 +40,7 @@ class SnapshotSpec extends WordSpec with Matchers {
       s3.actions.foreach(println)
       println("######################")
       s4.actions.foreach(println)
-
+       */
 
     }
   }

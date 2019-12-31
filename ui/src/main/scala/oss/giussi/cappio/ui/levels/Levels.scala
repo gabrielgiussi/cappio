@@ -233,14 +233,14 @@ object Snapshot {
 
   final def toRequest[R](reqPayload: R => ActionDescription)(p: ProcessId, req: ProcessInput[R], i: Index): Action = req match {
     case ProcessRequest(_, req) =>
-      val ActionDescription(name, payload,_) = reqPayload(req)
-      Request(name.getOrElse(""), p, i, payload) // FIXME getOrElse
+      val ActionDescription(name, payload,tags) = reqPayload(req)
+      Actions.request(name.getOrElse(""), p, i, payload,tags) // FIXME getOrElse
     case Crash(_) => Crashed(p, i)
   }
 
   final def toIndication[Ind](indicationPayload: Ind => ActionDescription)(i: Index)(ind: IndicationFrom[Ind]) = {
-    val ActionDescription(_,payload,_) = indicationPayload(ind.i)
-    Indication(ind.p, i, payload)
+    val ActionDescription(name,payload,tags) = indicationPayload(ind.i)
+    Actions.indication(name.getOrElse(""), ind.p, i, payload, tags)
   }
 
   def sendToUndelivered[P](f: P => ActionDescription)(index: Index)(send: FLLSend[P], alreadyDelivered: Boolean): Option[Undelivered] = send match {
