@@ -1,17 +1,20 @@
 package oss.giussi.cappio.ui
 
 import com.raquo.laminar.api.L._
-import oss.giussi.cappio.BasicState
+import oss.giussi.cappio.{BasicState, StateWithModule}
 import oss.giussi.cappio.impl.AppState
 import oss.giussi.cappio.impl.CRDTApp.CRDTState
 import oss.giussi.cappio.impl.bcast.CausalOrderReliableBroadcast.{CORBDep, CRBState}
 import oss.giussi.cappio.impl.bcast.ReliableBroadcast.{RBDep, RBcastState}
 import oss.giussi.cappio.impl.bcast.UniformReliableBroadcast.URBState
-import oss.giussi.cappio.impl.net.PerfectLink.PLState
+import oss.giussi.cappio.impl.net.PerfectLink.{PLModule, PLState}
 import oss.giussi.cappio.impl.net.StubLink
 import oss.giussi.cappio.impl.net.StubbornLink.StubbornLinkState
 import oss.giussi.cappio.impl.register.OneNRegularRegister.ONRRState
 import oss.giussi.cappio.impl.time.PerfectFailureDetector.{PFDMod, PFDState}
+import oss.giussi.cappio.{Mod => ModT}
+import ShowDOMSyntax._
+import ShowSyntax._
 
 trait ShowDOM[A] {
 
@@ -19,10 +22,22 @@ trait ShowDOM[A] {
 
 }
 
-object ShowDOM {
+trait GetState[A] {
+  def getState(state: A): (String,Div)
+}
 
-  import ShowDOMSyntax._
-  import ShowSyntax._
+object GetState {
+
+  implicit def getAppState[M <: ModT,S](implicit s: Show[S]) = new GetState[AppState[S,M]] {
+    override def getState(state: AppState[S, M]): (String, Div) = ("app",div(s"Valor actual: ${state.value.map(_.show).getOrElse("-")}"))
+  }
+
+  implicit def getPLState[P] = new GetState[PLState[P]] {
+    override def getState(state: PLState[P]): (String, Div) = ("perfect link", div(s"Delivered ${state.delivered.size}"))
+  }
+}
+
+object ShowDOM {
 
   def card(header: String, body: Div) = div(cls := "card my-2",
     div(cls := "card-header py-0 px-1",
@@ -35,13 +50,24 @@ object ShowDOM {
     )
   )
 
-  implicit def showAppState[P, M <: oss.giussi.cappio.Mod](implicit dep: ShowDOM[M#State], show: Show[P]) = new ShowDOM[AppState[P, M]] {
-    override def toDOM(a: AppState[P, M]): Div = {
-      val d = a.module.state.toDOM
-      d.insertChild(card("app", div(s"Valor actual: ${a.value.map(_.show).getOrElse("-")}")),0)
-      d
-    }
+  /*
+  Not working!
+  implicit def showStateWithModule[M <: ModT, S <: StateWithModule[M,S]](implicit get: GetState[S]) = new ShowDOM[S] {
+    override def toDOM(a: S): Div = div()
   }
+  */
+
+  def stateWithModuleToDOM[M <: ModT, S <: StateWithModule[M,S]](state: S)(implicit get1: GetState[S], showDOM: ShowDOM[M#State]): Div = {
+    val d = state.module.state.toDOM
+    val (name,body) = get1.getState(state)
+    d.insertChild(card(name, body),0)
+    d
+  }
+
+  implicit def showAppState[P, M <: oss.giussi.cappio.Mod](implicit dep: ShowDOM[M#State], show: Show[P]): ShowDOM[AppState[P, M]] = new ShowDOM[AppState[P, M]] {
+    override def toDOM(a: AppState[P, M]): Div = stateWithModuleToDOM[M,AppState[P,M]](a) // This is not able to infer the M type
+  }
+
 
   implicit def showCausal[P](implicit dep: ShowDOM[CORBDep[P]#State]) = new ShowDOM[CRBState[P]] {
     override def toDOM(a: CRBState[P]): Div = div(
@@ -51,17 +77,11 @@ object ShowDOM {
   }
 
   implicit def showPL[P](implicit dep: ShowDOM[StubLink[P]#State]) = new ShowDOM[PLState[P]] {
-    override def toDOM(a: PLState[P]): Div = div(
-      card("perfect link", div(s"Delivered ${a.delivered.size}"))
-      //a.module.state.toDOM
-    )
+    override def toDOM(a: PLState[P]): Div = stateWithModuleToDOM[PLModule[P]#Dep,PLState[P]](a)(GetState.getPLState,showSL)
   }
 
   implicit def showSL[P] = new ShowDOM[StubbornLinkState[P]] {
-    override def toDOM(a: StubbornLinkState[P]): Div = div(
-      borderStyle := "solid",
-      "Stubborn Link"
-    )
+    override def toDOM(a: StubbornLinkState[P]): Div = div(card("stubborn link", div()))
   }
 
   implicit def showBasicState[M <: oss.giussi.cappio.Mod](implicit dep: ShowDOM[M#State]) = new ShowDOM[BasicState[M]] {
