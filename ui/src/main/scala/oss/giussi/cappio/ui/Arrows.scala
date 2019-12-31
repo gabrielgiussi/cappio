@@ -1,6 +1,8 @@
 package oss.giussi.cappio.ui
 
 import com.raquo.laminar.api.L._
+import com.raquo.laminar.nodes.ReactiveSvgElement
+import org.scalajs.dom.svg.Line
 import oss.giussi.cappio.ui.core._
 
 
@@ -16,7 +18,7 @@ ver si puedo tipar el payload de las actions
 object Arrows {
 
   val actionSelected = new EventBus[Action]
-  actionSelected.events.addObserver(Observer.apply(println))(unsafeWindowOwner)
+  actionSelected.events.addObserver(Observer.apply(println))(unsafeWindowOwner) // FIXME remove
 
   // TODO donde va esto?
   def cross(point: Point, size: Double) = {
@@ -48,18 +50,14 @@ object Arrows {
   def indication(ind: Indication, gridConf: GridConf) = {
     val p = gridConf.point(ind.index,ind.process)
     val y = p.y - (gridConf.roundHeight / 3) // issue 79
-    val a = arrow(p, Point(p.x + (gridConf.roundWidth / 6), y), Markers.ArrowHeadEmpty)
-    a.events(onClick).mapToValue(ind).addObserver(actionSelected.writer)(a)
-    a
+    arrow(p, Point(p.x + (gridConf.roundWidth / 6), y), Markers.ArrowHeadEmpty)
   }
 
   // FIXME request at index 0 will not appear. Alternatives: make vertix at half of the round or start timelines at (n,0) instead of (0,0)
   def request(req: Request, gridConf: GridConf) = {
     val p2 = gridConf.point(req.index, req.process)
     val p1 = Point(p2.x - (gridConf.roundWidth / 2), p2.y - (gridConf.roundWidth / 2))
-    val a = arrow(p1, p2)
-    a.events(onClick).mapToValue(req).addObserver(actionSelected.writer)(a)
-    a
+    arrow(p1, p2)
   }
 
   def crashed(crashed: Crashed, gridConf: GridConf) = cross(gridConf.point(crashed.index, crashed.process), gridConf.crossSize)
@@ -121,9 +119,7 @@ object Arrows {
     val p = gridConf.point(action.sent, action.from)
     val py = gridConf.y(action.to)
     val orientation = if (p.y > py) Up else Down
-    val a = shortArrow(p, orientation, gridConf, arrowHead)
-    a.events(onClick).mapToValue(action).addObserver(actionSelected.writer)(a)
-    a
+    shortArrow(p, orientation, gridConf, arrowHead)
   }
 
   def undelivered(action: Undelivered, gridConf: GridConf) = shortArrowNetwork(action,gridConf,Markers.ArrowHead)
@@ -159,8 +155,7 @@ object Arrows {
         svg.strokeWidth := "2"
       )
     }
-    if (action.from == action.to) selfDelivered
-    else arrow(p1, p2)
+    if (action.from == action.to) selfDelivered else arrow(p1, p2)
   }
 
 

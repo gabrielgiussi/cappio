@@ -2,6 +2,7 @@ package oss.giussi.cappio.ui
 
 import com.raquo.laminar.api.L.{svg => s, _}
 import oss.giussi.cappio.Processes
+import oss.giussi.cappio.ui.Arrows.actionSelected
 import oss.giussi.cappio.ui.core._
 import oss.giussi.cappio.ui.levels.LastSnapshot
 
@@ -23,11 +24,11 @@ object Diagram {
         child <-- $gridConf.map(c => Markers.defs(c.arrowHeadSize, c.crossSize)),
         labels(gridConf, labelWidth, height),
         timelines(gridConf, $gridConf, labelWidth + 1, $actions.map(_.actions)),
-        grid(gridConf,labelWidth + 1, height)
+        grid(gridConf, labelWidth + 1, height)
       ),
       //,input(`type` := "number", inContext(thisNode => onChange.mapTo(thisNode.ref.value).map(w => gridConf.copy(roundWidth = w.toInt)) --> $bus)) TODO issue #43
     )
-    $actions.combineWith($gridConf).foreach { case (LastSnapshot(index,_),gconf) =>
+    $actions.combineWith($gridConf).foreach { case (LastSnapshot(index, _), gconf) =>
       if (index.i > 12) // FIXME #109
         diag.ref.scrollLeft = gconf.x(index.copy(index.i - 12), processes.all.maxBy(_.id))
     }(diag) // TODO issue #109
@@ -37,8 +38,8 @@ object Diagram {
         div(
           div(
             action match {
-              case Undelivered(from,to,uuid,p,sent,_,_) => s"Mensaje enviado de $from a $to"
-              case Delivered(from,to,uuid,p,sent,_,_) => s"Mensaje enviado de $from a $to"
+              case Undelivered(from, to, uuid, p, sent, _, _) => s"Mensaje enviado de $from a $to"
+              case Delivered(from, to, uuid, p, sent, _, _) => s"Mensaje enviado de $from a $to"
               case Request(name, process, index, _payload) => s"$name de $process"
               case Indication(process, index, payload) => ""
             },
@@ -49,22 +50,20 @@ object Diagram {
     )
   }
 
-  def renderAction($gridConf: Signal[GridConf])(id: String, initial: Action, signal: Signal[Action]) = {
+  def renderAction(filter: Action => Boolean, $gridConf: Signal[GridConf])(id: String, initial: Action, signal: Signal[Action]) = {
     s.svg(
-      child <-- signal.combineWith($gridConf).map {
-        case (a: Action,_) if a.tags.contains(HEARTBEAT) => s.g() // FIXME maybe there is a better way to do this filter.
-        case (d: Delivered,gridConf) => Arrows.delivered(d,gridConf)
-        case (u: Undelivered, gridConf) => if (u.alreadyDelivered) s.svg() else Arrows.undelivered(u,gridConf)
-        case (c: Crashed,gridConf) => Arrows.crashed(c,gridConf)
-        case (r: Request,gridConf) => Arrows.request(r,gridConf)
-        case (i: Indication,gridConf) => Arrows.indication(i,gridConf)
-        case (d: Dropped,gridConf) => Arrows.dropped(d,gridConf)
-        /*
-        case (r: PendingRead,gridConf) => Arrows.pendingRead(r,gridConf)
-        case (r: ReadReturned,gridConf) => Arrows.readReturned(r,gridConf)
-        case (r: PendingWrite,gridConf) => Arrows.pendingWrite(r,gridConf)
-        case (r: WriteReturned,gridConf) => Arrows.writeReturned(r,gridConf)
-         */
+      child <-- signal.combineWith($gridConf).map { case (action, gridConf) =>
+        val actionSvg = action match {
+          case a: Action if filter(a) => s.g() // FIXME maybe there is a better way to do this filter.
+          case d: Delivered => Arrows.delivered(d, gridConf)
+          case u: Undelivered => if (u.alreadyDelivered) s.svg() else Arrows.undelivered(u, gridConf)
+          case c: Crashed => Arrows.crashed(c, gridConf)
+          case r: Request => Arrows.request(r, gridConf)
+          case i: Indication => Arrows.indication(i, gridConf)
+          case d: Dropped => Arrows.dropped(d, gridConf)
+        }
+        actionSvg.events(onClick).mapToValue(action).addObserver(actionSelected.writer)(actionSvg)
+        actionSvg
       }
     )
   }
@@ -103,7 +102,6 @@ object Diagram {
   }
 
 
-
   def timelines(gridConf: GridConf, $gridConf: Signal[GridConf], x: Int, $actions: Signal[List[Action]]) = {
     s.svg(
       s.x := x.toString,
@@ -125,7 +123,7 @@ object Diagram {
           onClick.mapToValue(()) --> Observer.apply[Unit](_ => org.scalajs.dom.document.querySelector(s"#processState${p.toString}").scrollIntoView())
         )
       },
-      children <-- $actions.splitIntoSignals(_.id)(renderAction($gridConf))
+      children <-- $actions.splitIntoSignals(_.id)(renderAction(_.tags.contains(HEARTBEAT), $gridConf))
     )
   }
 
