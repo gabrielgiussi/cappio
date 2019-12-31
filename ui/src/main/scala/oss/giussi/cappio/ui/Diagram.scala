@@ -1,8 +1,8 @@
 package oss.giussi.cappio.ui
 
-import oss.giussi.cappio.{ProcessId, Processes}
 import com.raquo.laminar.api.L.{svg => s, _}
-import oss.giussi.cappio.ui.core.{Action, Crashed, Delivered, Dropped, Indication, PendingRead, PendingWrite, ReadReturned, Request, Undelivered, WriteReturned}
+import oss.giussi.cappio.Processes
+import oss.giussi.cappio.ui.core._
 import oss.giussi.cappio.ui.levels.LastSnapshot
 
 object Diagram {
@@ -33,8 +33,18 @@ object Diagram {
     }(diag) // TODO issue #109
     div(
       diag,
-      child <-- Arrows.actionSelected.events.map {
-        case a => label(s"Action ${a.id}") // TODO
+      child <-- Arrows.actionSelected.events.map { action =>
+        div(
+          div(
+            action match {
+              case Undelivered(from,to,uuid,p,sent,_,_) => s"Mensaje enviado de $from a $to"
+              case Delivered(from,to,uuid,p,sent,_,_) => s"Mensaje enviado de $from a $to"
+              case Request(name, process, index, _payload) => s"$name de $process"
+              case Indication(process, index, payload) => ""
+            },
+            action.payload.map(p => div(s"Payload: $p"))
+          )
+        )
       }
     )
   }
@@ -42,16 +52,19 @@ object Diagram {
   def renderAction($gridConf: Signal[GridConf])(id: String, initial: Action, signal: Signal[Action]) = {
     s.svg(
       child <-- signal.combineWith($gridConf).map {
+        case (a: Action,_) if a.tags.contains(HEARTBEAT) => s.g() // FIXME maybe there is a better way to do this filter.
         case (d: Delivered,gridConf) => Arrows.delivered(d,gridConf)
         case (u: Undelivered, gridConf) => if (u.alreadyDelivered) s.svg() else Arrows.undelivered(u,gridConf)
         case (c: Crashed,gridConf) => Arrows.crashed(c,gridConf)
         case (r: Request,gridConf) => Arrows.request(r,gridConf)
         case (i: Indication,gridConf) => Arrows.indication(i,gridConf)
         case (d: Dropped,gridConf) => Arrows.dropped(d,gridConf)
+        /*
         case (r: PendingRead,gridConf) => Arrows.pendingRead(r,gridConf)
         case (r: ReadReturned,gridConf) => Arrows.readReturned(r,gridConf)
         case (r: PendingWrite,gridConf) => Arrows.pendingWrite(r,gridConf)
         case (r: WriteReturned,gridConf) => Arrows.writeReturned(r,gridConf)
+         */
       }
     )
   }

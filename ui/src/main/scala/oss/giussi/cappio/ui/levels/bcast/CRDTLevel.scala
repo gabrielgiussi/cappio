@@ -34,6 +34,7 @@ object CRDTLevel {
       ActionSelection.crash
     )
     override val shortDescription = div()
+
   }
 
   val good = CRDTLevel(List()) _

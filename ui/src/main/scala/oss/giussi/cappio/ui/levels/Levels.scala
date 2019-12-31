@@ -10,20 +10,20 @@ import oss.giussi.cappio.ui.ActionSelection.Inputs
 import oss.giussi.cappio.ui.core._
 import oss.giussi.cappio.ui.levels.Snapshot.Conditions
 import oss.giussi.cappio.ui.levels.bcast.{BEBLevel, CRDTLevel, CausalLevel, RBLevel, URBLevel}
-import oss.giussi.cappio.ui.{ActionSelection, AppStore, Diagram, Show, ShowDOM}
+import oss.giussi.cappio.ui.{ActionDescription, ActionSelection, AppStore, DescribeModuleAction, Diagram, Show, ShowDOM}
 import oss.giussi.cappio.{Mod => ModT, _}
 
 object Levels {
 
   val RAW_LEVELS: List[LevelId => Selection] = List(
     Documentation(Introduction.source) _,
-    _ => DemoLevel.good(4,3),
+    _ => DemoLevel.good(4, 3),
     _ => BEBLevel.simple(4, 3),
     _ => BEBLevel.broken(4, 3),
     _ => RBLevel(4, 3),
     _ => URBLevel(4, 3),
     _ => CausalLevel.good(4, 3),
-    _ => CRDTLevel.good(4,3)
+    _ => CRDTLevel.good(4, 3)
   )
 
   val INDEXED_LEVELS: Map[LevelId, IndexedLevel] = RAW_LEVELS.zipWithIndex.map { case (level, index) =>
@@ -231,66 +231,87 @@ object Snapshot {
 
   def init[M <: oss.giussi.cappio.Mod](step: Step[M]): Snapshot[M] = Snapshot(Index(0), List.empty, Set.empty[IndicationFrom[M#Ind]], step, None)
 
-  final def toRequest[R](reqPayload: R => String)(p: ProcessId, req: ProcessInput[R], i: Index): Action = req match {
-    case ProcessRequest(_, req) => Request(p, i, reqPayload(req))
+  final def toRequest[R](reqPayload: R => ActionDescription)(p: ProcessId, req: ProcessInput[R], i: Index): Action = req match {
+    case ProcessRequest(_, req) =>
+      val ActionDescription(name, payload,_) = reqPayload(req)
+      Request(name.getOrElse(""), p, i, payload) // FIXME getOrElse
     case Crash(_) => Crashed(p, i)
   }
 
-  final def toIndication[Ind](indicationPayload: Ind => String)(i: Index)(ind: IndicationFrom[Ind]) = Indication(ind.p, i, indicationPayload(ind.i))
-
-  def sendToUndelivered[P](index: Index)(send: FLLSend[P], alreadyDelivered: Boolean): Option[Undelivered] = send match {
-    case FLLSend(Packet(id, payload, from, to, _)) =>
-      if (from == to) None else Some(Undelivered(from, to, id, payload.toString, index, alreadyDelivered))
+  final def toIndication[Ind](indicationPayload: Ind => ActionDescription)(i: Index)(ind: IndicationFrom[Ind]) = {
+    val ActionDescription(_,payload,_) = indicationPayload(ind.i)
+    Indication(ind.p, i, payload)
   }
 
+  def sendToUndelivered[P](f: P => ActionDescription)(index: Index)(send: FLLSend[P], alreadyDelivered: Boolean): Option[Undelivered] = send match {
+    case FLLSend(Packet(id, payload, from, to, _)) =>
+      if (from == to) None
+      else {
+        val ActionDescription(_,pay,tags) = f(payload)
+        Some(Actions.undelivered(from, to, id, pay, index, alreadyDelivered, tags))
+      }
+  }
 
-  def delivered[P](network: Network[P], s: FLLSend[P]) = network.alreadyDelivered.contains(s.packet)
+  def sendToDelivered[P](f: P => ActionDescription)(current: Index)(packet: Packet[P], sent: Index) = {
+    val Packet(id,p,from,to,_) = packet
+    val ActionDescription(_,payload,tags) = f(p)
+    Actions.delivered(from,to,id,payload,sent,current,tags)
+  }
+
+  def wasDelivered[P](network: Network[P], s: FLLSend[P]) = network.alreadyDelivered.contains(s.packet)
 
   // TODO refactor required
-  def next[M <: ModT](indicationPayload: M#Ind => String, reqPayload: M#Req => String)(snapshot: Snapshot[M], op: Op[M]): Snapshot[M] = (snapshot, op) match {
-    case (c@Snapshot(current, actions, pastInd, wr@WaitingRequest(Scheduler(_, network, _,_)), _), NextReq(req)) =>
-      val RequestResult(sent, ind, wd) = wr.request(req.requests.values.toSeq)
-      val sends = sent.flatMap(s => sendToUndelivered(current)(s, delivered(network, s)))
-      val requests = req.requests.map { case (p, r) => toRequest(reqPayload)(p, r, current) }
-      val indications = ind.map(toIndication(indicationPayload)(current))
-      Snapshot(current, actions ++ indications ++ requests ++ sends, pastInd ++ ind, wd, Some(c))
-    case (c@Snapshot(current, actions, pastInd, wd@WaitingDeliver(Scheduler(_, network, _,_)), _), NextDeliver(del)) =>
-      val result = if (del.ops.isEmpty) wd.tick else wd.deliver(del)
-      val sent = result.sent
-      val ind = result.ind
-      val (nextIndex, wd2) = result match {
-        case DeliverResult(_, _, w) => (current.next, w)
-        case RequestResult(_, _, w) => (current, w)
+  def next[M <: ModT](implicit describe: DescribeModuleAction[M]): (Snapshot[M], Op[M]) => Snapshot[M] = {
+    val toInd = toIndication(describe.describeInd) _
+    val toReq = toRequest(describe.describeReq) _
+    val toDel = sendToDelivered(describe.describePayload) _
+
+    (snapshot: Snapshot[M], op: Op[M]) =>
+      (snapshot, op) match {
+        case (c@Snapshot(current, actions, pastInd, wr@WaitingRequest(Scheduler(_, network, _, _)), _), NextReq(req)) =>
+          val RequestResult(sent, ind, wd) = wr.request(req.requests.values.toSeq)
+          val sends = sent.flatMap(s => sendToUndelivered(describe.describePayload)(current)(s, wasDelivered(network, s)))
+          val requests = req.requests.map { case (p, r) => toReq(p, r, current) }
+          val indications = ind.map(toInd(current))
+          Snapshot(current, actions ++ indications ++ requests ++ sends, pastInd ++ ind, wd, Some(c))
+        case (c@Snapshot(current, actions, pastInd, wd@WaitingDeliver(Scheduler(_, network, _, _)), _), NextDeliver(del)) =>
+          val result = if (del.ops.isEmpty) wd.tick else wd.deliver(del)
+          val sent = result.sent
+          val ind = result.ind
+          val (nextIndex, wd2) = result match {
+            case DeliverResult(_, _, w) => (current.next, w)
+            case RequestResult(_, _, w) => (current, w)
+          }
+          val sends = sent.flatMap(s => sendToUndelivered(describe.describePayload)(current)(s, wasDelivered(network, s)))
+          val delivers = del.ops.values.flatMap {
+            case Left(FLLDeliver(packet@Packet(id, _, from, to, _))) => Some(toDel(current)(packet, actions.collectFirst {
+              case Undelivered(`from`, `to`, `id`, _, s, _,_) => s
+            }.get)) // FIXME refactor code
+            case _ => None
+          }
+          val drops = del.ops.values.flatMap {
+            case Right(Drop(Packet(id, payload, from, to, _))) => Some(Dropped(from, to, id, payload.toString, actions.collectFirst {
+              case Undelivered(`from`, `to`, `id`, _, s, _,_) => s
+            }.get, current))
+            case _ => None
+          }
+          val indications = ind.map(toInd(current))
+          val filtered = {
+            val deliversKeys = delivers.map(_.id).toSet
+            val dropsKeys = drops.map(_.id).toSet
+            actions.filter {
+              case u: Undelivered if deliversKeys.contains(u.id) => false
+              case u: Undelivered if dropsKeys.contains(u.id) => false
+              case _ => true
+            }
+          }
+          Snapshot(nextIndex, filtered ++ indications ++ delivers ++ sends ++ drops, pastInd ++ ind, wd2, Some(c))
+        case (Snapshot(_, _, _, _, Some(prev)), Prev()) => prev
+        case (Snapshot(_, _, _, _, Some(prev)), Reset()) => next(describe)(prev, Reset()) // FIXME TEMPORAL SOLUTION, store a list of all snapshots instead. or some structure that allows access to root in O (1)
+        case (s, input) =>
+          //org.scalajs.dom.console.log(s"%c Bad input $input for step ${s.step} ", "background: #222; color: #bada55")
+          s
       }
-      val sends = sent.flatMap(s => sendToUndelivered(current)(s, delivered(network, s)))
-      val delivers = del.ops.values.flatMap {
-        case Left(FLLDeliver(Packet(id, payload, from, to, _))) => Some(Delivered(from, to, id, payload.toString, actions.collectFirst {
-          case Undelivered(`from`, `to`, `id`, _, s, _) => s
-        }.get, current)) // FIXME refactor code
-        case _ => None
-      }
-      val drops = del.ops.values.flatMap {
-        case Right(Drop(Packet(id, payload, from, to, _))) => Some(Dropped(from, to, id, payload.toString, actions.collectFirst {
-          case Undelivered(`from`, `to`, `id`, _, s, _) => s
-        }.get, current))
-        case _ => None
-      }
-      val indications = ind.map(toIndication(indicationPayload)(current))
-      val filtered = {
-        val deliversKeys = delivers.map(_.id).toSet
-        val dropsKeys = drops.map(_.id).toSet
-        actions.filter {
-          case u: Undelivered if deliversKeys.contains(u.id) => false
-          case u: Undelivered if dropsKeys.contains(u.id) => false
-          case _ => true
-        }
-      }
-      Snapshot(nextIndex, filtered ++ indications ++ delivers ++ sends ++ drops, pastInd ++ ind, wd2, Some(c))
-    case (Snapshot(_, _, _, _, Some(prev)), Prev()) => prev
-    case (Snapshot(_, _, _, _, Some(prev)), Reset()) => next(indicationPayload, reqPayload)(prev, Reset()) // FIXME TEMPORAL SOLUTION, store a list of all snapshots instead. or some structure that allows access to root in O (1)
-    case (s, input) =>
-      //org.scalajs.dom.console.log(s"%c Bad input $input for step ${s.step} ", "background: #222; color: #bada55")
-      s
   }
 
   type Conditions[M <: oss.giussi.cappio.Mod] = List[ConditionWithDescription[Snapshot[M]]]
@@ -322,7 +343,10 @@ object AbstractLevel {
    */
 }
 
-abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Conditions[M] = List.empty)(implicit show: Show[M#Payload], show2: Show[M#Req], showDOM: ShowDOM[M#State]) extends Level[M] {
+abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Conditions[M] = List.empty)(implicit show: Show[M#Payload],
+                                                                                                         show2: Show[M#Req],
+                                                                                                         showDOM: ShowDOM[M#State],
+                                                                                                         describe: DescribeModuleAction[M]) extends Level[M] {
 
   type Payload = M#Payload
   type State = M#State
@@ -335,13 +359,13 @@ abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Con
 
   case class ProcessState(id: ProcessId, state: State, status: ProcessStatus)
 
-  final def requestPayload(req: M#Req): String = show2.show(req)
+  def requestPayload(req: M#Req): (String, String) = ("", "")
 
   // TODO use typeclass show?
   val indicationPayload: M#Ind => String
 
   val $snapshots: Signal[Snapshot[M]] = {
-    val ns = Snapshot.next[M](indicationPayload, requestPayload) _
+    val ns = Snapshot.next[M]
     state.ops.events.fold(Snapshot.init(WaitingRequest(scheduler)))(ns)
   }
 

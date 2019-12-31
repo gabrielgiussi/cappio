@@ -32,6 +32,7 @@ object DemoLevel {
     override val shortDescription = div(
       ""
     )
+
   }
 
   val good = DemoLevel(conditions) _

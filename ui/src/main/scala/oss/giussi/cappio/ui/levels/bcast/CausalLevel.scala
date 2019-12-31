@@ -29,6 +29,7 @@ object CausalLevel {
       ActionSelection.crash
     )
     override val shortDescription = div()
+
   }
 
   val good = apply(List()) _

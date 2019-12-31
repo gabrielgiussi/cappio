@@ -1,13 +1,7 @@
 package oss.giussi.cappio.ui
 
-import java.util.UUID
-
 import com.raquo.laminar.api.L._
-import com.raquo.laminar.nodes.ReactiveSvgElement
-import org.scalajs.dom.raw.SVGElement
-import org.scalajs.dom.svg.Circle
-import oss.giussi.cappio.{Network, ProcessId}
-import oss.giussi.cappio.ui.core.{Action, Crashed, Delivered, Dropped, Index, Indication, NetworkAction, PendingRead, PendingWrite, ReadReturned, Request, Undelivered, WriteReturned}
+import oss.giussi.cappio.ui.core._
 
 
 /*
@@ -137,6 +131,7 @@ object Arrows {
   def dropped(action: Dropped, gridConf: GridConf) = shortArrowNetwork(action,gridConf,Markers.ArrowHeadX)
 
 
+  /*
   private def rdwrReturned(start: Index, returned: Index, process: ProcessId, gridConf: GridConf) = svg.svg(
     circle(gridConf.point(start,process),gridConf.pointSize),
     arrow2(gridConf.point(start,process),gridConf.point(returned,process)),
@@ -150,6 +145,7 @@ object Arrows {
 
   // FIXME duplicated code with readReturned
   def writeReturned(action: WriteReturned, gridConf: GridConf) = rdwrReturned(action.start,action.returned,action.process,gridConf)
+   */
 
   def delivered(action: Delivered, gridConf: GridConf) = {
     val p1 = gridConf.point(action.sent, action.from)

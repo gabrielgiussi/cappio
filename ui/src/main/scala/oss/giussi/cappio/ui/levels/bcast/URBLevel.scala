@@ -29,4 +29,5 @@ case class URBLevel(nProcesses: Int, timeout: Int) extends AbstractLevel[URBMod[
   override val indicationPayload = ind => ind.payload.toString
 
   override val shortDescription = div()
+
 }
