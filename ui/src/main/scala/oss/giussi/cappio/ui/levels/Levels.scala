@@ -392,16 +392,14 @@ abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Con
 
   def renderState(processId: ProcessId, initial: ProcessState, $states: Signal[ProcessState]) = div(cls := "col-md-4 mb-4",
     div(cls := "card",
-      borderColor <-- $states.map { case ProcessState(_, _, Up) => "green" case _ => "red" },
+      borderColor <-- $states.map { case ProcessState(_, _, Up) => "green" case _ => "red" }, // FIXME
       div(
         cls := "card-header",
         s"Proceso ${processId.id}",
       ),
       div(
         id := s"processState${processId.toString}",
-        cls := "card-body",
-        borderStyle := "solid",
-        borderWidth := "10",
+        cls := "card-body px-3 py-1",
         child <-- $states.map(_.state.toDOM)
       )))
 

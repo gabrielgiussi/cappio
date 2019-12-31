@@ -24,31 +24,36 @@ object ShowDOM {
   import ShowDOMSyntax._
   import ShowSyntax._
 
-  implicit def showAppState[P, M <: oss.giussi.cappio.Mod](implicit dep: ShowDOM[M#State], show: Show[P]) = new ShowDOM[AppState[P, M]] {
-    override def toDOM(a: AppState[P, M]): Div = div(
-      div(
-        borderStyle := "solid",
-        label(s"Valor actual: ${a.value.map(_.show).getOrElse("-")}")
-      ),
-      a.module.state.toDOM
+  def card(header: String, body: Div) = div(cls := "card my-2",
+    div(cls := "card-header py-0 px-1",
+      fontSize.small,
+      textAlign.right,
+      header
+    ),
+    div(cls := "card-body py-2",
+      body
     )
+  )
+
+  implicit def showAppState[P, M <: oss.giussi.cappio.Mod](implicit dep: ShowDOM[M#State], show: Show[P]) = new ShowDOM[AppState[P, M]] {
+    override def toDOM(a: AppState[P, M]): Div = {
+      val d = a.module.state.toDOM
+      d.insertChild(card("app", div(s"Valor actual: ${a.value.map(_.show).getOrElse("-")}")),0)
+      d
+    }
   }
 
   implicit def showCausal[P](implicit dep: ShowDOM[CORBDep[P]#State]) = new ShowDOM[CRBState[P]] {
     override def toDOM(a: CRBState[P]): Div = div(
-      a.module.state.toDOM
+      card("causal bcast",div("Delivered: ${a.delivered.size}")),
+      //a.module.state.toDOM
     )
   }
 
   implicit def showPL[P](implicit dep: ShowDOM[StubLink[P]#State]) = new ShowDOM[PLState[P]] {
     override def toDOM(a: PLState[P]): Div = div(
-      div(
-        borderStyle := "solid",
-        ul(
-          a.delivered.toList.map(_.id.toString).map(li(_))
-        )
-      ),
-      a.module.state.toDOM
+      card("perfect link", div(s"Delivered ${a.delivered.size}"))
+      //a.module.state.toDOM
     )
   }
 

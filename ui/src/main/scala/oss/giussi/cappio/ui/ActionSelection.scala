@@ -326,6 +326,7 @@ object ActionSelection {
         fid <- from.now()
         tid <- to.now()
         msg <- payload.now()
+        if fid != tid
       } yield AddReq(fid, f(fid,tid, msg))
     }.collect { case Some(r) => r }.addObserver(obs)(d)
     d
