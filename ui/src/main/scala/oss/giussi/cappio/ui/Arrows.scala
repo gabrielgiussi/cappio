@@ -1,8 +1,6 @@
 package oss.giussi.cappio.ui
 
 import com.raquo.laminar.api.L._
-import com.raquo.laminar.nodes.ReactiveSvgElement
-import org.scalajs.dom.svg.Line
 import oss.giussi.cappio.ui.core._
 
 
