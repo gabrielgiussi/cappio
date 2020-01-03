@@ -18,6 +18,7 @@ trait ModS[M <: Mod] extends Mod {
 }
 
 // THIS MUST DIE!
+// should be a case class instead of a trait? like StateWithModule[S,M](state: S, module: M)
 trait StateWithModule[M <: Mod, Self <: StateWithModule[M, Self]] {
   this: Self =>
   def updateModule(m: Module[M]): Self

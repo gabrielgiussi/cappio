@@ -4,8 +4,8 @@ import com.raquo.laminar.api.L._
 import oss.giussi.cappio.{BasicState, StateWithModule}
 import oss.giussi.cappio.impl.AppState
 import oss.giussi.cappio.impl.CRDTApp.CRDTState
-import oss.giussi.cappio.impl.bcast.CausalOrderReliableBroadcast.{CORBDep, CRBState}
-import oss.giussi.cappio.impl.bcast.ReliableBroadcast.{RBDep, RBcastState}
+import oss.giussi.cappio.impl.bcast.CausalOrderReliableBroadcast.{CORBDep, CORBMod, CRBData, CRBState}
+import oss.giussi.cappio.impl.bcast.ReliableBroadcast.{RBDep, RBMod, RBcastState}
 import oss.giussi.cappio.impl.bcast.UniformReliableBroadcast.URBState
 import oss.giussi.cappio.impl.net.PerfectLink.{PLModule, PLState}
 import oss.giussi.cappio.impl.net.StubLink
@@ -35,6 +35,10 @@ object GetState {
   implicit def getPLState[P] = new GetState[PLState[P]] {
     override def getState(state: PLState[P]): (String, Div) = ("perfect link", div(s"Delivered ${state.delivered.size}"))
   }
+
+  implicit def getCORBState[P] = new GetState[CORBMod[P]#State] {
+    override def getState(state: CRBState[P]): (String, Div) = ("causal broadcast", div())
+  }
 }
 
 object ShowDOM {
@@ -50,12 +54,9 @@ object ShowDOM {
     )
   )
 
-  /*
-  Not working!
-  implicit def showStateWithModule[M <: ModT, S <: StateWithModule[M,S]](implicit get: GetState[S]) = new ShowDOM[S] {
-    override def toDOM(a: S): Div = div()
+  def showStateWithModule[M <: ModT, S <: StateWithModule[M,S]](implicit get: GetState[S], show: ShowDOM[M#State]) = new ShowDOM[S] {
+    override def toDOM(state: S): Div = stateWithModuleToDOM[M,S](state)
   }
-  */
 
   def stateWithModuleToDOM[M <: ModT, S <: StateWithModule[M,S]](state: S)(implicit get1: GetState[S], showDOM: ShowDOM[M#State]): Div = {
     val d = state.module.state.toDOM
@@ -64,10 +65,7 @@ object ShowDOM {
     d
   }
 
-  implicit def showAppState[P, M <: oss.giussi.cappio.Mod](implicit dep: ShowDOM[M#State], show: Show[P]): ShowDOM[AppState[P, M]] = new ShowDOM[AppState[P, M]] {
-    override def toDOM(a: AppState[P, M]): Div = stateWithModuleToDOM[M,AppState[P,M]](a) // This is not able to infer the M type
-  }
-
+  implicit def showAppState[P, M <: oss.giussi.cappio.Mod](implicit dep: ShowDOM[M#State], show: Show[P]): ShowDOM[AppState[P, M]] = showStateWithModule[M,AppState[P,M]]
 
   implicit def showCausal[P](implicit dep: ShowDOM[CORBDep[P]#State]) = new ShowDOM[CRBState[P]] {
     override def toDOM(a: CRBState[P]): Div = div(
@@ -76,9 +74,18 @@ object ShowDOM {
     )
   }
 
-  implicit def showPL[P](implicit dep: ShowDOM[StubLink[P]#State]) = new ShowDOM[PLState[P]] {
-    override def toDOM(a: PLState[P]): Div = stateWithModuleToDOM[PLModule[P]#Dep,PLState[P]](a)(GetState.getPLState,showSL)
+
+  implicit def showComposed[D1,D2](implicit dep1: ShowDOM[D1], dep2: ShowDOM[D2]) = new ShowDOM[(D1,D2)] {
+    override def toDOM(a: (D1, D2)): Div = ???
   }
+
+  implicit def showRBMod[P] = new ShowDOM[RBMod[CRBData[P]]#State] {
+    override def toDOM(a: RBcastState[CRBData[P]]): Div = ???
+  }
+
+  implicit def showCausal[P](implicit dep: CORBMod[P]#Dep#State) = showStateWithModule[CORBMod[P]#Dep,CORBMod[P]#State]
+
+  implicit def showPL[P](implicit dep: ShowDOM[PLModule[P]#Dep#State]): ShowDOM[PLModule[P]#State] = showStateWithModule[PLModule[P]#Dep,PLModule[P]#State]
 
   implicit def showSL[P] = new ShowDOM[StubbornLinkState[P]] {
     override def toDOM(a: StubbornLinkState[P]): Div = div(card("stubborn link", div()))
