@@ -43,7 +43,7 @@ object BEBLevel {
     List(
       ALL_UP[ModLevel],
       boundedDelay(3),
-      condition("Entregar [A] a todos", "El estado de todos los procesos debería contener el mensaje [A]", states[ModLevel](s => if (s.values.forall(_.value.contains("A"))) Successful else Error("Not all processes delivered 'A'")))
+      condition("Entregar [A] a todos", "El estado de todos los procesos debería contener el mensaje [A]", states[ModLevel](s => if (s.values.forall(_.state.contains("A"))) Successful else Error("Not all processes delivered 'A'")))
     )
   ) _
 
@@ -65,8 +65,8 @@ object BEBLevel {
       ),
       List(
         condition("Process 2 UP", "Process 2 must be UP", process(p2)(p => if (p.status == Up) Successful else Error("Process 2 crashed"))),
-        condition("Process 2 state must be 'A'", "", state[ModLevel](p2)(p => if (p.value.contains("A")) Successful else Error("Process 2 state is not 'A'"))),
-        condition("Other processes state must be 'C'", "", states[ModLevel](p => if (p.filterKeys(_ != p2).values.map(_.value).forall(_.contains("C"))) Successful else Error("There is at least one process with an incorrect state"))),
+        condition("Process 2 state must be 'A'", "", state[ModLevel](p2)(p => if (p.state.contains("A")) Successful else Error("Process 2 state is not 'A'"))),
+        condition("Other processes state must be 'C'", "", states[ModLevel](p => if (p.filterKeys(_ != p2).values.map(_.state).forall(_.contains("C"))) Successful else Error("There is at least one process with an incorrect state"))),
         condition("Shouldn't be pending messages to deliver", "", c)
       )
     ) _

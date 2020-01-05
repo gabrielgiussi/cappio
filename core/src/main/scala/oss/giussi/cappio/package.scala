@@ -33,7 +33,7 @@ package object cappio {
 
   case class Instance(name: String)
 
-  type NoState = Unit
+  case class NoState(name: String)
 
   type NoRequest = Unit
 

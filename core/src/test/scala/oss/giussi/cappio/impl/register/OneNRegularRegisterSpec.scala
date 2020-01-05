@@ -3,16 +3,15 @@ package oss.giussi.cappio.impl.register
 import oss.giussi.cappio.Messages.{LocalRequest, LocalStep, PublicRequest}
 import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.BebBcast
 import oss.giussi.cappio.impl.register.OneNRegularRegister._
-import oss.giussi.cappio.{CappIOSpec, Packet, Payload}
+import oss.giussi.cappio.{CappIOSpec, Packet, Payload, StateWithModule}
 import shapeless.{Inl, Inr}
 
 class OneNRegularRegisterSpec extends CappIOSpec {
 
   val all = ALL.take(3).toSet
   val timeout = 100
-  val N = all.size
 
-  val onrr = OneNRegularRegister.init[Int](N, timeout, all)(p0)
+  val onrr = OneNRegularRegister[Int](all,timeout)(p0)
 
   "OneNRegularRegister" should {
     "Broadcast ONREAD" in {
@@ -44,7 +43,7 @@ class OneNRegularRegisterSpec extends CappIOSpec {
     "F" in {
       val f = OneNRegularRegister.processLocal[Int](all.size, p0)
       val init = ONRRState.init[Int](p0, all, Int.MaxValue)
-      val LocalStep(indications, events, requests, sends, ONRRState(state, _)) = f(PublicRequest(ONRRRead), init)
+      val LocalStep(indications, events, requests, sends, StateWithModule(_,ONRRState(state))) = f(PublicRequest(ONRRRead), init)
       indications should be(empty)
       events should be(empty)
       sends should be(empty)

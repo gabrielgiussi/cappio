@@ -4,8 +4,8 @@ import oss.giussi.cappio._
 import oss.giussi.cappio.impl.AppState
 import oss.giussi.cappio.impl.AppState.AppMod2
 import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.{BebBcast, BebDeliver, BebMod}
-import oss.giussi.cappio.impl.time.PerfectFailureDetector
-import oss.giussi.cappio.impl.time.PerfectFailureDetector.{Crashed, PFDMod}
+import oss.giussi.cappio.impl.time.{Crashed, PerfectFailureDetector}
+import oss.giussi.cappio.impl.time.PerfectFailureDetector.PFDMod
 import shapeless.ops.coproduct.Inject
 
 object ReliableBroadcast {
@@ -18,11 +18,10 @@ object ReliableBroadcast {
     type State = (Dep1#State, Dep2#State)
   }
 
-  // TODO trait vs type?
-  trait RBMod[P] extends ModS[RBDep[P]] {
-    override type S = RBcastState[P]
-    override type Ind = RBDeliver[P]
-    override type Req = RBBcast[P]
+  type RBMod[P] = ModS[RBDep[P]] {
+    type S = RBcastState[P]
+    type Ind = RBDeliver[P]
+    type Req = RBBcast[P]
   }
 
   object RBBcast {
@@ -36,15 +35,16 @@ object ReliableBroadcast {
   case class RBData[P](sender: ProcessId, msg: P)
 
   object RBcastState {
-    def init[P](self: ProcessId, all: Set[ProcessId], timeout: Int) = {
-      val pfdm = PerfectFailureDetector.init(self, all, timeout)
+    def init[P](self: ProcessId, all: Set[ProcessId], timeout: Int): StateWithModule[RBMod[P]#Dep,RBMod[P]#S] = {
+      val pfdm = PerfectFailureDetector(all, timeout)(self)
       val bebm = BestEffortBroadcast[RBData[P]](all, timeout)(self)
-      RBcastState(all.map(_ -> Set.empty[Payload[P]]).toMap, all, CombinedModule.paired(PFD, pfdm, BEB, bebm))
+      val state = RBcastState(all.map(_ -> Set.empty[Payload[P]]).toMap, all)
+      val dep = CombinedModule.paired(PFD, pfdm, BEB, bebm)
+      StateWithModule(dep,state)
     }
   }
 
-  case class RBcastState[P](delivered: Map[ProcessId, Set[Payload[P]]], correct: Set[ProcessId], module: Module[RBDep[P]]) extends StateWithModule[RBDep[P], RBcastState[P]] {
-    override def updateModule(m: Module[RBDep[P]]) = copy(module = m)
+  case class RBcastState[P](delivered: Map[ProcessId, Set[Payload[P]]], correct: Set[ProcessId]) {
 
     def crashed(id: ProcessId): (RBcastState[P], Set[Payload[P]]) = (copy(correct = correct - id), delivered(id))
 
@@ -65,31 +65,31 @@ object ReliableBroadcast {
     override def onPublicRequest(req: RBBcast[P], state: State): Output = LocalStep.withRequests(Set(req2(BebBcast(Payload(req.payload.id, RBData(self, req.payload.msg)), ReliableBroadcast.BEB))), state)
 
     override def onDependencyIndication1(ind: Crashed, state: State): Output = {
-      val (ns, toBcast) = state.crashed(ind.id)
+      val (ns, toBcast) = state.state.crashed(ind.id)
       val requests = toBcast.map { case Payload(uuid, msg) => req2(BebBcast(Payload(uuid, RBData(ind.id, msg)), ReliableBroadcast.BEB)) }
-      LocalStep.withRequests(requests, ns)
+      LocalStep.withRequests(requests, state.updateState(ns))
     }
 
     override def onDependencyIndication2(ind: BebDeliver[RBData[P]], state: State): Output = {
       val BebDeliver(_, Payload(id, RBData(sender, msg))) = ind
-      state.deliver(sender, Payload(id,msg)) match {
+      state.state.deliver(sender, Payload(id,msg)) match {
         case Some((ns, bcast)) =>
           val ind = Set(RBDeliver(sender, Payload(id, msg)))
           val req = bcast.map { case Payload(uuid, p) => req2(BebBcast(Payload(uuid, RBData(self,p)), ReliableBroadcast.BEB)) }
-          LocalStep.withRequestsAndIndications(ind, req, ns)
+          LocalStep.withRequestsAndIndications(ind, req, state.updateState(ns))
         case None => LocalStep.withState(state)
       }
     }
   }
 
   def apply[T](all: Set[ProcessId], timeout: Int)(self: ProcessId): Module[RBMod[T]] = {
-    AbstractModule.mod[RBMod[T],RBMod[T]#Dep](RBcastState.init(self,all,timeout),ReliableBroadcast.processLocal[T](self))
+    AbstractModule.mod[RBMod[T],RBMod[T]#Dep](RBcastState.init[T](self,all,timeout),ReliableBroadcast.processLocal[T](self))
   }
 
   type RBApp[P] = AppMod2[P,RBMod[P]]
 
   def app[P](all: Set[ProcessId], timeout: Int)(self: ProcessId): Module[RBApp[P]] = {
     val rb = ReliableBroadcast[P](all,timeout)(self)
-    AppState.app2[P,RBMod[P]](rb,(state,ind) => state.update(ind.payload.msg))
+    AppState.app2[P,RBMod[P]](rb,(state,ind) => Some(ind.payload.msg))
   }
 }

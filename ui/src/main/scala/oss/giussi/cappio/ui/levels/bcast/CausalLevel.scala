@@ -10,8 +10,7 @@ import oss.giussi.cappio.ui.levels.Snapshot.Conditions
 
 object CausalLevel {
 
-  type Payload = String
-  type ModLevel = CausalApp[Payload]
+  type ModLevel = CausalApp[String]
 
   val crb = ActionSelection.payloadRequest("Broadcast"){ case (_,payload) => CRBBroadcast(payload) } _
 
@@ -19,7 +18,7 @@ object CausalLevel {
 
   def scheduler(nProcesses: Int, timeout: Int): Scheduler[ModLevel] = {
     val all = (0 to nProcesses).map(ProcessId).toSet
-    Scheduler.init(all,CausalOrderReliableBroadcast.app[Payload](all,timeout))
+    Scheduler.init(all,CausalOrderReliableBroadcast.app[String](all,timeout))
   }
 
   def apply(cond: Conditions[ModLevel])(nProcesses: Int, timeout: Int): Level[ModLevel] = new AbstractLevel[ModLevel](scheduler(nProcesses,timeout),cond) {

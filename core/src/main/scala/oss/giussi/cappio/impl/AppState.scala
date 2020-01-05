@@ -8,25 +8,21 @@ object AppState {
   type AppMod2[P, D <: Mod] = ModS[D] {
     type Ind = D#Ind
     type Req = D#Req
-    type S = AppState[P,D]
+    type S = Option[P] // TODO should be AppState so I know how to model it in showDOM
   }
+
+  def apply[M <: Mod,P](module: Module[M]) = StateWithModule(module,Option.empty[P])
 
   def app[P, D <: Mod](dependency: Module[D], f: Messages.ProcessLocalM[AppMod2[P,D],AppMod2[P,D]#Dep]): Module[AppMod2[P,D]] = {
-    AbstractModule.mod[AppMod2[P,D],AppMod2[P,D]#Dep](AppState(None,dependency),f)
+    AbstractModule.mod[AppMod2[P,D],AppMod2[P,D]#Dep](AppState(dependency),f)
   }
 
-  def app2[P, D <: Mod](dependency: Module[D], f: (AppMod2[P,D]#State,D#Ind) => AppMod2[P,D]#State): Module[AppMod2[P,D]] = {
-    AbstractModule.mod[AppMod2[P,D],AppMod2[P,D]#Dep](AppState(None,dependency),new ProcessLocalHelper1[AppMod2[P,D],D] {
+  def app2[P, D <: Mod](dependency: Module[D], f: (AppMod2[P,D]#S,D#Ind) => AppMod2[P,D]#S): Module[AppMod2[P,D]] = {
+    AbstractModule.mod[AppMod2[P,D],AppMod2[P,D]#Dep](AppState(dependency),new ProcessLocalHelper1[AppMod2[P,D],D] {
       override def onPublicRequest(req: D#Req, state: State): Output = LocalStep.withRequests(Set(LocalRequest(req)),state)
 
-      override def onIndication(ind: DInd, state: State): Output = LocalStep.withIndications(Set(ind),f(state,ind))
+      override def onIndication(ind: DInd, state: State): Output = LocalStep.withIndications(Set(ind),state.updateState(f(state.state,ind)))
     })
   }
 
-}
-
-case class AppState[S, M <: Mod](value: Option[S], module: Module[M]) extends StateWithModule[M,AppState[S,M]]{
-  override def updateModule(m: Module[M]): AppState[S, M] = copy(module = m)
-
-  def update(v: S) = copy(value = Some(v))
 }

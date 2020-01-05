@@ -4,7 +4,8 @@ ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion := "2.12.8"
 
 lazy val commonSettings = Seq(
-  libraryDependencies += "org.scalatest" %%% "scalatest" % "3.0.5" % Test
+  libraryDependencies += "org.scalatest" %%% "scalatest" % "3.0.5" % Test,
+  scalacOptions ++= Seq("-Xlog-implicits")
 )
 
 lazy val cappio = project.in(file("."))

@@ -12,7 +12,7 @@ object URBLevel {
 
   def scheduler[P](nProcesses: Int, timeout: Int): Scheduler[URBMod[P]] = {
     val all = (0 to nProcesses).map(ProcessId).toSet
-    Scheduler.init(all,UniformReliableBroadcast.init[P](all,timeout))
+    Scheduler.init(all,UniformReliableBroadcast.apply[P](all,timeout))
   }
 
   val urb = payloadRequest("Broadcast")({ case (_,msg) => URBBcast(msg) }) _

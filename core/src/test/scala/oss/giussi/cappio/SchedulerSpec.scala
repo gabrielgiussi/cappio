@@ -72,7 +72,7 @@ class SchedulerSpec extends CappIOSpec {
         override type State = Int
       }
       case class TestModule(state: Int) extends Module[M] { self =>
-        override def request(in: NoState): Next = next(self)
+        override def request(in: Unit): Next = next(self)
 
         override def tail: Socket[M] = (_: FLLDeliver[M#Payload]) => next(self)
 

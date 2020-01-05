@@ -11,7 +11,7 @@ object BestEffortBroadcast {
 
   type BebMod[P] = ModS[PLModule[P]] {
     type Req = BebBcast[P] // TODO shouldn't be BebBcast[PLModule#Payload] ?
-    type S = BasicState[PLModule[P]]
+    type S = NoState
     type Ind = BebDeliver[P]
   }
 
@@ -24,7 +24,7 @@ object BestEffortBroadcast {
   case class BebDeliver[P](from: ProcessId, payload: Payload[P])
 
   object BEBState {
-    def init[P](timeout: Int) = BasicState(PerfectLink.init[P](timeout))
+    def init[P](timeout: Int) = BasicState(PerfectLink.init[P](timeout), "beb-bcast")
   }
 
   def processLocal[P](self: ProcessId, all: Set[ProcessId]) = new ProcessLocalHelper1[BebMod[P],PLModule[P]] {
@@ -42,14 +42,14 @@ object BestEffortBroadcast {
   }
 
   def apply[T](all: Set[ProcessId], timeout: Int)(self: ProcessId): Module[BebMod[T]] = {
-    AbstractModule.mod[BebMod[T],BebMod[T]#Dep](BasicState(PerfectLink.init[T](timeout)),BestEffortBroadcast.processLocal[T](self,all))
+    AbstractModule.mod[BebMod[T],BebMod[T]#Dep](BEBState.init(timeout),BestEffortBroadcast.processLocal[T](self,all))
   }
 
   type BebApp[P] = AppMod2[P, BebMod[P]]
 
   def app[P](all: Set[ProcessId], timeout: Int)(self: ProcessId): Module[BebApp[P]] = {
     val beb = BestEffortBroadcast[P](all,timeout)(self)
-    AppState.app2[P,BebMod[P]](beb,(state,ind) => state.update(ind.payload.msg))
+    AppState.app2[P,BebMod[P]](beb,(state,ind) => Some(ind.payload.msg))
   }
 
 }

@@ -6,7 +6,7 @@ import oss.giussi.cappio.{ProcessId, Scheduler}
 import oss.giussi.cappio.impl.AppState.AppMod2
 import oss.giussi.cappio.impl.net.PerfectLink
 import oss.giussi.cappio.impl.net.PerfectLink.{PLModule, PLSend}
-import oss.giussi.cappio.ui.ActionSelection
+import oss.giussi.cappio.ui.{ActionSelection, ShowDOM}
 import oss.giussi.cappio.ui.levels.Snapshot.Conditions
 
 object DemoLevel {
@@ -19,7 +19,7 @@ object DemoLevel {
 
   def scheduler(nProcesses: Int, timeout: Int): Scheduler[ModLevel] = {
     val all = (0 to nProcesses).map(ProcessId).toSet
-    val app = AppState.app2[String,PLModule[String]](PerfectLink[String](timeout), (state, ind) => state.update(ind.packet.payload))
+    val app = AppState.app2[String,PLModule[String]](PerfectLink[String](timeout), (state, ind) => Some(ind.packet.payload))
     Scheduler.init(all,_ => app)
   }
 

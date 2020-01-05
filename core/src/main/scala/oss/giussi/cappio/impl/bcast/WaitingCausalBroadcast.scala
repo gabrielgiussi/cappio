@@ -29,11 +29,10 @@ object WaitingCausalBroadcast {
   case class VersionedFrom[P](processId: ProcessId, versioned: Versioned[P])
 
   object WCBState {
-    def init[P](all: Set[ProcessId], timeout: Int)(self: ProcessId) = WCBState(ReliableBroadcast[Versioned[P]](all, timeout)(self),VectorTime.initial(all.map(_.id.toString)),Set.empty[VersionedFrom[P]])
+    def init[P](all: Set[ProcessId], timeout: Int)(self: ProcessId) = StateWithModule(ReliableBroadcast[Versioned[P]](all, timeout)(self),WCBState(VectorTime.initial(all.map(_.id.toString)),Set.empty[VersionedFrom[P]]))
   }
 
-  case class WCBState[P](module: Module[WCBDep[P]], clock: VectorTime, pending: Set[VersionedFrom[P]]) extends StateWithModule[WCBDep[P], WCBState[P]] {
-    override def updateModule(m: Module[WCBDep[P]]): WCBState[P] = copy(module = m)
+  case class WCBState[P](clock: VectorTime, pending: Set[VersionedFrom[P]]) {
 
     def increment(self: ProcessId) = copy(clock = clock.increment(self.id.toString))
   }
@@ -41,15 +40,15 @@ object WaitingCausalBroadcast {
   def processLocal[P](self: ProcessId) = new ProcessLocalHelper1[WCBMod[P],WCBDep[P]] {
     override def onPublicRequest(req: WCBroadcast[P], state: State): Output = {
       val WCBroadcast(Payload(id, msg)) = req
-      val payload = Payload(id, Versioned(msg, state.clock))
+      val payload = Payload(id, Versioned(msg, state.state.clock))
       val bcast = LocalRequest(RBBcast(payload))
-      LocalStep.withRequests(Set(bcast), state.increment(self))
+      LocalStep.withRequests(Set(bcast), state.updateState(_.increment(self)))
     }
 
     override def onIndication(ind: RBDeliver[Versioned[P]], state: State): Output = {
       val RBDeliver(from, Payload(_, msg)) = ind
-      val (deliver,pending,clock) = deliverPending(state.pending + VersionedFrom(from,msg),state.clock)
-      LocalStep.withIndications(deliver,state.copy(clock = clock, pending = pending))
+      val (deliver,pending,clock) = deliverPending(state.state.pending + VersionedFrom(from,msg),state.state.clock)
+      LocalStep.withIndications(deliver,state.updateState(_.copy(clock = clock, pending = pending)))
     }
   }
 

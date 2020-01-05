@@ -12,7 +12,7 @@ object CRDTApp {
   type CRDTDep = WCBMod[SetOp]
 
   type CRDTMod = ModS[CRDTDep] {
-    type S = CRDTState
+    type S = AWSet[String]
     type Req = SetRequest
     type Ind = WCDeliver[SetOp]
   }
@@ -25,12 +25,9 @@ object CRDTApp {
 
 
   object CRDTState {
-    def init(all: Set[ProcessId], timeout: Int)(self: ProcessId): CRDTState = new CRDTState(WaitingCausalBroadcast(all,timeout)(self), AWSetService.zero[String])
+    def init(all: Set[ProcessId], timeout: Int)(self: ProcessId) = StateWithModule(WaitingCausalBroadcast[SetOp](all,timeout)(self), AWSetService.zero[String])
   }
 
-  case class CRDTState(module: Module[CRDTDep], crdt: AWSet[String]) extends StateWithModule[CRDTDep, CRDTState] {
-    override def updateModule(m: Module[CRDTDep]): CRDTState = copy(module = m)
-  }
 
 
   def processLocal = new ProcessLocalHelper1[CRDTMod,CRDTDep] {
@@ -47,13 +44,13 @@ object CRDTApp {
     }
 
     override def onIndication(ind: DInd, state: State) = {
-      val ns = state.copy(crdt = ops.effect(state.crdt,ind.msg,ind.timestamp)) // FIXME move implicit classes from test to src code so I can do crdt.add
+      val ns = state.updateState(crdt => ops.effect(crdt,ind.msg,ind.timestamp)) // FIXME move implicit classes from test to src code so I can do crdt.add
       LocalStep.withIndications(Set(ind),ns)
     }
   }
 
 
-  def apply[P](all: Set[ProcessId], timeout: Int)(self: ProcessId) = {
+  def apply[P](all: Set[ProcessId], timeout: Int)(self: ProcessId): Module[CRDTMod] = {
     AbstractModule.mod[CRDTMod,CRDTMod#Dep](CRDTState.init(all, timeout)(self),processLocal)
   }
 

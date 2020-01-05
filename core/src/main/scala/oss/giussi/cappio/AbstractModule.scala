@@ -10,26 +10,29 @@ import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 
 trait ModS[M <: Mod] extends Mod {
-  type S <: StateWithModule[M, S]
-  final override type State = S
-  final override type Payload = M#Payload
+  type S
   type Dep = M
-
+  final override type State = StateWithModule[M, S]
+  final override type Payload = M#Payload
 }
 
 // THIS MUST DIE!
 // should be a case class instead of a trait? like StateWithModule[S,M](state: S, module: M)
-trait StateWithModule[M <: Mod, Self <: StateWithModule[M, Self]] {
-  this: Self =>
-  def updateModule(m: Module[M]): Self
+case class StateWithModule[M <: Mod, S](module: Module[M], state: S) {
+  type State = S
+  type Dep = M
 
-  def module: Module[M]
+  def updateModule(m: Module[M]): StateWithModule[M,S] = copy(module = m)
 
   final def tail = module.tail
+
+  def updateState(s: S): StateWithModule[M,S] = copy(state = s)
+
+  def updateState(f: S => S): StateWithModule[M,S] = copy(state = f(state))
 }
 
-case class BasicState[M <: Mod](module: Module[M]) extends StateWithModule[M,BasicState[M]]{
-  override def updateModule(m: Module[M]): BasicState[M] = copy(m)
+object BasicState {
+  def apply[M <: Mod](module: Module[M], name: String): StateWithModule[M,NoState] = StateWithModule(module,NoState(name))
 }
 
 object Messages {
@@ -65,7 +68,7 @@ object Messages {
 
     def withRequestsAndIndications[S, I, UR, UI,P](indications: Set[I], requests: Set[LocalRequest[UR]], ns: S): LocalStep[S, I, UR, UI,P] = new LocalStep(indications, Set.empty, requests, Set.empty, ns)
 
-    def withModule[I, S <: StateWithModule[M, S], M <: Mod](s: S, ns: NextState[M]): LocalStep[S, I, M#Req, M#Ind,M#Payload] = {
+    def withModule[I, S, M <: Mod](s: StateWithModule[M,S], ns: NextState[M]): LocalStep[StateWithModule[M,S], I, M#Req, M#Ind,M#Payload] = {
       val indications = ns.indications.map(LocalIndication(_))
       new LocalStep(Set.empty, indications, Set.empty, ns.send, s.updateModule(ns.module))
     }
@@ -123,13 +126,13 @@ abstract class ProcessLocalHelper2[M <: ModS[Dep], Dep <: Mod2](implicit inj1: I
 
 object AbstractModule {
 
-  def mod[M <: ModS[Dep], Dep <: Mod](initial: M#S, p: ProcessLocalM[M,Dep]): Module[M] = {
-    case class InternalModule(s: M#S) extends AbstractModule[M,Dep]{
-      override def copyModule(state: M#S): AbstractModule[M, Dep] = copy(state)
-
+  def mod[M <: ModS[Dep], Dep <: Mod](initial: M#State, p: ProcessLocalM[M,Dep]): Module[M] = {
+    case class InternalModule(s: M#State) extends AbstractModule[M,Dep]{
       override val processLocal: PLocal = p
 
-      override def state: M#S = s
+      override def copyModule(state: M#State): AbstractModule[M, Dep] = copy(state)
+
+      override def state = s
     }
     InternalModule(initial)
   }
@@ -164,7 +167,7 @@ trait AbstractModule[M1 <: ModS[M2], M2 <: Mod] extends Module[M1] {
     next(copyModule(s), ind, sends)
   }
 
-  def copyModule(state: S): AbstractModule[M1, M2]
+  def copyModule(state: M1#State): AbstractModule[M1, M2]
 
   final private def processQueue(queue: Queue[Msg], state: S) = {
     @tailrec

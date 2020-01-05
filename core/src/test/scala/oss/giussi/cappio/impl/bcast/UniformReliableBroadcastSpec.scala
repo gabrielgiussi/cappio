@@ -1,6 +1,5 @@
 package oss.giussi.cappio.impl.bcast
 
-import oss.giussi.cappio.impl.net.FairLossLink.FLLSend
 import oss.giussi.cappio.{CappIOSpec, Packet, Payload, ProcessId}
 import shapeless.{Inl, Inr}
 
@@ -8,13 +7,13 @@ class UniformReliableBroadcastSpec extends CappIOSpec {
 
   val all = (0 to 2).map(ProcessId).toSet
   val timeout = 3
-  val urb = UniformReliableBroadcast.init[String](all, timeout)(p0)
+  val urb = UniformReliableBroadcast[String](all, timeout)(p0)
 
   import UniformReliableBroadcast._
 
   implicit def intToProcessId(i: Int): ProcessId = ProcessId(i)
 
-  "A" should {
+  "UniformReliableBroadcast" should {
     "B" in {
       val payload = Payload("gaga")
       val uuid = payload.id

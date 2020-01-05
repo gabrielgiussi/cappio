@@ -5,9 +5,8 @@ import java.util.UUID
 import oss.giussi.cappio.Messages.{LocalStep, ProcessLocal}
 import oss.giussi.cappio._
 import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.{BebBcast, BebDeliver, BebMod}
-import oss.giussi.cappio.impl.bcast.UniformReliableBroadcast.{URBDep, URBMod, URBState}
-import oss.giussi.cappio.impl.time.PerfectFailureDetector
-import oss.giussi.cappio.impl.time.PerfectFailureDetector.{Crashed, PFDMod}
+import oss.giussi.cappio.impl.time.{Crashed, PerfectFailureDetector}
+import oss.giussi.cappio.impl.time.PerfectFailureDetector.PFDMod
 import shapeless.ops.coproduct.Inject
 
 import scala.util.Random
@@ -24,14 +23,10 @@ object UniformReliableBroadcast {
     type State = (Dep1#State, Dep2#State)
   }
 
-  /*
-   type arguments [oss.giussi.cappio.impl.bcast.UniformReliableBroadcast.DependencyMod[P],oss.giussi.cappio.impl.bcast.UniformReliableBroadcast.URBData[P]]
-   do not conform to trait ModS's type parameter bounds [M <: oss.giussi.cappio.Mod{type Payload = P},P]
-   */
-  trait URBMod[P] extends ModS[URBDep[P]] { // aca hay algo q huele mal
-    override type Ind = URBDeliver[P]
-    override type Req = URBBcast[P]
-    override type S = URBState[P]
+  type URBMod[P] = ModS[URBDep[P]] {
+    type Ind = URBDeliver[P]
+    type Req = URBBcast[P]
+    type S = URBState[P]
   }
 
   case class URBData[T](sender: ProcessId, msg: T)
@@ -41,16 +36,15 @@ object UniformReliableBroadcast {
   val PFD = Instance("pfd")
 
   object URBState {
-    def init[P](self: ProcessId, all: Set[ProcessId], timeout: Int) = {
-      val pfdMod = PerfectFailureDetector.init(self, all, timeout) // Este timeout deberia ser enviado en un metodo Init al comienzo asi todos tienen el mismo!
+    def init[P](self: ProcessId, all: Set[ProcessId], timeout: Int): StateWithModule[URBDep[P], URBState[P]] = {
+      val pfdMod = PerfectFailureDetector(all, timeout)(self) // Este timeout deberia ser enviado en un metodo Init al comienzo asi todos tienen el mismo!
       val bebMod = BestEffortBroadcast[URBData[P]](all, timeout)(self)
       val combined: Module[URBDep[P]] = CombinedModule.paired(PFD, pfdMod, BEB, bebMod)
-      URBState(Set.empty, Set.empty[(ProcessId, UUID, P)], all, Map.empty, combined)
+      StateWithModule(combined,URBState(Set.empty, Set.empty[(ProcessId, UUID, P)], all, Map.empty))
     }
   }
 
-  case class URBState[P](delivered: Set[UUID], pending: Set[(ProcessId, UUID, P)], correct: Set[ProcessId], acks: Acks, module: Module[URBDep[P]]) extends StateWithModule[URBDep[P], URBState[P]] {
-    override def updateModule(m: Module[URBDep[P]]): URBState[P] = copy(module = m)
+  case class URBState[P](delivered: Set[UUID], pending: Set[(ProcessId, UUID, P)], correct: Set[ProcessId], acks: Acks) {
 
     private def canDeliver(m: UUID): Boolean = acks.get(m).map(correct -- _ isEmpty).getOrElse(false)
 
@@ -91,36 +85,29 @@ object UniformReliableBroadcast {
 
   case class URBDeliver[P](from: ProcessId, payload: P)
 
-  def init[P](all: Set[ProcessId], timeout: Int)(self: ProcessId) = UniformReliableBroadcast(self, URBState.init[P](self, all, timeout))
-
-  def processLocal[P](self: ProcessId)(implicit inj1: Inject[URBDep[P]#Req, URBDep[P]#Dep1#Req], inj2: Inject[URBDep[P]#Req, URBDep[P]#Dep2#Req]): ProcessLocal[URBBcast[P], URBState[P], URBDeliver[P], URBDep[P]#Req, URBDep[P]#Ind,URBDep[P]#Payload] = new ProcessLocalHelper2[URBMod[P],URBDep[P]]{
+  def processLocal[P](self: ProcessId)(implicit inj1: Inject[URBDep[P]#Req, URBDep[P]#Dep1#Req], inj2: Inject[URBDep[P]#Req, URBDep[P]#Dep2#Req]): ProcessLocal[URBBcast[P], URBMod[P]#State, URBDeliver[P], URBDep[P]#Req, URBDep[P]#Ind,URBDep[P]#Payload] = new ProcessLocalHelper2[URBMod[P],URBDep[P]]{
     override def onPublicRequest(req: URBBcast[P], state: State): Output = {
       val URBBcast(p) = req
       val reqs = Set(req2(BebBcast(Payload(p.id, URBData(self, p.msg)), BEB)))
-      LocalStep.withRequests(reqs, state.addPending(self, p.id, p.msg))
+      LocalStep.withRequests(reqs, state.updateState(_.addPending(self, p.id, p.msg)))
     }
 
-    override def onDependencyIndication1(ind: Crashed, state: State): Output = LocalStep.withState(state.crashed(ind.id))
+    override def onDependencyIndication1(ind: Crashed, state: State): Output = LocalStep.withState(state.updateState(_.crashed(ind.id)))
 
     override def onDependencyIndication2(ind: BebDeliver[URBData[P]], state: State): Output = {
       val BebDeliver(from, Payload(id, URBData(sender, msg))) = ind
-      val (ns, triggers) = state.ack(from, sender, id, msg)
+      val (ns, triggers) = state.state.ack(from, sender, id, msg)
       val req = triggers.map { case (pid, uuid, msg) => req2(BebBcast(Payload(uuid, URBData(pid, msg)), BEB)) }.toSet // aca el Self se lo va a estar poniendo la abstracion PerfectLink
-      LocalStep.withRequests(req, ns)
+      LocalStep.withRequests(req, state.updateState(ns))
     }
 
     override def onTick(state: State): Output = {
-      state.evaluateCondition match {
-        case Some((ns, (sender, msg))) => LocalStep.withIndications(Set(URBDeliver(sender, msg)), ns)
+      state.state.evaluateCondition match {
+        case Some((ns, (sender, msg))) => LocalStep.withIndications(Set(URBDeliver(sender, msg)), state.updateState(ns))
         case None => LocalStep.withState(state)
       }
     }
   }
-}
 
-case class UniformReliableBroadcast[T](self: ProcessId, state: URBState[T]) extends AbstractModule[URBMod[T], URBDep[T]] {
-
-  override def copyModule(s: URBState[T]) = copy(state = s)
-
-  override val processLocal: PLocal = UniformReliableBroadcast.processLocal(self)
+  def apply[P](all: Set[ProcessId], timeout: Int)(self: ProcessId): Module[URBMod[P]] = AbstractModule.mod[URBMod[P],URBMod[P]#Dep](URBState.init[P](self,all,timeout),processLocal(self))
 }

@@ -16,29 +16,31 @@ object PerfectLink {
   type PLModule[P] = ModS[StubLink[P]] {
     type Req = PLSend[P]
     type Ind = PLDeliver[P]
-    type S = PLState[P]
+    type S = PLStateInternal[P]
   }
 
-  case class PLState[P](delivered: Set[Packet[P]], module: Module[StubLink[P]]) extends StateWithModule[StubLink[P],PLState[P]] {
+  object PLState {
+    def apply[P](timeout: Int): StateWithModule[PLModule[P]#Dep,PLStateInternal[P]] = StateWithModule(StubbornLink.init(timeout),PLStateInternal(Set.empty[Packet[P]]))
+  }
+
+  case class PLStateInternal[P](delivered: Set[Packet[P]]) {
     def alreadyDelivered(d: Packet[P]): Boolean = delivered contains d
 
     def deliver(p: Packet[P]) = copy(delivered + p)
-
-    override def updateModule(m: Module[StubLink[P]]): PLState[P] = copy(module = m)
   }
 
 
-  def processLocal[P]: ProcessLocal[PLSend[P], PLState[P], PLDeliver[P], SLSend[P], SLDeliver[P], P] = {
+  def processLocal[P]: ProcessLocal[PLSend[P], PLModule[P]#State, PLDeliver[P], SLSend[P], SLDeliver[P], P] = {
     import oss.giussi.cappio.Messages._
     (msg, state) =>
       msg match {
         case PublicRequest(PLSend(p)) => LocalStep.withRequests(Set(LocalRequest(SLSend(p))), state)
-        case LocalIndication(SLDeliver(p)) if !state.alreadyDelivered(p) => LocalStep.withIndications(Set(PLDeliver(p)), state.deliver(p))
+        case LocalIndication(SLDeliver(p)) if !state.state.alreadyDelivered(p) => LocalStep.withIndications(Set(PLDeliver(p)), state.updateState(_.deliver(p)))
         case _ => LocalStep.withState(state)
       }
   }
     def init[P] = apply[P] _
 
-  def apply[P](timeout: Int): Module[PLModule[P]] = AbstractModule.mod[PLModule[P],PLModule[P]#Dep](PLState(Set.empty[Packet[P]],StubbornLink.init(timeout)),processLocal[P])
+  def apply[P](timeout: Int): Module[PLModule[P]] = AbstractModule.mod[PLModule[P],PLModule[P]#Dep](PLState(timeout),processLocal[P])
 
 }

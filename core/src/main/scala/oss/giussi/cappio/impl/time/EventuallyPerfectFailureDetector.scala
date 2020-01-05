@@ -4,8 +4,7 @@ import oss.giussi.cappio.Messages.ProcessLocal
 import oss.giussi.cappio._
 import oss.giussi.cappio.impl.net.PerfectLink
 import oss.giussi.cappio.impl.net.PerfectLink.{PLDeliver, PLModule, PLSend}
-import oss.giussi.cappio.impl.time.EventuallyPerfectFailureDetector.{EPFDMod, EPFDState, EPFDep}
-import oss.giussi.cappio.impl.time.PerfectFailureDetector.{HeartbeatMsg, HeartbeatReply, HeartbeatRequest}
+import oss.giussi.cappio.impl.time.EventuallyPerfectFailureDetector.EPFDState.EPFDS
 
 object EventuallyPerfectFailureDetector {
 
@@ -20,19 +19,19 @@ object EventuallyPerfectFailureDetector {
   type EPFDMod = ModS[EPFDep] {
     type Req = NoRequest
     type Ind = EPFDIndication
-    type S = EPFDState
+    type S = EPFDStateInternal
   }
 
   object EPFDState {
-    def init(all: Set[ProcessId], delay: Int): EPFDState = EPFDState(0, all, Set.empty, all, delay, delay, PerfectLink.init(delay)) // TODO el delay es el mismo?
+    type EPFDS = StateWithModule[EPFDep,EPFDStateInternal]
+
+    def init(all: Set[ProcessId], delay: Int): EPFDS = StateWithModule(PerfectLink.init(delay),EPFDStateInternal(0, all, Set.empty, all, delay, delay)) // TODO el delay es el mismo?
   }
 
-  case class EPFDState(timer: Int, alive: Set[ProcessId], suspected: Set[ProcessId], all: Set[ProcessId], currentDelay: Int, delay: Int, module: Module[EPFDep]) extends StateWithModule[EPFDep, EPFDState] {
-    override def updateModule(m: Module[EPFDep]): EPFDState = copy(module = m)
+  case class EPFDStateInternal(timer: Int, alive: Set[ProcessId], suspected: Set[ProcessId], all: Set[ProcessId], currentDelay: Int, delay: Int) {
+    def tick(): EPFDStateInternal = copy(timer = timer + 1)
 
-    def tick(): EPFDState = copy(timer = timer + 1)
-
-    def hearbeat(id: ProcessId): EPFDState = copy(alive = alive + id)
+    def hearbeat(id: ProcessId): EPFDStateInternal = copy(alive = alive + id)
 
     def timeout() = {
       val nd = if (!alive.intersect(suspected).isEmpty) currentDelay + delay else currentDelay
@@ -42,26 +41,22 @@ object EventuallyPerfectFailureDetector {
     }
   }
 
-  def init(self: ProcessId, all: Set[ProcessId], delay: Int): EventuallyPerfectFailureDetector = EventuallyPerfectFailureDetector(self, all - self, EPFDState.init(all - self, delay), new Instance("")) // TODO
-
-  def processLocal(self: ProcessId, all: Set[ProcessId], instance: Instance): ProcessLocal[NoRequest, EPFDState, EPFDIndication, EPFDep#Req, EPFDep#Ind,EPFDep#Payload] = {
+  def processLocal(self: ProcessId, all: Set[ProcessId], instance: Instance): ProcessLocal[NoRequest, EPFDS, EPFDIndication, EPFDep#Req, EPFDep#Ind,EPFDep#Payload] = {
     import oss.giussi.cappio.Messages._
     (msg, state) =>
       msg match {
-        case Tick if (state.timer + 1 == state.currentDelay) =>
-          val (ns, suspected, revived) = state.timeout()
+        case Tick if (state.state.timer + 1 == state.state.currentDelay) =>
+          val (ns, suspected, revived) = state.state.timeout()
           val ind: Set[EPFDIndication] = suspected.map(Suspect) ++ revived.map(Restore)
           val heartbeats = all.map(to => LocalRequest(PLSend(Packet[HeartbeatMsg](self, to, HeartbeatRequest, instance))))
-          LocalStep.withRequestsAndIndications(ind, heartbeats, ns)
-        case Tick => LocalStep.withState(state.tick)
-        case LocalIndication(PLDeliver(Packet(_, HeartbeatReply, from, _, _))) => LocalStep.withState(state.hearbeat(from))
+          LocalStep.withRequestsAndIndications(ind, heartbeats, state.updateState(ns))
+        case Tick => LocalStep.withState(state.updateState(_.tick))
+        case LocalIndication(PLDeliver(Packet(_, HeartbeatReply, from, _, _))) => LocalStep.withState(state.updateState(_.hearbeat(from)))
         case LocalIndication(PLDeliver(Packet(_, HeartbeatRequest, from, _, _))) => LocalStep.withRequests(Set(LocalRequest(PLSend(Packet(self, from, HeartbeatReply, instance)))), state)
       }
   }
-}
 
-case class EventuallyPerfectFailureDetector(self: ProcessId, all: Set[ProcessId], state: EPFDState, instance: Instance) extends AbstractModule[EPFDMod, EPFDep] {
-  override def copyModule(ns: EPFDState) = copy(state = ns)
-
-  override val processLocal: PLocal = EventuallyPerfectFailureDetector.processLocal(self, all, instance)
+  def apply[T](all: Set[ProcessId], timeout: Int)(self: ProcessId): Module[EPFDMod] = {
+    AbstractModule.mod[EPFDMod,EPFDMod#Dep](EPFDState.init(all - self,timeout),processLocal(self,all - self,null))
+  }
 }

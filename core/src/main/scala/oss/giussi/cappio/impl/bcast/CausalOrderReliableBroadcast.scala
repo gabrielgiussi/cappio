@@ -42,11 +42,10 @@ object CausalOrderReliableBroadcast {
 
   object CRBState {
 
-    def init[P](all: Set[ProcessId], timeout: Int)(self: ProcessId) = CRBState(Past.empty[P], Set.empty, ReliableBroadcast[CRBData[P]](all, timeout)(self))
+    def init[P](all: Set[ProcessId], timeout: Int)(self: ProcessId) = StateWithModule(ReliableBroadcast[CRBData[P]](all, timeout)(self), CRBState(Past.empty[P], Set.empty))
   }
 
-  case class CRBState[P](past: Past[P], delivered: Set[UUID], module: Module[CORBDep[P]]) extends StateWithModule[CORBDep[P], CRBState[P]] {
-    override def updateModule(m: Module[CORBDep[P]]) = copy(module = m)
+  case class CRBState[P](past: Past[P], delivered: Set[UUID]) {
 
     def bcast(self: ProcessId, id: UUID, msg: P) = copy(past = past.appendIfNotExists(self, id, msg))
 
@@ -67,23 +66,23 @@ object CausalOrderReliableBroadcast {
 
   def app[P](all: Set[ProcessId], timeout: Int)(self: ProcessId) = {
     val cb = CausalOrderReliableBroadcast[P](all,timeout)(self)
-    AppState.app2[P,CORBMod[P]](cb,(state,ind) => state.update(ind.msg))
+    AppState.app2[P,CORBMod[P]](cb,(state,ind) => Some(ind.msg))
   }
 
   def processLocal[P](self: ProcessId) = new ProcessLocalHelper1[CORBMod[P],CORBDep[P]] {
     override def onPublicRequest(req: CRBBroadcast[P], state: State): Output = {
       val CRBBroadcast(Payload(id, msg)) = req
-      val payload = Payload(id, CRBData(state.past, msg))
+      val payload = Payload(id, CRBData(state.state.past, msg))
       val bcast = LocalRequest(RBBcast(payload))
-      LocalStep.withRequests(Set(bcast), state.bcast(self, payload.id, msg))
+      LocalStep.withRequests(Set(bcast), state.updateState(_.bcast(self, payload.id, msg)))
     }
 
     override def onIndication(ind: RBDeliver[CRBData[P]], state: State): Output = {
       val RBDeliver(from, Payload(id, CRBData(mpast, msg))) = ind
-      state.deliver(from, mpast, id, msg) match {
+      state.state.deliver(from, mpast, id, msg) match {
         case Some((ns, toDeliver)) =>
           val ind = toDeliver.map { case (sender, _, m) => CRBDeliver(sender, m) }.toSet
-          LocalStep.withIndications(ind, ns)
+          LocalStep.withIndications(ind, state.updateState(ns))
         case None => LocalStep.withState(state)
       }
     }
