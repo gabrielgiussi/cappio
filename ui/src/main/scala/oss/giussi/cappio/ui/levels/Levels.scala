@@ -392,15 +392,17 @@ abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Con
 
   def renderState(processId: ProcessId, initial: ProcessState, $states: Signal[ProcessState]) = div(cls := "col-md-4 mb-4",
     div(cls := "card",
-      borderColor <-- $states.map { case ProcessState(_, _, Up) => "green" case _ => "red" }, // FIXME
       div(
         cls := "card-header",
-        s"Proceso ${processId.id}",
+        span(cls := "badge badge-pill",
+          s"Proceso ${processId.id}",
+          cls <-- $states.map { case ProcessState(_, _, Up) => "badge-success" case _ => "badge-danger" },
+        )
       ),
       div(
         id := s"processState${processId.toString}",
         cls := "card-body px-3 py-1",
-        child <-- $states.map(_.state.toDOM)
+        child <-- $states.map(_.state.toDOM) // FIXME I should pass the Stream to the function toDom for better performance! (now is regenerating all divs each time)
       )))
 
   override def states: Div = div(

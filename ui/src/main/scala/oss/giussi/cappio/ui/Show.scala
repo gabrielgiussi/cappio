@@ -1,5 +1,6 @@
 package oss.giussi.cappio.ui
 
+import oss.giussi.cappio.Packet
 import oss.giussi.cappio.crdt.pure.impl.{AddOp, ClearOp, RemoveOp, SetOp}
 import oss.giussi.cappio.crdt.{VectorTime, Versioned}
 import oss.giussi.cappio.impl.CRDTApp.{Add, CRDTMod, Remove, SetRequest}
@@ -12,7 +13,7 @@ import oss.giussi.cappio.impl.net.PerfectLink
 import oss.giussi.cappio.impl.net.PerfectLink.PLModule
 import oss.giussi.cappio.impl.register.OneNRegularRegister._
 import oss.giussi.cappio.impl.time.HeartbeatMsg
-import shapeless.{:+:, CNil}
+import shapeless.{:+:, CNil, Inl, Inr}
 
 // TODO use cats
 trait Show[A] {
@@ -34,6 +35,10 @@ object Show {
 
   implicit def showOption[P](show: Show[P]) = new Show[Option[P]] {
     override def show(a: Option[P]): String = ""
+  }
+
+  implicit def showPacket[P : Show] = new Show[Packet[P]]{
+    override def show(a: Packet[P]): String = s"[de ${a.from} a ${a.to}] ${a.payload.show}"
   }
 
   // Show requests
@@ -89,7 +94,11 @@ object Show {
   }
 
   implicit def showComposedPayload[P1, P2](implicit show1: Show[P1], show2: Show[P2]) = new Show[P1 :+: P2 :+: CNil] {
-    override def show(a: P1 :+: P2 :+: CNil): String = ???
+    override def show(a: P1 :+: P2 :+: CNil): String = a match {
+      case Inl(left) => left.show
+      case Inr(Inl(right)) => right.show
+      case _ => ""
+    }
   }
 
   implicit def showCORBData[P: Show] = new Show[CRBData[P]] {

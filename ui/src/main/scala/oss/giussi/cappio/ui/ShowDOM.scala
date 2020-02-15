@@ -2,18 +2,19 @@ package oss.giussi.cappio.ui
 
 import com.raquo.laminar.api.L._
 import oss.giussi.cappio.crdt.Versioned
+import oss.giussi.cappio.crdt.pure.impl.AWSetService
 import oss.giussi.cappio.crdt.pure.impl.AWSetService.AWSet
 import oss.giussi.cappio.impl.CRDTApp.CRDTMod
 import oss.giussi.cappio.impl.bcast.CausalOrderReliableBroadcast.{CORBMod, CRBState, CausalApp}
 import oss.giussi.cappio.impl.bcast.ReliableBroadcast.{RBApp, RBcastState}
 import oss.giussi.cappio.impl.bcast.UniformReliableBroadcast.URBState
-import oss.giussi.cappio.impl.bcast.WaitingCausalBroadcast.WCBState
+import oss.giussi.cappio.impl.bcast.WaitingCausalBroadcast.{VersionedFrom, WCBState}
 import oss.giussi.cappio.impl.net.PerfectLink.PLStateInternal
 import oss.giussi.cappio.impl.net.StubbornLink.StubbornLinkState
 import oss.giussi.cappio.impl.time.PerfectFailureDetector.PFDState
 import oss.giussi.cappio.ui.ShowDOMSyntax._
 import oss.giussi.cappio.ui.ShowSyntax._
-import oss.giussi.cappio.{NoState, StateWithModule, Mod => ModT}
+import oss.giussi.cappio.{NoState, Packet, ProcessId, StateWithModule, Mod => ModT}
 
 trait ShowDOM[A] {
 
@@ -22,6 +23,14 @@ trait ShowDOM[A] {
 }
 
 object ShowDOM {
+
+  def emptyCard(header: String) = div(cls := "card my-2", id := header,
+    div(cls := "card-header py-0 px-1",
+      fontSize.small,
+      textAlign.right,
+      header
+    )
+  )
 
   def card(header: String, body: Div) = div(cls := "card my-2", id := header,
     div(cls := "card-header py-0 px-1",
@@ -38,6 +47,12 @@ object ShowDOM {
   implicit def showVersioned[P] = new ShowDOM[Versioned[P]] {
     override def toDOM(a: Versioned[P]): Div = div("versioned")
   }
+
+  def packetList[P : Show](packets: Set[Packet[P]]) = ul(cls := "list-group",
+    packets.toList.sortBy(_.id).take(3).map(packet => li(cls := "list-group-item p-0", packet.show))
+  )
+
+  def processArray(description: String, processes: Set[ProcessId]) = div(s"$description: [${processes.toList.sortBy(_.id).mkString(",")}]")
 
 
   implicit def showComposed[D1, D2](implicit dep1: ShowDOM[D1], dep2: ShowDOM[D2]) = new ShowDOM[(D1, D2)] {
@@ -58,15 +73,22 @@ object ShowDOM {
   }
 
   implicit def showPL[P: Show] = new ShowDOM[PLStateInternal[P]] {
-    override def toDOM(a: PLStateInternal[P]): Div = card("perfect link", div("a"))
+    override def toDOM(a: PLStateInternal[P]): Div = card("perfect link", div(
+      "Entregados",
+      packetList(a.delivered)
+    ))
   }
 
   implicit def showSL[P: Show] = new ShowDOM[StubbornLinkState[P]] {
-    override def toDOM(a: StubbornLinkState[P]): Div = card("stubborn link", div())
+    override def toDOM(a: StubbornLinkState[P]): Div = card("stubborn link", div(
+      div(s"Timer: ${a.timer}/${a.timeout}"),
+      "Enviados",
+      packetList(a.sent)
+    ))
   }
 
   implicit def showDOMUnit = new ShowDOM[NoState] {
-    override def toDOM(a: NoState): Div = card(a.name, div())
+    override def toDOM(a: NoState): Div = emptyCard(a.name)
   }
 
   implicit def showDOMOption[P](implicit show: Show[P]) = new ShowDOM[Option[P]] {
@@ -74,32 +96,74 @@ object ShowDOM {
   }
 
   implicit def showPFDState = new ShowDOM[PFDState] {
-    override def toDOM(a: PFDState): Div = card("failure detector", div(s"Crashed ${a.detected.size}"))
+    override def toDOM(a: PFDState): Div = card("failure detector", processArray("Procesos detectados", a.detected))
   }
 
   implicit def showRBcastState[P: Show] = new ShowDOM[RBcastState[P]] {
     override def toDOM(a: RBcastState[P]): Div = card("reliable bcast", div(
-      div(s"Correct: ${a.correct.size}"),
-      div(s"Delivered ${a.delivered.values.headOption.flatMap(_.headOption.map(_.msg.show))}") // TODO
+      processArray("Procesos correctos", a.correct)
+      //div(s"Entregados ${a.delivered.values.headOption.flatMap(_.headOption.map(_.msg.show))}") TODO
     ))
   }
 
-  // FIXME require Show[P]
-  implicit def showCausalState[P] = new ShowDOM[CRBState[P]] {
-    override def toDOM(a: CRBState[P]): Div = ???
+  implicit def showCausalState[P : Show] = new ShowDOM[CRBState[P]] {
+    override def toDOM(a: CRBState[P]): Div = card("causal reliable broadcast", div(
+      div(
+        "Entregados",
+        ul(cls := "list-group",
+          a.delivered.toList.map(id => li(cls := "list-group-item p-0", id.toString))
+        ),
+      ),
+      div(
+        "Pasado",
+        ul(cls := "list-group",
+          a.past.list.map { case  (pid,id,pay) => li(cls := "list-group-item", s"($pid,$id,${pay.show})")}
+        )
+      )
+    ))
   }
 
-  implicit def showURBState[P] = new ShowDOM[URBState[P]] {
-    override def toDOM(a: URBState[P]): Div = ???
+  implicit def showURBState[P : Show] = new ShowDOM[URBState[P]] {
+    override def toDOM(a: URBState[P]): Div = card("uniform reliable broadcast", div(
+      processArray("Procesos correctos", a.correct),
+      div(
+        "Entregados",
+        ul(cls := "list-group",
+          a.delivered.toList.map(id => li(cls := "list-group-item p-0", id.toString))
+        )
+      ),
+      div(
+        "Pendientes",
+        ul(cls := "list-group",
+          a.pending.toList.map { case (pid,id,pay) => li(cls := "list-group-item p-0", s"($pid,$id,${pay.show})")}
+        )
+      )
+    ))
   }
 
   // FIXME not only for string
+  // TODO show POLog
   implicit def showAWSet = new ShowDOM[AWSet[String]] {
-    override def toDOM(a: AWSet[String]): Div = card("app", div("aw-set"))
+    override def toDOM(a: AWSet[String]): Div = card("app", div(
+      div(
+        s"Valor actual: [${AWSetService.AWSetServiceOps.eval(a).mkString(",")}]"
+      ),
+    ))
   }
 
   implicit def showWCBState[P] = new ShowDOM[WCBState[P]] {
-    override def toDOM(a: WCBState[P]): Div = card("waiting causal bcast", div("waiting"))
+    override def toDOM(a: WCBState[P]): Div = card("waiting causal bcast", div(
+      div("Vector Clock ",
+        a.clock.show
+      ),
+      div(
+        "Pendientes ",
+        ul(cls := "list-group",
+          a.pending.toList.map { case VersionedFrom(processId, Versioned(value, vectorTimestamp, _, _)) => li(cls := "list-group-item", s"${value} - ${vectorTimestamp.show}")}
+        )
+
+      )
+    ))
   }
 
   implicit def showRB[P: Show]: ShowDOM[RBApp[P]#State] = showStateWithModule[RBApp[P]#Dep, RBApp[P]#S](implicitly, showDOMOption[P]) // TODO
