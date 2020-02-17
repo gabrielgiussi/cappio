@@ -29,10 +29,10 @@ object WaitingCausalBroadcast {
   case class VersionedFrom[P](processId: ProcessId, versioned: Versioned[P])
 
   object WCBState {
-    def init[P](all: Set[ProcessId], timeout: Int)(self: ProcessId) = StateWithModule(ReliableBroadcast[Versioned[P]](all, timeout)(self),WCBState(VectorTime.initial(all.map(_.id.toString)),Set.empty[VersionedFrom[P]]))
+    def init[P](all: Set[ProcessId], timeout: Int)(self: ProcessId) = StateWithModule(ReliableBroadcast[Versioned[P]](all, timeout)(self),WCBState(VectorTime.initial(all.map(_.id.toString)),0,Set.empty[VersionedFrom[P]]))
   }
 
-  case class WCBState[P](clock: VectorTime, pending: Set[VersionedFrom[P]]) {
+  case class WCBState[P](clock: VectorTime, lsn: Integer, pending: Set[VersionedFrom[P]]) {
 
     def increment(self: ProcessId) = copy(clock = clock.increment(self.id.toString))
   }
@@ -40,9 +40,10 @@ object WaitingCausalBroadcast {
   def processLocal[P](self: ProcessId) = new ProcessLocalHelper1[WCBMod[P],WCBDep[P]] {
     override def onPublicRequest(req: WCBroadcast[P], state: State): Output = {
       val WCBroadcast(Payload(id, msg)) = req
-      val payload = Payload(id, Versioned(msg, state.state.clock))
+      val W = VectorTime(state.state.clock.value.updated(self.id.toString,state.state.lsn.toLong))
+      val payload = Payload(id, Versioned(msg, W))
       val bcast = LocalRequest(RBBcast(payload))
-      LocalStep.withRequests(Set(bcast), state.updateState(_.increment(self)))
+      LocalStep.withRequests(Set(bcast), state.updateState(s => s.copy(lsn = s.lsn + 1)))
     }
 
     override def onIndication(ind: RBDeliver[Versioned[P]], state: State): Output = {
