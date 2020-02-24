@@ -48,20 +48,20 @@ object Arrows {
   def indication(ind: Indication, gridConf: GridConf) = {
     val p = gridConf.point(ind.index,ind.process)
     val y = p.y - (gridConf.roundHeight / 3) // issue 79
-    arrow(p, Point(p.x + (gridConf.roundWidth / 6), y), Markers.ArrowHeadEmpty)
+    arrow(p, Point(p.x + (gridConf.roundWidth / 6), y), 1, Markers.ArrowHeadEmpty)
   }
 
   // FIXME request at index 0 will not appear. Alternatives: make vertix at half of the round or start timelines at (n,0) instead of (0,0)
   def request(req: Request, gridConf: GridConf) = {
     val p2 = gridConf.point(req.index, req.process)
     val p1 = Point(p2.x - (gridConf.roundWidth / 2), p2.y - (gridConf.roundWidth / 2))
-    arrow(p1, p2)
+    arrow(p1, p2, if (req.predefined) 0.3 else 1)
   }
 
   def crashed(crashed: Crashed, gridConf: GridConf) = cross(gridConf.point(crashed.index, crashed.process), gridConf.crossSize)
 
   // TODO arrowHead
-  def arrow(p1: Point, p2: Point, arrowHead: String = "arrowhead") = {
+  def arrow(p1: Point, p2: Point, opacity: Double, arrowHead: String = "arrowhead") = {
     val Point(x1, y1) = p1
     //val Point(x,y) = p2
     val Point(x2, y2) = p2
@@ -74,6 +74,7 @@ object Arrows {
       svg.y1 := y1.toString,
       svg.y2 := y2.toString,
       svg.stroke := "black",
+      svg.strokeOpacity := opacity.toString,
       svg.strokeWidth := "2",
       svg.markerEnd := s"url(#${arrowHead})"
     )
@@ -110,7 +111,7 @@ object Arrows {
       case Up => p.y - (gridConf.roundHeight / 3)
       case Down => p.y + (gridConf.roundHeight / 3)
     }
-    arrow(p, Point(p.x + (gridConf.roundWidth / 2), y), arrowHead)
+    arrow(p, Point(p.x + (gridConf.roundWidth / 2), y),1, arrowHead)
   }
 
   private def shortArrowNetwork(action: NetworkAction, gridConf: GridConf, arrowHead: String) = {
@@ -153,7 +154,7 @@ object Arrows {
         svg.strokeWidth := "2"
       )
     }
-    if (action.from == action.to) selfDelivered else arrow(p1, p2)
+    if (action.from == action.to) selfDelivered else arrow(p1, p2, 1)
   }
 
 

@@ -25,7 +25,7 @@ case class Crashed(process: ProcessId, index: Index) extends Action {
   override val id = s"crashed-$process-$index"
 }
 
-case class Request(name: String, process: ProcessId, index: Index, payload: String, override val tags: Set[ActionTag]) extends Action {
+case class Request(name: String, process: ProcessId, index: Index, payload: String, predefined: Boolean, override val tags: Set[ActionTag]) extends Action {
   override def id: String = s"request-$process-$index"
 }
 
@@ -56,7 +56,7 @@ object Actions {
   import com.raquo.laminar.api.L._
   import org.scalajs.dom.raw.HTMLDivElement
 
-  def request(name: String, process: ProcessId, index: Index, payload: String, tags: Set[ActionTag] = Set.empty): Request = Request(name, process, index, payload, tags)
+  def request(name: String, process: ProcessId, index: Index, payload: String, predefined: Boolean, tags: Set[ActionTag] = Set.empty): Request = Request(name, process, index, payload, predefined, tags)
 
   def indication(name: String, process: ProcessId, index: Index, payload: String, tags: Set[ActionTag] = Set.empty): Indication = Indication(name, process, index, payload, tags)
 
@@ -80,7 +80,7 @@ object Actions {
     action match {
       case Undelivered(from, to, uuid, p, _, _, _) => showNetworkAction(uuid, from, to, "Pendiente", p)
       case Delivered(from, to, uuid, p, _, _, _) => showNetworkAction(uuid, from, to, "Entregado", p)
-      case Request(name, process, _, payload, _) => showAction(name, process, payload)
+      case Request(name, process, _, payload, _, _) => showAction(name, process, payload)
       case Indication(name, process, _, payload, _) => showAction(name, process, payload)
       case _ => div()
     }

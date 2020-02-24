@@ -229,13 +229,19 @@ case class Reset[M <: ModT]() extends Op[M]
 
 object Snapshot {
 
-  def init[M <: oss.giussi.cappio.Mod](step: Step[M]): Snapshot[M] = Snapshot(Index(0), List.empty, Set.empty[IndicationFrom[M#Ind]], step, None)
+  def init[M <: oss.giussi.cappio.Mod](step: Step[M], predefined: Set[PredefinedAction[M#Req]], describeReq: M#Req => ActionDescription): Snapshot[M] = {
+    val asActions = predefined.map {
+      case PredefinedAction(index,id,request) => toRequest(describeReq)(id,request,index)
+        // case Crashed
+    }
+    Snapshot(Index(0), asActions.toList, Set.empty[IndicationFrom[M#Ind]], step, None)
+  }
 
-  final def toRequest[R](reqPayload: R => ActionDescription)(p: ProcessId, req: ProcessInput[R], i: Index): Action = req match {
-    case ProcessRequest(_, req) =>
+  final def toRequest[R](reqPayload: R => ActionDescription)(p: ProcessId, input: ProcessInput[R], i: Index): Action = input match {
+    case ProcessRequest(_, req,_) =>
       val ActionDescription(name, payload,tags) = reqPayload(req)
-      Actions.request(name.getOrElse(""), p, i, payload,tags) // FIXME getOrElse
-    case Crash(_) => Crashed(p, i)
+      Actions.request(name.getOrElse(""), p, i, payload,input.predefined,tags) // FIXME getOrElse
+    case Crash(_,_) => Crashed(p, i)
   }
 
   final def toIndication[Ind](indicationPayload: Ind => ActionDescription)(i: Index)(ind: IndicationFrom[Ind]) = {
@@ -343,7 +349,9 @@ object AbstractLevel {
    */
 }
 
-abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Conditions[M] = List.empty)(implicit show: Show[M#Payload],
+case class PredefinedAction[R](index: Index, processId: ProcessId, action: ProcessInput[R])
+
+abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Conditions[M] = List.empty, actions: List[PredefinedAction[M#Req]] = List.empty)(implicit show: Show[M#Payload],
                                                                                                          show2: Show[M#Req],
                                                                                                          showDOM: ShowDOM[M#State],
                                                                                                          describe: DescribeModuleAction[M]) extends Level[M] {
@@ -357,6 +365,8 @@ abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Con
 
   val processes = Processes(scheduler.processes.keySet)
 
+  def predefined: Set[PredefinedAction[M#Req]] = Set.empty
+
   case class ProcessState(id: ProcessId, state: State, status: ProcessStatus)
 
   def requestPayload(req: M#Req): (String, String) = ("", "")
@@ -366,14 +376,14 @@ abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Con
 
   val $snapshots: Signal[Snapshot[M]] = {
     val ns = Snapshot.next[M]
-    state.ops.events.fold(Snapshot.init(WaitingRequest(scheduler)))(ns)
+    state.ops.events.fold(Snapshot.init(WaitingRequest(scheduler),predefined, describe.describeReq))(ns)
   }
 
-  val $steps: Signal[Step[M]] = $snapshots.map(_.step)
+  val $steps: Signal[(Step[M],Index)] = $snapshots.map(s => (s.step,s.index))
 
   override val $actions = $snapshots.map(_.last)
 
-  val $states: Signal[List[ProcessState]] = $steps.map(_.scheduler.processes.values.toList.sortBy(_.id.id).map { case Process(id, stack, status) => ProcessState(id, stack.state, status) })
+  val $states: Signal[List[ProcessState]] = $steps.map(_._1.scheduler.processes.values.toList.sortBy(_.id.id).map { case Process(id, stack, status) => ProcessState(id, stack.state, status) })
 
   val reqTypes: List[Inputs[Req]]
 
@@ -381,8 +391,11 @@ abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Con
     div(
       div(
         child <-- $steps.map {
-          case WaitingRequest(sch) => ActionSelection.reqBatchInput(reqTypes, sch.availableProcesses.toList, state.ops.writer.contramap[RequestBatch[M#Req]](r => NextReq(r)))
-          case WaitingDeliver(sch) => ActionSelection.networkInput(sch.availablePackets(false), state.ops.writer.contramap[DelBatch](r => NextDeliver(r)))
+          case (WaitingRequest(sch),index) =>
+            val forThisStep = predefined.filter(_.index == index).map { case PredefinedAction(_,id,action) => (id,action) }.toMap
+            ActionSelection.reqPredefined(forThisStep)(List[Inputs[Req]](ActionSelection.crash), sch.availableProcesses.toList, state.ops.writer.contramap[RequestBatch[M#Req]](r => NextReq(r)))
+          case (WaitingDeliver(sch),_) =>
+            ActionSelection.networkInput(sch.availablePackets(false), state.ops.writer.contramap[DelBatch](r => NextDeliver(r)))
         }
       )
     )

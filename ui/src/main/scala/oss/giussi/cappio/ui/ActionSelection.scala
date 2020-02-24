@@ -8,7 +8,7 @@ import org.scalajs.dom
 import org.scalajs.dom.html
 import oss.giussi.cappio.Network.InTransitPacket
 import oss.giussi.cappio._
-import oss.giussi.cappio.ui.levels.RequestBatch
+import oss.giussi.cappio.ui.levels.{PredefinedAction, RequestBatch}
 import ShowSyntax._
 
 object ActionSelection {
@@ -183,6 +183,69 @@ object ActionSelection {
 
   type Inputs[R] = (List[ProcessId], Observer[AddCommand[R]]) => ReactiveHtmlElement[html.Div] // FIXME refactor this
 
+
+
+  def reqPredefined[Req : Show](predefined: Map[ProcessId, ProcessInput[Req]])(inputs: List[Inputs[Req]], processes: List[ProcessId], $obs: Observer[RequestBatch[Req]]) = {
+    val $commands = new EventBus[BatchCommand[Req]]
+    val initialBatch = RequestBatch[Req](predefined)
+    val $batch: Signal[RequestBatch[Req]] =
+      $commands.events.fold(initialBatch) {
+        case (_, Reset) => initialBatch
+        case (batch, AddReq(id, RequestWrapper(r))) => batch.add(id, r)
+        case (batch, AddReq(id, CrashP)) => batch.crash(id)
+        case (batch, RemoveReq(id)) => batch.remove(id)
+      }
+
+    def renderBatch = {
+      def renderReq(to: ProcessId, initial: (ProcessId, ProcessInput[Req]), $changes: Signal[(ProcessId, ProcessInput[Req])]) = tr(
+        th(
+          //scope := "",
+          to.toString
+        ),
+        td(
+          child <-- $changes.map {
+            case (_, ProcessRequest(_, r, _)) => label(r.show)
+            case (_, Crash(_, _)) => label("Crash")
+          }
+        ),
+        td(
+          button(`type` := "button", cls := "close",
+            disabled := initial._2.predefined,
+            span(className := "fas fa-times red-text"),
+            onClick.mapToValue(RemoveReq(to)) --> $commands
+          )
+        )
+      )
+
+      table(
+        cls := "table",
+        tbody(
+          children <-- $batch.map(_.requests.toList).split(_._1)(renderReq)
+        )
+      )
+    }
+
+    div(
+      form(
+        inputs.map(_.apply(processes, $commands.writer))
+      ),
+      renderBatch,
+      div(cls := "text-center",
+        input(`type` := "submit", cls := "btn btn-primary", value := "Siguiente", // TODO input or button?
+          inContext { thisNode =>
+            val a = $batch.observe(thisNode)
+            onClick.preventDefault.mapTo(a.now()) --> $obs
+          }
+        ),
+        input(`type` := "reset", cls := "btn btn-danger", value := "Limpiar",
+          disabled <-- $batch.map(_.requests.isEmpty),
+          onClick.preventDefault.mapToValue(Reset) --> $commands
+        )
+      )
+    )
+  }
+
+
   def reqBatchInput[Req : Show](inputs: List[Inputs[Req]], processes: List[ProcessId], $obs: Observer[RequestBatch[Req]]) = {
     val $commands = new EventBus[BatchCommand[Req]]
     val $batch: Signal[RequestBatch[Req]] =
@@ -201,8 +264,8 @@ object ActionSelection {
         ),
         td(
           child <-- $changes.map {
-            case (_, ProcessRequest(_, r)) => label(r.show)
-            case (_, Crash(_)) => label("Crash")
+            case (_, ProcessRequest(_, r, _)) => label(r.show)
+            case (_, Crash(_, _)) => label("Crash")
           }
         ),
         td(

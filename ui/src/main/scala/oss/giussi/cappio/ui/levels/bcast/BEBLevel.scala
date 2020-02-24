@@ -7,9 +7,10 @@ import oss.giussi.cappio.impl.bcast.BestEffortBroadcast
 import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.{BebApp, BebBcast}
 import oss.giussi.cappio.ui.ActionSelection
 import oss.giussi.cappio.ui.ActionSelection.{Inputs, payloadRequest}
+import oss.giussi.cappio.ui.core.Index
 import oss.giussi.cappio.ui.levels.Snapshot.Conditions
 import oss.giussi.cappio.ui.levels.bcast.BEBLevel.ModLevel
-import oss.giussi.cappio.ui.levels.{AbstractLevel, Snapshot}
+import oss.giussi.cappio.ui.levels.{AbstractLevel, PredefinedAction, Snapshot}
 
 object BEBLevel {
 
@@ -86,4 +87,6 @@ case class BEBLevel(shortDescription: Div, cond: Conditions[ModLevel])(nProcesse
 
   override def requestPayload(req: BebBcast[String]): (String, String) = ("bcast",req.payload.msg)
 
+
+  override def predefined: Set[PredefinedAction[Req]] = Set(PredefinedAction(Index(1),ProcessId(0),ProcessRequest.predefined(ProcessId(0), BebBcast("A"))))
 }

@@ -32,11 +32,19 @@ object Scheduler {
   }
 }
 
-sealed trait ProcessInput[+R]
+sealed trait ProcessInput[+R] {
+  val predefined: Boolean
+}
 
-case class ProcessRequest[R](id: ProcessId, request: R) extends ProcessInput[R]
+object ProcessRequest {
 
-case class Crash(id: ProcessId) extends ProcessInput[Nothing]
+  def predefined[R](id: ProcessId, request: R) = ProcessRequest(id,request,true)
+
+}
+
+case class ProcessRequest[R](id: ProcessId, request: R, predefined: Boolean = false) extends ProcessInput[R]
+
+case class Crash(id: ProcessId, predefined: Boolean = false) extends ProcessInput[Nothing]
 
 object DeliverBatch {
 
@@ -119,8 +127,8 @@ case class Scheduler[M <: Mod](processes: Map[ProcessId, Process[M]], network: N
   //TODO Avoid send a crash and a request to the same process id
   def request(requests: ProcessInput[M#Req]*) = {
     val (batch, crashes) = requests.foldLeft((Map.empty[ProcessId, M#Req], Set.empty[ProcessId])) {
-      case ((r, c), ProcessRequest(id, a)) => (r updated(id, a), c)
-      case ((r, c), Crash(id)) => (r, c + id)
+      case ((r, c), ProcessRequest(id, a, _)) => (r updated(id, a), c)
+      case ((r, c), Crash(id,_)) => (r, c + id)
     }
 
     val crashed = crashes.foldLeft(Set.empty[Process[M]]) { case (acc, id) => processes.get(id) match {
@@ -140,7 +148,6 @@ case class Scheduler[M <: Mod](processes: Map[ProcessId, Process[M]], network: N
 
     autodelivery(NextStateScheduler(fs, fi, copy(processes = processes ++ (crashed ++ fp).map(p => p.id -> p), network = network.send(fs))))
   }
-
   private def autodelivery(ns: Next): Next = {
     val NextStateScheduler(sent0,ind0,sch0) = ns
 
