@@ -186,6 +186,8 @@ object ActionSelection {
 
 
   def reqPredefined[Req : Show](predefined: Map[ProcessId, ProcessInput[Req]])(inputs: List[Inputs[Req]], processes: List[ProcessId], $obs: Observer[RequestBatch[Req]]) = {
+    val availableProcesses = processes.filterNot(predefined.keySet.contains)
+
     val $commands = new EventBus[BatchCommand[Req]]
     val initialBatch = RequestBatch[Req](predefined)
     val $batch: Signal[RequestBatch[Req]] =
@@ -227,7 +229,7 @@ object ActionSelection {
 
     div(
       form(
-        inputs.map(_.apply(processes, $commands.writer))
+        inputs.map(_.apply(availableProcesses, $commands.writer))
       ),
       renderBatch,
       div(cls := "text-center",
