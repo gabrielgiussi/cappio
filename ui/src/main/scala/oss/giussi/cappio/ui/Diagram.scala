@@ -38,6 +38,7 @@ object Diagram {
     )
   }
 
+  // FIXME we are repainting the arrows each time! (and one I paint an arrow should never change, unless is a predefined and I want to change it when is executed, also could be removed if I go backwards)
   def renderAction(filter: Action => Boolean, $gridConf: Signal[GridConf])(id: String, initial: Action, signal: Signal[Action]) = {
     s.svg(
       child <-- signal.combineWith($gridConf).map { case (action, gridConf) =>

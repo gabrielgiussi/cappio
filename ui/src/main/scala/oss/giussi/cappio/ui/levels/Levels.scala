@@ -21,7 +21,6 @@ object Levels {
     _ => BEBLevel.simple(4, 3),
     _ => BEBLevel.broken(4, 3),
     _ => RBLevel(4, 3),
-    _ => URBLevel(4, 3),
     _ => CausalLevel.good(4, 3),
     _ => CRDTLevel.good(4, 3)
   )
@@ -230,17 +229,18 @@ case class Reset[M <: ModT]() extends Op[M]
 object Snapshot {
 
   def init[M <: oss.giussi.cappio.Mod](step: Step[M], predefined: Set[PredefinedAction[M#Req]], describeReq: M#Req => ActionDescription): Snapshot[M] = {
-    val asActions = predefined.map {
-      case PredefinedAction(index,id,request) => toRequest(describeReq)(id,request,index)
+    val asActions = predefined.collect {
+      case PredefinedAction(index,id,request) => toRequest(describeReq)(id,request,index,true)
         // case Crashed
     }
     Snapshot(Index(0), asActions.toList, Set.empty[IndicationFrom[M#Ind]], step, None)
   }
 
-  final def toRequest[R](reqPayload: R => ActionDescription)(p: ProcessId, input: ProcessInput[R], i: Index): Action = input match {
+  // FIXME estoy agarrando predefined como parametro en lugar de tomarlo de input, porque si lo tomo de input siempre es true!
+  final def toRequest[R](reqPayload: R => ActionDescription)(p: ProcessId, input: ProcessInput[R], i: Index, predefined: Boolean): Action = input match {
     case ProcessRequest(_, req,_) =>
       val ActionDescription(name, payload,tags) = reqPayload(req)
-      Actions.request(name.getOrElse(""), p, i, payload,input.predefined,tags) // FIXME getOrElse
+      Actions.request(name.getOrElse(""), p, i, payload,predefined,tags) // FIXME getOrElse
     case Crash(_,_) => Crashed(p, i)
   }
 
@@ -277,9 +277,15 @@ object Snapshot {
         case (c@Snapshot(current, actions, pastInd, wr@WaitingRequest(Scheduler(_, network, _, _)), _), NextReq(req)) =>
           val RequestResult(sent, ind, wd) = wr.request(req.requests.values.toSeq)
           val sends = sent.flatMap(s => sendToUndelivered(describe.describePayload)(current)(s, wasDelivered(network, s)))
-          val requests = req.requests.map { case (p, r) => toReq(p, r, current) }
+          val requests = req.requests.map { case (p, r) => toReq(p, r, current, false) }
           val indications = ind.map(toInd(current))
-          Snapshot(current, actions ++ indications ++ requests ++ sends, pastInd ++ ind, wd, Some(c))
+          val newActions = (actions ++ requests).groupBy(_.id).values.map { // FIXME quick fix to eliminate duplicates caused by predefined actions
+            case a :: Nil => a
+            case (r: Request) :: (_: Request) :: Nil =>
+              println(r)
+              r.copy(predefined = false)
+          }.toList ++ indications ++ sends
+          Snapshot(current, newActions, pastInd ++ ind, wd, Some(c))
         case (c@Snapshot(current, actions, pastInd, wd@WaitingDeliver(Scheduler(_, network, _, _)), _), NextDeliver(del)) =>
           val result = if (del.ops.isEmpty) wd.tick else wd.deliver(del)
           val sent = result.sent
@@ -363,6 +369,16 @@ abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Con
   type ReqBatch = RequestBatch[Req]
   type DelBatch = DeliverBatch[M#Payload]
 
+  val allConditions = {
+    if (predefined.nonEmpty) {
+      val conditionPredefined = LevelConditions.predefinedActions[M](predefined, r => {
+        Snapshot.toRequest(describe.describeReq)(r.processId, r.action, r.index, true) // TODO ugly as shit!
+      })
+      conditions :+ conditionPredefined
+    }
+    else conditions
+  }
+
   val processes = Processes(scheduler.processes.keySet)
 
   def predefined: Set[PredefinedAction[M#Req]] = Set.empty
@@ -392,7 +408,9 @@ abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Con
       div(
         child <-- $steps.map {
           case (WaitingRequest(sch),index) =>
-            val forThisStep = predefined.filter(_.index == index).map { case PredefinedAction(_,id,action) => (id,action) }.toMap
+            val forThisStep = predefined
+              .filter(a => sch.processes.get(a.processId).map(_.status).contains(Up))
+              .filter(_.index == index).map { case PredefinedAction(_,id,action) => (id,action) }.toMap
             ActionSelection.reqPredefined(forThisStep)(List[Inputs[Req]](ActionSelection.crash), sch.availableProcesses.toList, state.ops.writer.contramap[RequestBatch[M#Req]](r => NextReq(r)))
           case (WaitingDeliver(sch),_) =>
             ActionSelection.networkInput(sch.availablePackets(false), state.ops.writer.contramap[DelBatch](r => NextDeliver(r)))
@@ -424,7 +442,7 @@ abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Con
   )
 
   override val $conditions = {
-    val c = conditions.zipWithIndex.map { case (condition, index) => condition.andThen(ConditionLevel(index, _: ConditionResult)) }
+    val c = allConditions.zipWithIndex.map { case (condition, index) => condition.andThen(ConditionLevel(index, _: ConditionResult)) }
     $snapshots.map(snap => c.map(_.apply(snap)))
   }
 
@@ -436,7 +454,7 @@ abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Con
     shortDescription,
     p("Para pasar este nivel vas a tener que cumplir con los siguientes objetivos"),
     ul(cls := "list-group list-group-flush",
-      conditions.map { case ConditionWithDescription(short, full, _) =>
+      allConditions.map { case ConditionWithDescription(short, full, _) =>
         li(cls := "list-group-item",
           h3(short),
           p(full)
