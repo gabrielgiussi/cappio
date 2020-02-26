@@ -423,7 +423,7 @@ abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Con
               .filter(_.index == index).map { case PredefinedAction(_,id,action) => (id,action) }.toMap
             ActionSelection.reqPredefined(forThisStep)(List[Inputs[Req]](ActionSelection.crash), sch.availableProcesses.toList, state.ops.writer.contramap[RequestBatch[M#Req]](r => NextReq(r)))
           case (WaitingDeliver(sch),_) =>
-            ActionSelection.networkInput(sch.availablePackets(false), state.ops.writer.contramap[DelBatch](r => NextDeliver(r)))
+            NetworkSelection.networkInput(sch.availablePackets(false), state.ops.writer.contramap[DelBatch](r => NextDeliver(r)))
         }
       )
     )
