@@ -43,8 +43,8 @@ sealed abstract class NetworkAction(val _from: ProcessId, val _to: ProcessId, va
 
 }
 
-case class Indication(name: String, process: ProcessId, index: Index, payload: String, override val tags: Set[ActionTag]) extends Action {
-  override def id: String = s"indication-$process-$index"
+case class Indication(name: String, process: ProcessId, index: Index, round: Int, payload: String, override val tags: Set[ActionTag]) extends Action {
+  override def id: String = s"indication-$process-$index-$round"
 
 }
 
@@ -58,7 +58,7 @@ object Actions {
 
   def request(name: String, process: ProcessId, index: Index, payload: String, predefined: Boolean, tags: Set[ActionTag] = Set.empty): Request = Request(name, process, index, payload, predefined, tags)
 
-  def indication(name: String, process: ProcessId, index: Index, payload: String, tags: Set[ActionTag] = Set.empty): Indication = Indication(name, process, index, payload, tags)
+  def indication(name: String, process: ProcessId, index: Index, round: Int, payload: String, tags: Set[ActionTag] = Set.empty): Indication = Indication(name, process, index, round, payload, tags)
 
   def undelivered(from: ProcessId, to: ProcessId, uuid: UUID, payload: String, sent: Index, alreadyDelivered: Boolean, tags: Set[ActionTag] = Set.empty): Undelivered = Undelivered(from, to, uuid, payload, sent, alreadyDelivered, tags)
 
@@ -81,7 +81,7 @@ object Actions {
       case Undelivered(from, to, uuid, p, _, _, _) => showNetworkAction(uuid, from, to, "Pendiente", p)
       case Delivered(from, to, uuid, p, _, _, _) => showNetworkAction(uuid, from, to, "Entregado", p)
       case Request(name, process, _, payload, _, _) => showAction(name, process, payload)
-      case Indication(name, process, _, payload, _) => showAction(name, process, payload)
+      case Indication(name, process, _,_, payload, _) => showAction(name, process, payload)
       case _ => div()
     }
   }

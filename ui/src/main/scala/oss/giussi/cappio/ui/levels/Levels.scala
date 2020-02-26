@@ -233,7 +233,7 @@ object Snapshot {
       case PredefinedAction(index,id,request) => toRequest(describeReq)(id,request,index,true)
         // case Crashed
     }
-    Snapshot(Index(0), asActions.toList, Set.empty[IndicationFrom[M#Ind]], step, None)
+    Snapshot(Index(0),0, asActions.toList, Set.empty[IndicationFrom[M#Ind]], step, None)
   }
 
   // FIXME estoy agarrando predefined como parametro en lugar de tomarlo de input, porque si lo tomo de input siempre es true!
@@ -244,9 +244,9 @@ object Snapshot {
     case Crash(_,_) => Crashed(p, i)
   }
 
-  final def toIndication[Ind](indicationPayload: Ind => ActionDescription)(i: Index)(ind: IndicationFrom[Ind]) = {
+  final def toIndication[Ind](indicationPayload: Ind => ActionDescription)(i: Index, round: Int)(ind: IndicationFrom[Ind]) = {
     val ActionDescription(name,payload,tags) = indicationPayload(ind.i)
-    Actions.indication(name.getOrElse(""), ind.p, i, payload, tags)
+    Actions.indication(name.getOrElse(""), ind.p, i,round, payload, tags)
   }
 
   def sendToUndelivered[P](f: P => ActionDescription)(index: Index)(send: FLLSend[P], alreadyDelivered: Boolean): Option[Undelivered] = send match {
@@ -274,17 +274,17 @@ object Snapshot {
 
     (snapshot: Snapshot[M], op: Op[M]) =>
       (snapshot, op) match {
-        case (c@Snapshot(current, actions, pastInd, wr@WaitingRequest(Scheduler(_, network, _, _)), _), NextReq(req)) =>
+        case (c@Snapshot(current,currentRound, actions, pastInd, wr@WaitingRequest(Scheduler(_, network, _, _)), _), NextReq(req)) =>
           val RequestResult(sent, ind, wd) = wr.request(req.requests.values.toSeq)
           val sends = sent.flatMap(s => sendToUndelivered(describe.describePayload)(current)(s, wasDelivered(network, s)))
           val requests = req.requests.map { case (p, r) => toReq(p, r, current, false) }
-          val indications = ind.map(toInd(current))
+          val indications = ind.map(toInd(current,currentRound))
           val newActions = (actions ++ requests).groupBy(_.id).values.map { // FIXME quick fix to eliminate duplicates caused by predefined actions
             case a :: Nil => a
             case (r: Request) :: (_: Request) :: Nil => r.copy(predefined = false) // if the predetermined and the actual action are present, I kept the actual (predefined = false)
           }.toList ++ indications ++ sends
-          Snapshot(current, newActions, pastInd ++ ind, wd, Some(c))
-        case (c@Snapshot(current, actions, pastInd, wd@WaitingDeliver(Scheduler(_, network, _, _)), _), NextDeliver(del)) =>
+          Snapshot(current,currentRound + 1, newActions, pastInd ++ ind, wd, Some(c))
+        case (c@Snapshot(current, currentRound, actions, pastInd, wd@WaitingDeliver(Scheduler(_, network, _, _)), _), NextDeliver(del)) =>
           val result = if (del.ops.isEmpty) wd.tick else wd.deliver(del)
           val sent = result.sent
           val ind = result.ind
@@ -305,7 +305,7 @@ object Snapshot {
             }.get, current))
             case _ => None
           }
-          val indications = ind.map(toInd(current))
+          val indications = ind.map(toInd(current,currentRound))
           val filtered = {
             val deliversKeys = delivers.map(_.id).toSet
             val dropsKeys = drops.map(_.id).toSet
@@ -316,9 +316,9 @@ object Snapshot {
             }
           }
           val newActions = (filtered ++ indications ++ delivers ++ sends ++ drops).toSet.toList // temporary fix of #129
-          Snapshot(nextIndex, newActions, pastInd ++ ind, wd2, Some(c))
-        case (Snapshot(_, _, _, _, Some(prev)), Prev()) => prev
-        case (Snapshot(_, _, _, _, Some(prev)), Reset()) => next(describe)(prev, Reset()) // FIXME TEMPORAL SOLUTION, store a list of all snapshots instead. or some structure that allows access to root in O (1)
+          Snapshot(nextIndex,currentRound + 1, newActions, pastInd ++ ind, wd2, Some(c))
+        case (Snapshot(_, _, _, _,_, Some(prev)), Prev()) => prev
+        case (Snapshot(_, _, _, _,_, Some(prev)), Reset()) => next(describe)(prev, Reset()) // FIXME TEMPORAL SOLUTION, store a list of all snapshots instead. or some structure that allows access to root in O (1)
         case (s, input) =>
           //org.scalajs.dom.console.log(s"%c Bad input $input for step ${s.step} ", "background: #222; color: #bada55")
           s
@@ -329,7 +329,7 @@ object Snapshot {
 
 }
 
-case class Snapshot[M <: ModT](index: Index, actions: List[Action], indications: Set[IndicationFrom[M#Ind]], step: Step[M], prev: Option[Snapshot[M]]) {
+case class Snapshot[M <: ModT](index: Index, round: Int, actions: List[Action], indications: Set[IndicationFrom[M#Ind]], step: Step[M], prev: Option[Snapshot[M]]) {
   if (actions.size > actions.map(_.id).toSet.size) {
     println("Actions id are not unique") // TODO remove
     actions.groupBy(_.id).filter(_._2.size > 1).foreach {
