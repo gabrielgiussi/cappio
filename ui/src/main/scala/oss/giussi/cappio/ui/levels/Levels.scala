@@ -17,9 +17,9 @@ object Levels {
 
   val RAW_LEVELS: List[LevelId => Selection] = List(
     Documentation(Introduction.source) _,
-    _ => DemoLevel.good(4, 3),
-    _ => BEBLevel.simple(4, 3),
-    _ => BEBLevel.broken(4, 3),
+    _ => DemoLevel.good(2, 3),
+    _ => BEBLevel.ok(2, 3),
+    _ => BEBLevel.ko(2, 3),
     _ => RBLevel(4, 3),
     _ => CausalLevel.good(4, 3),
     _ => CRDTLevel.good(4, 3)
@@ -281,9 +281,7 @@ object Snapshot {
           val indications = ind.map(toInd(current))
           val newActions = (actions ++ requests).groupBy(_.id).values.map { // FIXME quick fix to eliminate duplicates caused by predefined actions
             case a :: Nil => a
-            case (r: Request) :: (_: Request) :: Nil =>
-              println(r)
-              r.copy(predefined = false)
+            case (r: Request) :: (_: Request) :: Nil => r.copy(predefined = false) // if the predetermined and the actual action are present, I kept the actual (predefined = false)
           }.toList ++ indications ++ sends
           Snapshot(current, newActions, pastInd ++ ind, wd, Some(c))
         case (c@Snapshot(current, actions, pastInd, wd@WaitingDeliver(Scheduler(_, network, _, _)), _), NextDeliver(del)) =>
@@ -317,7 +315,8 @@ object Snapshot {
               case _ => true
             }
           }
-          Snapshot(nextIndex, filtered ++ indications ++ delivers ++ sends ++ drops, pastInd ++ ind, wd2, Some(c))
+          val newActions = (filtered ++ indications ++ delivers ++ sends ++ drops).toSet.toList // temporary fix of #129
+          Snapshot(nextIndex, newActions, pastInd ++ ind, wd2, Some(c))
         case (Snapshot(_, _, _, _, Some(prev)), Prev()) => prev
         case (Snapshot(_, _, _, _, Some(prev)), Reset()) => next(describe)(prev, Reset()) // FIXME TEMPORAL SOLUTION, store a list of all snapshots instead. or some structure that allows access to root in O (1)
         case (s, input) =>
@@ -331,6 +330,15 @@ object Snapshot {
 }
 
 case class Snapshot[M <: ModT](index: Index, actions: List[Action], indications: Set[IndicationFrom[M#Ind]], step: Step[M], prev: Option[Snapshot[M]]) {
+  if (actions.size > actions.map(_.id).toSet.size) {
+    println("Actions id are not unique") // TODO remove
+    actions.groupBy(_.id).filter(_._2.size > 1).foreach {
+      case (key,v) =>
+        println(key)
+        v.foreach(println)
+    }
+  }
+
   def last = LastSnapshot(index, actions)
 }
 

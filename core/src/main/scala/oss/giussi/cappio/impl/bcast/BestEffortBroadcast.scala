@@ -45,11 +45,14 @@ object BestEffortBroadcast {
     AbstractModule.mod[BebMod[T],BebMod[T]#Dep](BEBState.init(timeout),BestEffortBroadcast.processLocal[T](self,all))
   }
 
-  type BebApp[P] = AppMod2[P, BebMod[P]]
+  type BebApp[P] = AppMod2[List[P], BebMod[P]]
 
   def app[P](all: Set[ProcessId], timeout: Int)(self: ProcessId): Module[BebApp[P]] = {
     val beb = BestEffortBroadcast[P](all,timeout)(self)
-    AppState.app2[P,BebMod[P]](beb,(state,ind) => Some(ind.payload.msg))
+    AppState.app2[List[P],BebMod[P]](beb,{
+      case (None,ind) => Some(List(ind.payload.msg))
+      case (Some(l),ind) => Some(l :+ (ind.payload.msg))
+    })
   }
 
 }

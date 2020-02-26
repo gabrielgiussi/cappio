@@ -91,7 +91,7 @@ object ShowDOM {
     override def toDOM(a: NoState): Div = emptyCard(a.name)
   }
 
-  implicit def showDOMOption[P](implicit show: Show[P]) = new ShowDOM[Option[P]] {
+  implicit def showDOMOption[P : Show] = new ShowDOM[Option[P]] {
     override def toDOM(a: Option[P]): Div = card("app", div(s"Valor actual: ${a.map(_.show).getOrElse("-")}"))
   }
 

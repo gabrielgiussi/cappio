@@ -37,7 +37,7 @@ object LevelConditions {
 
   def boundedDelay[M <: Mod](delay: Int): ConditionWithDescription[Snapshot[M]] = condition("TODO", "TODO", network(n => if (n.badPackets(delay).isEmpty) Successful else Error("")))
 
-  def predefinedActions[M <: Mod](actions: Set[PredefinedAction[M#Req]], toRequest: PredefinedAction[M#Req] => Action): ConditionWithDescription[Snapshot[M]] = condition("Predefined", "TODO", snapshot => {
+  def predefinedActions[M <: Mod](actions: Set[PredefinedAction[M#Req]], toRequest: PredefinedAction[M#Req] => Action): ConditionWithDescription[Snapshot[M]] = condition("Ejecutar requests predeterminados", "Ejecutar requests predeterminados", snapshot => {
     val shouldBeenTriggered: Set[Action] = actions.filter(_.index.i < snapshot.index.i).map(toRequest)
     val requests: Set[Action] = snapshot.actions.collect {
       case r@Request(_, _, _, _, false, _) => r.copy(predefined = true) // this copy is a (ugly) hack for the == with the shouldBeenTriggered to work
@@ -45,6 +45,9 @@ object LevelConditions {
     val notPresent = (shouldBeenTriggered diff requests)
     if (notPresent.isEmpty) Successful else Error("Algunas de los requests requeridos no pudieron ser ejecutados porque el proceso no se encontraba en ejecucion") // TODO show wich actions
   })
+
+  def processState[E, M <: Mod](expected: E, p: M#State => E)(id: ProcessId): ConditionWithDescription[Snapshot[M]] = condition("", "", state(id)(s =>
+    if (p(s) == expected) Successful else Error(s"El estado de ${id} no es $expected")))
 
 
 }

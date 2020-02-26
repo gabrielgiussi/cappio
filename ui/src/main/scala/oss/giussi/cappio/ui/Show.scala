@@ -33,8 +33,12 @@ object Show {
     override def show(a: Unit): String = ""
   }
 
+  implicit def showDOMList[P] = new Show[List[P]] {
+    override def show(a: List[P]): String = s"[${a.mkString(", ")}]"
+  }
+
   implicit def showOption[P](show: Show[P]) = new Show[Option[P]] {
-    override def show(a: Option[P]): String = ""
+    override def show(a: Option[P]): String = "TODO Show[Option[P]]"
   }
 
   implicit def showPacket[P : Show] = new Show[Packet[P]]{

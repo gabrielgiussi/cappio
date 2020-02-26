@@ -26,7 +26,7 @@ object BEBLevel {
   import oss.giussi.cappio.Conditions._
   import oss.giussi.cappio.ui.core.LevelConditions._
 
-  val simple = BEBLevel(
+  val ok = BEBLevel(
     div(
       p(
         "En este nivel vamos a ver la abstracción de broadcast. Es usada para diseminar información entre un conjunto de procesos y cada implementación difiere en las" +
@@ -41,14 +41,10 @@ object BEBLevel {
         "El objetivo de este nivel es enviar un mensaje a todos los procesos usando broadcast."
       )
     ),
-    List(
-      ALL_UP[ModLevel],
-      boundedDelay(3),
-      condition("Entregar [A] a todos", "El estado de todos los procesos debería contener el mensaje [A]", states[ModLevel](s => if (s.values.forall(_.state.contains("A"))) Successful else Error("Not all processes delivered 'A'")))
-    )
+    List(0,1,2).map(ProcessId).map(processState[List[String],ModLevel](List("A", "B", "C"),_.state.getOrElse(List.empty)))
   ) _
 
-  val broken = {
+  val ko = {
     val sent = (s: Snapshot[ModLevel]) => s.step.scheduler.processes.filter(_._2.status == Up).values.flatMap(_.stack.state.module.state.module.state.module.state.sent).toSet
     val delivered = (s: Snapshot[ModLevel]) => s.step.scheduler.network.alreadyDelivered
     val c = (s: Snapshot[ModLevel]) => {
@@ -88,5 +84,9 @@ case class BEBLevel(shortDescription: Div, cond: Conditions[ModLevel])(nProcesse
   override def requestPayload(req: BebBcast[String]): (String, String) = ("bcast",req.payload.msg)
 
 
-  override def predefined: Set[PredefinedAction[Req]] = Set(PredefinedAction(Index(1),ProcessId(0),ProcessRequest.predefined(ProcessId(0), BebBcast("A"))))
+  override def predefined: Set[PredefinedAction[Req]] = Set(
+    PredefinedAction(Index(1),ProcessId(0),ProcessRequest.predefined(ProcessId(0), BebBcast("A"))),
+    PredefinedAction(Index(3),ProcessId(0),ProcessRequest.predefined(ProcessId(0), BebBcast("B"))),
+    PredefinedAction(Index(5),ProcessId(0),ProcessRequest.predefined(ProcessId(0), BebBcast("C")))
+  )
 }
