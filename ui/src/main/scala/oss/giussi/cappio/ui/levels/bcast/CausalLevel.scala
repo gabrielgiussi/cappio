@@ -29,6 +29,7 @@ object CausalLevel {
     )
     override val shortDescription = div()
 
+    override def title: String = "TODO"
   }
 
   val good = apply(List()) _

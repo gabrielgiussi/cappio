@@ -23,10 +23,10 @@ object BEBLevel {
 
   val beb = payloadRequest("Broadcast")({ case (_,s) => BebBcast(s)}) _
 
-  import oss.giussi.cappio.Conditions._
   import oss.giussi.cappio.ui.core.LevelConditions._
 
   val ok = BEBLevel(
+    "Best effort 1",
     div(
       p(
         "En este nivel vamos a ver la abstracción de broadcast. Es usada para diseminar información entre un conjunto de procesos y cada implementación difiere en las" +
@@ -41,38 +41,28 @@ object BEBLevel {
         "El objetivo de este nivel es enviar un mensaje a todos los procesos usando broadcast."
       )
     ),
-    List(0,1,2).map(ProcessId).map(processState[List[String],ModLevel](List("A", "B", "C"),_.state.getOrElse(List.empty)))
+    List(0,1,2).map(ProcessId).map(processState[List[String],ModLevel](List("A", "B", "C"),_.state.getOrElse(List.empty),implicitly))
   ) _
 
   val ko = {
-    val sent = (s: Snapshot[ModLevel]) => s.step.scheduler.processes.filter(_._2.status == Up).values.flatMap(_.stack.state.module.state.module.state.module.state.sent).toSet
-    val delivered = (s: Snapshot[ModLevel]) => s.step.scheduler.network.alreadyDelivered
-    val c = (s: Snapshot[ModLevel]) => {
-      val se = sent(s)
-      val de = delivered(s)
-      if ((se -- de).isEmpty) Successful else Error("You still have messages to deliver")
-    }
-    val p2 = ProcessId(2)
     BEBLevel(
+      "Best effort 2",
       div(
         "En el nivel anterior vimos cómo podemos usar broadcast para enviar un mensaje a todos los procesos del sistema. Pero ¿podemos estar seguros de que" +
           "el mensaje se va a entregar a todos los procesos en todos los escenarios?. Best Effort Broadcast sólo asegura la entrega a todos los procesos correctos" +
           "en caso de que el procesos que inicio el broadcast no falle." +
           "En este nivel el objetivo es ver un escenario donde Best Effort Broadcast no es suficiente."
       ),
-      List(
-        condition("Process 2 UP", "Process 2 must be UP", process(p2)(p => if (p.status == Up) Successful else Error("Process 2 crashed"))),
-        condition("Process 2 state must be 'A'", "", state[ModLevel](p2)(p => if (p.state.contains("A")) Successful else Error("Process 2 state is not 'A'"))),
-        condition("Other processes state must be 'C'", "", states[ModLevel](p => if (p.filterKeys(_ != p2).values.map(_.state).forall(_.contains("C"))) Successful else Error("There is at least one process with an incorrect state"))),
-        condition("Shouldn't be pending messages to deliver", "", c)
-      )
+      List(1,2).map(ProcessId).map(
+        processState[List[String],ModLevel](List("A", "C"),_.state.getOrElse(List.empty),implicitly)
+      ) :+ noPendingMessages[ModLevel](_.module.state.module.state.module.state.sent)
     ) _
   }
 
 }
 
 // TODO replace this class by an apply method?
-case class BEBLevel(shortDescription: Div, cond: Conditions[ModLevel])(nProcesses: Int, timeout: Int) extends AbstractLevel[ModLevel](BEBLevel.scheduler(nProcesses,timeout), cond) {
+case class BEBLevel(title: String, shortDescription: Div, cond: Conditions[ModLevel])(nProcesses: Int, timeout: Int) extends AbstractLevel[ModLevel](BEBLevel.scheduler(nProcesses,timeout), cond) {
 
   override val reqTypes: List[Inputs[BebBcast[String]]] = List(
     BEBLevel.beb,
@@ -82,7 +72,6 @@ case class BEBLevel(shortDescription: Div, cond: Conditions[ModLevel])(nProcesse
   override val indicationPayload = ind => ind.payload.msg.toString
 
   override def requestPayload(req: BebBcast[String]): (String, String) = ("bcast",req.payload.msg)
-
 
   override def predefined: Set[PredefinedAction[Req]] = Set(
     PredefinedAction(Index(1),ProcessId(0),ProcessRequest.predefined(ProcessId(0), BebBcast("A"))),

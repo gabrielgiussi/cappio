@@ -35,6 +35,8 @@ object CRDTLevel {
     )
     override val shortDescription = div()
 
+    override def title: String = "TODO"
+
   }
 
   val good = CRDTLevel(List()) _

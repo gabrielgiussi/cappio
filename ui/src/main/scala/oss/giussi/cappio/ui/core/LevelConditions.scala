@@ -1,8 +1,10 @@
 package oss.giussi.cappio.ui.core
 
 import oss.giussi.cappio.Conditions._
+import oss.giussi.cappio.ui.Show
+import oss.giussi.cappio.ui.levels.bcast.BEBLevel.ModLevel
 import oss.giussi.cappio.ui.levels.{PredefinedAction, Snapshot}
-import oss.giussi.cappio.{Error, Mod, ProcessId, ProcessRequest, Successful}
+import oss.giussi.cappio.{Error, Mod, Packet, ProcessId, ProcessRequest, Successful, Up}
 
 object LevelConditions {
 
@@ -46,8 +48,23 @@ object LevelConditions {
     if (notPresent.isEmpty) Successful else Error("Algunas de los requests requeridos no pudieron ser ejecutados porque el proceso no se encontraba en ejecucion") // TODO show wich actions
   })
 
-  def processState[E, M <: Mod](expected: E, p: M#State => E)(id: ProcessId): ConditionWithDescription[Snapshot[M]] = condition("", "", state(id)(s =>
-    if (p(s) == expected) Successful else Error(s"El estado de ${id} no es $expected")))
+  def processState[E, M <: Mod](expected: E, p: M#State => E, show: Show[E])(id: ProcessId): ConditionWithDescription[Snapshot[M]] = condition(
+    s"El estado del proceso debe ser ${show.show(expected)} en el proceso ${id.id}",
+    s"El estado del proceso debe ser ${show.show(expected)} en el proceso ${id.id}",
+    state(id)(s => if (p(s) == expected) Successful else Error(s"El estado de ${id} no es $expected")))
+
+  def noPendingMessages[M <: Mod](f: M#State => Set[Packet[M#Payload]]): ConditionWithDescription[Snapshot[M]] = {
+    val sent = (s: Snapshot[M]) => s.step.scheduler.processes.filter(_._2.status == Up).values.flatMap(s => f(s.stack.state)).toSet
+    val delivered = (s: Snapshot[M]) => s.step.scheduler.network.alreadyDelivered
+    val c = (s: Snapshot[M]) => {
+      val se = sent(s)
+      val de = delivered(s)
+      if ((se -- de).isEmpty) Successful else Error("You still have messages to deliver")
+    }
+    condition("No puede haber mensajes pendientes por entregar",
+      "", // TODO explicar el rationale detras de esta condicion, q se podria dropear mensajes y listo.... y se significa que no haya mensajes pendientes por entregar (considerando stubborn)
+      c)
+  }
 
 
 }

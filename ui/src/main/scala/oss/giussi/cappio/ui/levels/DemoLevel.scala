@@ -33,6 +33,8 @@ object DemoLevel {
       ""
     )
 
+    override def title: String = "Demo"
+
   }
 
   val good = DemoLevel(conditions) _

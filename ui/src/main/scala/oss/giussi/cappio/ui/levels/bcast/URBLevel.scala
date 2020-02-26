@@ -30,4 +30,6 @@ case class URBLevel(nProcesses: Int, timeout: Int) extends AbstractLevel[URBMod[
 
   override val shortDescription = div()
 
+  override def title: String = "URB"
+
 }

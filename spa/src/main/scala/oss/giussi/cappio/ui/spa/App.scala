@@ -38,12 +38,12 @@ object App {
 
       val levels = Levels.LEVELS.map { l =>
         val icon = l match {
-          case IndexedLevel(_,Documentation(_)) => "fa-book"
+          case IndexedLevel(_,Documentation(_,_)) => "fa-book"
           case _ => "fa-cogs"
         }
         a(href := s"#${l.x}", className := "list-group-item list-group-item-action waves-effect p-2 mt-1",
           className <-- levelSelection.map { active => if (active.x == l.x) "active" else "" },
-          i(className := s"fas $icon mr-3", " Nivel " + l.x),
+          i(className := s"fas $icon mr-3", s" ${l.s.title} "),
           //disabled <-- Levels.$pendingLevels.map(x => { println(x); x }).map(!_.get(LevelId(l.x - 1)).contains(LevelPassed)) TODO <a> does not support disabled
         )
       }

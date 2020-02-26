@@ -38,4 +38,6 @@ case class RBLevel(nProcesses: Int, timeout: Int) extends AbstractLevel[ModLevel
 
   override val shortDescription = div()
 
+  override def title: String = "RB"
+
 }

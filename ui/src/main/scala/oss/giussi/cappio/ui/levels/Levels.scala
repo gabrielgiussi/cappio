@@ -16,13 +16,13 @@ import oss.giussi.cappio.{Mod => ModT, _}
 object Levels {
 
   val RAW_LEVELS: List[LevelId => Selection] = List(
-    Documentation(Introduction.source) _,
+    Documentation("Introduccion", Introduction.source) _,
     _ => DemoLevel.good(2, 3),
     _ => BEBLevel.ok(2, 3),
     _ => BEBLevel.ko(2, 3),
-    _ => RBLevel(4, 3),
-    _ => CausalLevel.good(4, 3),
-    _ => CRDTLevel.good(4, 3)
+    //_ => RBLevel(4, 3),
+    //_ => CausalLevel.good(4, 3),
+    //_ => CRDTLevel.good(4, 3)
   )
 
   val INDEXED_LEVELS: Map[LevelId, IndexedLevel] = RAW_LEVELS.zipWithIndex.map { case (level, index) =>
@@ -50,12 +50,14 @@ object Levels {
 case class IndexedLevel(x: Int, s: Selection)
 
 sealed trait Selection {
+  def title: String
+
   def render: ReactiveHtmlElement[HTMLElement]
 
   def status: EventStream[LevelPassed.type]
 }
 
-case class Documentation(doc: ReactiveHtmlElement[org.scalajs.dom.html.Div])(id: LevelId) extends Selection {
+case class Documentation(title: String, doc: ReactiveHtmlElement[org.scalajs.dom.html.Div])(id: LevelId) extends Selection {
   override def render = div(cls := "container-fluid mt-5",
     div(cls := "row wow fadeIn",
       div(cls := "col-md mb-4",
