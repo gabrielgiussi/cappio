@@ -28,17 +28,24 @@ object BEBLevel {
   val ok = BEBLevel(
     "Best effort 1",
     div(
+      h1("Usando Best Effort Broadcast"),
       p(
-        "En este nivel vamos a ver la abstracción de broadcast. Es usada para diseminar información entre un conjunto de procesos y cada implementación difiere en las" +
-          "garantías de entrega que proveen. En otras palabras, permite a un proceso mandar, a través de una única operación, un mensaje a todos los procesos del sistema" +
-          "incluyéndose." +
-          "La forma más simple de broadcast es llamada Best Effort Broadcast y utiliza un Perfect Link."
+        "En este nivel vamos a ver la abstracción de broadcast. Es usada para diseminar información entre un conjunto de procesos y cada implementación difiere en las " +
+          "garantías de entrega que proveen. En otras palabras, permite a un proceso mandar, a través de una única operación, un mensaje a todos los procesos del sistema " +
+          "incluyéndose."
+      ),
+      p(
+          "La forma más simple de broadcast es llamada Best Effort Broadcast y utiliza un Perfect Link para enviar el mensaje a cada uno de los procesos."
+      ),
+      p(
+        "A continuacion se muestra una la estructura de capas de esta abstraccion y los mensajes que se intercambian entre capas."
       ),
       img(
         src := "img/cappio/bcast/beb.svg"
       ),
+      h1("Objetivos"),
       p(
-        "El objetivo de este nivel es enviar un mensaje a todos los procesos usando broadcast."
+        "El objetivo de este nivel es asegurar que todos los procesos reciban todos los mensajes enviados por el proceso 0 en el mismo orden"
       )
     ),
     List(0,1,2).map(ProcessId).map(processState[List[String],ModLevel](List("A", "B", "C"),_.state.getOrElse(List.empty),implicitly))
@@ -48,14 +55,21 @@ object BEBLevel {
     BEBLevel(
       "Best effort 2",
       div(
-        "En el nivel anterior vimos cómo podemos usar broadcast para enviar un mensaje a todos los procesos del sistema. Pero ¿podemos estar seguros de que" +
-          "el mensaje se va a entregar a todos los procesos en todos los escenarios?. Best Effort Broadcast sólo asegura la entrega a todos los procesos correctos" +
+        h1("Rompiendo Best Effort Broadcast"),
+        p(
+        "En el nivel anterior vimos cómo podemos usar broadcast para enviar un mensaje a todos los procesos del sistema. Pero ¿podemos estar seguros de que " +
+          "el mensaje se va a entregar a todos los procesos en todos los casos?. Best Effort Broadcast sólo asegura la entrega a todos los procesos correctos " +
           "en caso de que el procesos que inicio el broadcast no falle." +
           "En este nivel el objetivo es ver un escenario donde Best Effort Broadcast no es suficiente."
+        ),
+        h1("Objetivos"),
+        p(
+          "El objetivo de este nivel es hallar un escenario donde uno de los procesos no recibe todos los mensajes, haciendo que los procesos terminen con distintos estados"
+        )
       ),
-      List(1,2).map(ProcessId).map(
-        processState[List[String],ModLevel](List("A", "C"),_.state.getOrElse(List.empty),implicitly)
-      ) :+ noPendingMessages[ModLevel](_.module.state.module.state.module.state.sent)
+      List((1,List("A", "B")),(2,List("A", "B", "C"))).map {
+        case (id,expected) => processState[List[String], ModLevel](expected, _.state.getOrElse(List.empty), implicitly)(ProcessId(id))
+      } :+ noPendingMessages[ModLevel](_.module.state.module.state.module.state.sent)
     ) _
   }
 

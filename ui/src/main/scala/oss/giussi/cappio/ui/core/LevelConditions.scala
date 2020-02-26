@@ -2,9 +2,8 @@ package oss.giussi.cappio.ui.core
 
 import oss.giussi.cappio.Conditions._
 import oss.giussi.cappio.ui.Show
-import oss.giussi.cappio.ui.levels.bcast.BEBLevel.ModLevel
 import oss.giussi.cappio.ui.levels.{PredefinedAction, Snapshot}
-import oss.giussi.cappio.{Error, Mod, Packet, ProcessId, ProcessRequest, Successful, Up}
+import oss.giussi.cappio.{Error, Mod, Packet, ProcessId, Successful, Up}
 
 object LevelConditions {
 
@@ -62,7 +61,7 @@ object LevelConditions {
       if ((se -- de).isEmpty) Successful else Error("You still have messages to deliver")
     }
     condition("No puede haber mensajes pendientes por entregar",
-      "", // TODO explicar el rationale detras de esta condicion, q se podria dropear mensajes y listo.... y se significa que no haya mensajes pendientes por entregar (considerando stubborn)
+      "Esto significa que no puede haber mensajes que no tengan su respectivo deliver, esto incluye mensajes que hayan sido perdidos por la red pero que serán retransmitidos por el Stubborn Link",
       c)
   }
 
