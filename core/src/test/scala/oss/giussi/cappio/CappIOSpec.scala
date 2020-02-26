@@ -67,7 +67,7 @@ trait CappIOSpec extends WordSpec with Matchers {
 
     // TODO def send(packet: Packet[M#Req]) = sch.request(Seq(Request(packet.from,SLSend(packet))))
 
-    def crash(ids: ProcessId*): NextStateScheduler[M] = sch.request(ids.map(Crash) : _*)
+    def crash(ids: ProcessId*): NextStateScheduler[M] = sch.request(ids.map(Crash(_)) : _*)
 
     def drop(packets: PacketId[M#Payload]*) = {
       /*
