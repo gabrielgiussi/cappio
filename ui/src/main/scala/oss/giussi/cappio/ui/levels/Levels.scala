@@ -17,7 +17,10 @@ object Levels {
 
   val RAW_LEVELS: List[LevelId => Selection] = List(
     Documentation("Introduccion", Introduction.source) _,
+    Documentation("CappIO", Introduction.cappio) _,
     _ => DemoLevel.good(2, 3),
+    Documentation("Broadcast", BroadcastIntro.source) _,
+    Documentation("Best effort", BroadcastIntro.beb) _,
     _ => BEBLevel.ok(2, 3),
     _ => BEBLevel.ko(2, 3),
     //_ => RBLevel(4, 3),
@@ -462,6 +465,7 @@ abstract class AbstractLevel[M <: ModT](scheduler: Scheduler[M], conditions: Con
 
   lazy final val description = div(
     shortDescription,
+    h1("Objetivos"),
     p("Para pasar este nivel vas a tener que cumplir con los siguientes objetivos"),
     ul(cls := "list-group list-group-flush",
       allConditions.map { case ConditionWithDescription(short, full, _) =>

@@ -38,7 +38,9 @@ object LevelConditions {
 
   def boundedDelay[M <: Mod](delay: Int): ConditionWithDescription[Snapshot[M]] = condition("TODO", "TODO", network(n => if (n.badPackets(delay).isEmpty) Successful else Error("")))
 
-  def predefinedActions[M <: Mod](actions: Set[PredefinedAction[M#Req]], toRequest: PredefinedAction[M#Req] => Action): ConditionWithDescription[Snapshot[M]] = condition("Ejecutar requests predeterminados", "Ejecutar requests predeterminados", snapshot => {
+  def predefinedActions[M <: Mod](actions: Set[PredefinedAction[M#Req]], toRequest: PredefinedAction[M#Req] => Action): ConditionWithDescription[Snapshot[M]] = condition(
+    "Ejecutar requests predeterminados",
+    "Los requests predeterminados son aquellos que figuran dibujados en el diagrama antes de cualquier interacción. Consideralos como los obstáculos a saltar en un juego de video.", snapshot => {
     val shouldBeenTriggered: Set[Action] = actions.filter(_.index.i < snapshot.index.i).map(toRequest)
     val requests: Set[Action] = snapshot.actions.collect {
       case r@Request(_, _, _, _, false, _) => r.copy(predefined = true) // this copy is a (ugly) hack for the == with the shouldBeenTriggered to work
@@ -50,7 +52,7 @@ object LevelConditions {
   def processState[E, M <: Mod](expected: E, p: M#State => E, show: Show[E])(id: ProcessId): ConditionWithDescription[Snapshot[M]] = condition(
     s"El estado del proceso debe ser ${show.show(expected)} en el proceso ${id.id}",
     s"El estado del proceso debe ser ${show.show(expected)} en el proceso ${id.id}",
-    state(id)(s => if (p(s) == expected) Successful else Error(s"El estado de ${id} no es $expected")))
+    state(id)(s => if (p(s) == expected) Successful else Error(s"El estado de ${id} no es ${show.show(expected)}")))
 
   def noPendingMessages[M <: Mod](f: M#State => Set[Packet[M#Payload]]): ConditionWithDescription[Snapshot[M]] = {
     val sent = (s: Snapshot[M]) => s.step.scheduler.processes.filter(_._2.status == Up).values.flatMap(s => f(s.stack.state)).toSet

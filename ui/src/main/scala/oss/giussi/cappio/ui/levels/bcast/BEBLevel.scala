@@ -30,21 +30,6 @@ object BEBLevel {
     div(
       h1("Usando Best Effort Broadcast"),
       p(
-        "En este nivel vamos a ver la abstracción de broadcast. Es usada para diseminar información entre un conjunto de procesos y cada implementación difiere en las " +
-          "garantías de entrega que proveen. En otras palabras, permite a un proceso mandar, a través de una única operación, un mensaje a todos los procesos del sistema " +
-          "incluyéndose."
-      ),
-      p(
-          "La forma más simple de broadcast es llamada Best Effort Broadcast y utiliza un Perfect Link para enviar el mensaje a cada uno de los procesos."
-      ),
-      p(
-        "A continuacion se muestra una la estructura de capas de esta abstraccion y los mensajes que se intercambian entre capas."
-      ),
-      img(
-        src := "img/cappio/bcast/beb.svg"
-      ),
-      h1("Objetivos"),
-      p(
         "El objetivo de este nivel es asegurar que todos los procesos reciban todos los mensajes enviados por el proceso 0 en el mismo orden"
       )
     ),
@@ -59,7 +44,10 @@ object BEBLevel {
         p(
         "En el nivel anterior vimos cómo podemos usar broadcast para enviar un mensaje a todos los procesos del sistema. Pero ¿podemos estar seguros de que " +
           "el mensaje se va a entregar a todos los procesos en todos los casos?. Best Effort Broadcast sólo asegura la entrega a todos los procesos correctos " +
-          "en caso de que el procesos que inicio el broadcast no falle." +
+          "en caso de que el procesos que inicio el broadcast no falle. Es mas, si lo pensamos detenidamente el Best Effort Broadcast no nos da más garantíoas que " +
+          "las que podríamos obtener usando un Perfect Link, pero para el modelo de capas propuesto por los autores resulta muy útil porque provee una interfaz " +
+          "que puede ser utilizada por capas superiores si se requiere enviar un mensaje a todos los procesos y esto nos permite cambiar la implementacion de " +
+          "broadcast si necesitamos otras garantías." +
           "En este nivel el objetivo es ver un escenario donde Best Effort Broadcast no es suficiente."
         ),
         h1("Objetivos"),
