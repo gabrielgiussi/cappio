@@ -119,8 +119,17 @@ object DemoLevel {
       ),
       h1("Cómo funciona CappIO"),
       p(
-        "TOOD"
-      )
+        "TODO explicar la motivacion de CappIO aca?. Tmb puedo explicar como funciona la logica de los niveles, uno ok y otro ko. Y tambien deberia explicar cual " +
+          "es el objetivo final, ejemplo entender causality."
+      ),
+      p(
+        "Cada nivel empieza desde el paso 0 y nuestra tarea es elegir las acciones que se van a ejecutar en cada proceso en cada paso hasta cumplir con los objetivos " +
+          "propuestos por el nivel que se mostrarán en la lista de objetivos como explicamos anteriormente."
+      ),
+      h4("Qué es un paso?"),
+      p(
+        "El libro plantea"
+      ),
     )
 
     override def title: String = "Demo"

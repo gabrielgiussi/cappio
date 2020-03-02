@@ -32,6 +32,17 @@ object BroadcastIntro {
     img(
       src := "img/cappio/bcast/beb.svg"
     ),
+    h2("Interface"),
+    img(
+      widthAttr := 800,
+      src := "img/cappio/interfaces/beb.png"
+    ),
+    h2("Algoritmo"),
+    img(
+      widthAttr := 800,
+      src := "img/cappio/modules/beb.png"
+    )
+    /*
     h1("Propiedades"),
     p(
       ul(
@@ -46,6 +57,7 @@ object BroadcastIntro {
         )
       )
     ),
+     */
   )
 
 }

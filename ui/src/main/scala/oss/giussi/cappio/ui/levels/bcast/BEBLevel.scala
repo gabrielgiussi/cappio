@@ -80,4 +80,15 @@ case class BEBLevel(title: String, shortDescription: Div, cond: Conditions[ModLe
     PredefinedAction(Index(3),ProcessId(0),ProcessRequest.predefined(ProcessId(0), BebBcast("B"))),
     PredefinedAction(Index(5),ProcessId(0),ProcessRequest.predefined(ProcessId(0), BebBcast("C")))
   )
+
+  override def code: Div = div(
+    h2("Interface"),
+    img(
+      src := "img/cappio/interfaces/beb.png"
+    ),
+    h2("Broadcast básico"),
+    img(
+      src := "img/cappio/modules/beb.png"
+    )
+  )
 }

@@ -17,7 +17,8 @@ object Levels {
 
   val RAW_LEVELS: List[LevelId => Selection] = List(
     Documentation("Introduccion", Introduction.source) _,
-    Documentation("CappIO", Introduction.cappio) _,
+    Documentation("Modelo", Book.source) _,
+    //Documentation("CappIO", Introduction.cappio) _, // TODO
     _ => DemoLevel.good(2, 3),
     Documentation("Broadcast", BroadcastIntro.source) _,
     Documentation("Best effort", BroadcastIntro.beb) _,
@@ -139,6 +140,19 @@ trait Level[M <: oss.giussi.cappio.Mod] extends Selection {
     )
   )
 
+  def code: Div = div()
+
+  // duplicated goalsPanel
+  final def codePanel = div(cls := "row wow",
+    div(cls := "col mb-4",
+      div(cls := "card",
+        div(cls := "card-body",
+          code
+        )
+      ),
+    )
+  )
+
 
   def diagramPanel = div(
     div(cls := "row wow",
@@ -199,11 +213,13 @@ trait Level[M <: oss.giussi.cappio.Mod] extends Selection {
         role := "tablist",
         tablink("Descripcion", "goals-panel", true),
         tablink("Diagrama", "diagram-panel"),
+        //tablink("Modulo", "code-panel")
       ),
       div(cls := "tab-content",
         id := "myTabContent",
         tabcontent("goals-panel", goalsPanel, true),
-        tabcontent("diagram-panel", diagramPanel)
+        tabcontent("diagram-panel", diagramPanel),
+        tabcontent("code-panel", codePanel)
       )
     )
   }
