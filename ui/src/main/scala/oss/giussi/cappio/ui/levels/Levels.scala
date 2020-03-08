@@ -17,8 +17,9 @@ object Levels {
 
   val RAW_LEVELS: List[LevelId => Selection] = List(
     Documentation("Introduccion", Introduction.source) _,
-    Documentation("Modelo", Book.source) _,
-    //Documentation("CappIO", Introduction.cappio) _, // TODO
+    Documentation("Modelo de algoritmos distribuidos", Book.source) _,
+    Documentation("CappIO", CappIO.source) _,
+    Documentation("Abstracciones de links", Book.links) _,
     _ => DemoLevel.good(2, 3),
     Documentation("Broadcast", BroadcastIntro.source) _,
     Documentation("Best effort", BroadcastIntro.beb) _,

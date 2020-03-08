@@ -22,7 +22,7 @@ object BroadcastIntro {
   )
 
   val beb: ReactiveHtmlElement[html.Div] = div(
-    h1("Best effor broadcast"),
+    h1("Best effort broadcast"),
     p(
       "La forma más simple de broadcast es llamada Best Effort Broadcast y utiliza un Perfect Link para enviar el mensaje a cada uno de los procesos."
     ),
@@ -39,7 +39,7 @@ object BroadcastIntro {
     ),
     h2("Algoritmo"),
     img(
-      widthAttr := 800,
+      widthAttr := 600,
       src := "img/cappio/modules/beb.png"
     )
     /*
