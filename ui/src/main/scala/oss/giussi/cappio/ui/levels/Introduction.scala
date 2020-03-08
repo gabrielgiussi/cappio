@@ -163,8 +163,8 @@ object Book {
         "aplicación está en la parte superior de la pila, mientras que la capa de red esta en la parte inferior. Las capas de las abstracciones de programación distribuida que " +
         "consideraremos están típicamente en el medio. Los componentes dentro de la misma pila se comunican a través del intercambio de eventos, como se ilustra en la siguiente imagen"
     ),
-    p(
-      "TODO figura 1.1"
+    img(
+      src := "img/cappio/composition_model.png"
     ),
     h5("Eventos"),
     p(
@@ -179,8 +179,8 @@ object Book {
     p("La manera desacoplada y asíncrona de interactuar entre componentes coincide muy bien con los requisitos de las aplicaciones distribuidas: por ejemplo, nuevos procesos pueden unirse " +
       "o abandonar el sistema distribuido en cualquier momento y un proceso debe estar listo para manejar los cambios de membresía y la recepción de mensajes en en cualquier momento. Por lo " +
       "tanto, el orden en que se observarán los eventos concurrentes no se puede definir a priori; esto es precisamente lo que se captura a través de nuestro modelo de componentes."),
-    p(
-      "TODO figura pagina 10, o agregar estilo para pseudocodigo"
+    img(
+      src := "img/cappio/event_handler.png"
     ),
     h5("Interfaz de programación"),
     p(
@@ -200,12 +200,11 @@ object Book {
           "de la transmisión indica a la capa de aplicación que el mensaje fue efectivamente transmitido. Desde la perspectiva del componente que desencadena el evento, los eventos de indicación " +
           "son salidas")
       ),
-      p(
-        "TODO imagen 1.2 pag 12"
+      img(
+        src := "img/cappio/layering.png"
       ),
       // TODO aca puedo agregar el ejemplo de la pag 12 (a typical execution ...)
       // pag 13 explica modulos, interfaces y propiedades con un ejemplo: Job Handler
-      h3("DEFINIR TITULO"),
       h5("Abstracciones básicas"),
       p(
         "Estamos interesados en abstracciones y algoritmos que sean relevantes para una amplia gama de entornos distribuidos. Para lograr este objetivo, necesitamos capturar las " +

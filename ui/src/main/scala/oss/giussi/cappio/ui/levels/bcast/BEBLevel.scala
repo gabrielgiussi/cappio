@@ -55,7 +55,7 @@ object BEBLevel {
           "El objetivo de este nivel es hallar un escenario donde uno de los procesos no recibe todos los mensajes, haciendo que los procesos terminen con distintos estados"
         )
       ),
-      List((1,List("A", "B")),(2,List("A", "B", "C"))).map {
+      List((1,List("A", "C")),(2,List("A", "B", "C"))).map {
         case (id,expected) => processState[List[String], ModLevel](expected, _.state.getOrElse(List.empty), implicitly)(ProcessId(id))
       } :+ noPendingMessages[ModLevel](_.module.state.module.state.module.state.sent)
     ) _
