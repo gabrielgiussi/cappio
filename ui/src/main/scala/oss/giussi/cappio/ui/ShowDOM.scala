@@ -5,6 +5,7 @@ import oss.giussi.cappio.crdt.Versioned
 import oss.giussi.cappio.crdt.pure.impl.AWSetService
 import oss.giussi.cappio.crdt.pure.impl.AWSetService.AWSet
 import oss.giussi.cappio.impl.CRDTApp.CRDTMod
+import oss.giussi.cappio.impl.PhotosApp.{AlbumBeb, Albums}
 import oss.giussi.cappio.impl.bcast.CausalOrderReliableBroadcast.{CORBMod, CRBState, CausalApp}
 import oss.giussi.cappio.impl.bcast.ReliableBroadcast.{RBApp, RBcastState}
 import oss.giussi.cappio.impl.bcast.UniformReliableBroadcast.URBState
@@ -177,6 +178,18 @@ object ShowDOM {
     val a: ShowDOM[CRDTMod#Dep#State] = showStateWithModule[CRDTMod#Dep#State#Dep, CRDTMod#Dep#State#State](implicitly, implicitly)
     showStateWithModule[CRDTMod#Dep, CRDTMod#S](a, implicitly)
   }
+
+  implicit val showAlbums = new ShowDOM[Albums] {
+    override def toDOM(a: Albums): Div = card("albums",div(
+      if (a.collection.isEmpty) "La galeria esta vacia" else {
+        ul(
+          (a.collection.values.toList.map(album => li(s"${album.name}: [${album.photos.mkString(",")}]")))
+        )
+      }
+    ))
+  }
+
+  implicit val showAlbumsApp: ShowDOM[AlbumBeb#State] = showStateWithModule[AlbumBeb#Dep, AlbumBeb#S](implicitly, implicitly)
 
 }
 

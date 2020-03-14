@@ -4,6 +4,7 @@ import oss.giussi.cappio.Packet
 import oss.giussi.cappio.crdt.pure.impl.{AddOp, ClearOp, RemoveOp, SetOp}
 import oss.giussi.cappio.crdt.{VectorTime, Versioned}
 import oss.giussi.cappio.impl.CRDTApp.{Add, CRDTMod, Remove, SetRequest}
+import oss.giussi.cappio.impl.PhotosApp.AlbumOp
 import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.BebMod
 import oss.giussi.cappio.impl.bcast.CausalOrderReliableBroadcast.{CORBMod, CRBData}
 import oss.giussi.cappio.impl.bcast.ReliableBroadcast.{RBData, RBMod}
@@ -131,6 +132,10 @@ object Show {
       case Add(p) => s"Add $p"
       case Remove(p) => s"Remove $p"
     }
+  }
+
+  implicit val showAlbumOp = new Show[AlbumOp] {
+    override def show(a: AlbumOp): String = a.toString
   }
 
 }

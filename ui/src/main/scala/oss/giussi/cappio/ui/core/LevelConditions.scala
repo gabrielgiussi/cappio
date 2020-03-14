@@ -1,6 +1,8 @@
 package oss.giussi.cappio.ui.core
 
 import oss.giussi.cappio.Conditions._
+import oss.giussi.cappio.impl.{Match, NotFound, NotMatch}
+import oss.giussi.cappio.impl.PhotosApp.{Album, AlbumAppMod, Albums}
 import oss.giussi.cappio.ui.Show
 import oss.giussi.cappio.ui.levels.{PredefinedAction, Snapshot}
 import oss.giussi.cappio.{Error, Mod, Packet, ProcessId, Successful, Up}
@@ -50,9 +52,18 @@ object LevelConditions {
   })
 
   def processState[E, M <: Mod](expected: E, p: M#State => E, show: Show[E])(id: ProcessId): ConditionWithDescription[Snapshot[M]] = condition(
-    s"El estado del proceso debe ser ${show.show(expected)} en el proceso ${id.id}",
-    s"El estado del proceso debe ser ${show.show(expected)} en el proceso ${id.id}",
-    state(id)(s => if (p(s) == expected) Successful else Error(s"El estado de ${id} no es ${show.show(expected)}")))
+    s"El estado del proceso ${id.id} debe ser ${show.show(expected)}",
+    s"El estado del proceso ${id.id} debe ser ${show.show(expected)}",
+    state(id)(s => if (p(s) == expected) Successful else Error(s"El estado del proceso ${id} no es ${show.show(expected)}")))
+
+  def albumState[E, M <: AlbumAppMod[_]](expected: Album)(id: ProcessId): ConditionWithDescription[Snapshot[M]] = condition(
+    s"El proceso ${id.id}  debe tener el album ${expected.name} con las fotos [${expected.photos.mkString(",")}]",
+    s"El proceso ${id.id}  debe tener el album ${expected.name} con las fotos [${expected.photos.mkString(",")}]",
+    state(id)(s => s.state.contains(expected) match {
+      case NotMatch => Error(s"El proceso ${id.id} no tiene las fotos [${expected.photos.mkString(",")}]")
+      case NotFound => Error(s"El proceso ${id.id} no tiene el album ${expected.name}")
+      case Match => Successful
+    }))
 
   def noPendingMessages[M <: Mod](f: M#State => Set[Packet[M#Payload]]): ConditionWithDescription[Snapshot[M]] = {
     val sent = (s: Snapshot[M]) => s.step.scheduler.processes.filter(_._2.status == Up).values.flatMap(s => f(s.stack.state)).toSet
@@ -60,7 +71,7 @@ object LevelConditions {
     val c = (s: Snapshot[M]) => {
       val se = sent(s)
       val de = delivered(s)
-      if ((se -- de).isEmpty) Successful else Error("You still have messages to deliver")
+      if ((se -- de).isEmpty) Successful else Error("Todavía hay mensajes pendientes de ser enviados")
     }
     condition("No puede haber mensajes pendientes por entregar",
       "Esto significa que no puede haber mensajes que no tengan su respectivo deliver, esto incluye mensajes que hayan sido perdidos por la red pero que serán retransmitidos por el Stubborn Link",
