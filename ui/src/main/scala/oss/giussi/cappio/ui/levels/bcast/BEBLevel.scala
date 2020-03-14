@@ -30,7 +30,8 @@ object BEBLevel {
     div(
       h1("Usando Best Effort Broadcast"),
       p(
-        "El objetivo de este nivel es asegurar que todos los procesos reciban todos los mensajes enviados por el proceso 0 en el mismo orden"
+        "El objetivo de este nivel es asegurar que todos los procesos reciban todos los mensajes enviados por el proceso 0 de manera que todos tengan el álbum " +
+          "'Mis fotos' con las fotos 'Vacaciones' y 'Graduación'"
       )
     ),
     List(0,1,2).map(ProcessId).map(albumState[Albums,ModLevel](Album("Mis fotos", Set("Vacaciones", "Graduacion"))))
@@ -48,11 +49,12 @@ object BEBLevel {
           "las que podríamos obtener usando un Perfect Link, pero para el modelo de capas propuesto por los autores resulta muy útil porque provee una interfaz " +
           "que puede ser utilizada por capas superiores si se requiere enviar un mensaje a todos los procesos y esto nos permite cambiar la implementacion de " +
           "broadcast si necesitamos otras garantías." +
-          "En este nivel el objetivo es ver un escenario donde Best Effort Broadcast no es suficiente."
+          "En este nivel el objetivo es hallar un escenario donde Best Effort Broadcast no es suficiente."
         ),
         h1("Objetivos"),
         p(
-          "El objetivo de este nivel es hallar un escenario donde uno de los procesos no recibe todos los mensajes, haciendo que los procesos terminen con distintos estados"
+          "El objetivo de este nivel es hallar un escenario donde uno de los procesos no recibe todos los mensajes, haciendo que los procesos terminen con distintos estados, " +
+            "de manera más específica, el proceso 1 debe perder la foto 'Vacaciones'."
         )
       ),
       List((1,Album("Mis fotos",Set("Graduacion"))),(2,Album("Mis fotos", Set("Vacaciones", "Graduacion")))).map {
