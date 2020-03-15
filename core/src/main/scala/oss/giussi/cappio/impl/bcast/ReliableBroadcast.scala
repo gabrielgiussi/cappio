@@ -3,6 +3,7 @@ package oss.giussi.cappio.impl.bcast
 import oss.giussi.cappio._
 import oss.giussi.cappio.impl.AppState
 import oss.giussi.cappio.impl.AppState.AppMod2
+import oss.giussi.cappio.impl.PhotosApp.{AlbumAppMod, AlbumOp}
 import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.{BebBcast, BebDeliver, BebMod}
 import oss.giussi.cappio.impl.time.{Crashed, PerfectFailureDetector}
 import oss.giussi.cappio.impl.time.PerfectFailureDetector.PFDMod
@@ -86,10 +87,4 @@ object ReliableBroadcast {
     AbstractModule.mod[RBMod[T],RBMod[T]#Dep](RBcastState.init[T](self,all,timeout),ReliableBroadcast.processLocal[T](self))
   }
 
-  type RBApp[P] = AppMod2[P,RBMod[P]]
-
-  def app[P](all: Set[ProcessId], timeout: Int)(self: ProcessId): Module[RBApp[P]] = {
-    val rb = ReliableBroadcast[P](all,timeout)(self)
-    AppState.app2[P,RBMod[P]](rb,(state,ind) => Some(ind.payload.msg))
-  }
 }

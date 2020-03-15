@@ -25,7 +25,8 @@ object Levels {
     Documentation("Best effort", BroadcastIntro.beb) _,
     _ => BEBLevel.ok(2, 3),
     _ => BEBLevel.ko(2, 3),
-    //_ => RBLevel(4, 3),
+    _ => RBLevel.ok(2, 3),
+    //_ => RBLevel.ko(2, 3)
     //_ => CausalLevel.good(4, 3),
     //_ => CRDTLevel.good(4, 3)
   )

@@ -7,7 +7,8 @@ import oss.giussi.cappio.crdt.pure.impl.AWSetService.AWSet
 import oss.giussi.cappio.impl.CRDTApp.CRDTMod
 import oss.giussi.cappio.impl.PhotosApp.{AlbumBeb, Albums}
 import oss.giussi.cappio.impl.bcast.CausalOrderReliableBroadcast.{CORBMod, CRBState, CausalApp}
-import oss.giussi.cappio.impl.bcast.ReliableBroadcast.{RBApp, RBcastState}
+import oss.giussi.cappio.impl.bcast.EagerReliableBroadcast.ERBcastState
+import oss.giussi.cappio.impl.bcast.ReliableBroadcast.RBcastState
 import oss.giussi.cappio.impl.bcast.UniformReliableBroadcast.URBState
 import oss.giussi.cappio.impl.bcast.WaitingCausalBroadcast.{VersionedFrom, WCBState}
 import oss.giussi.cappio.impl.net.PerfectLink.PLStateInternal
@@ -167,7 +168,9 @@ object ShowDOM {
     ))
   }
 
-  implicit def showRB[P: Show]: ShowDOM[RBApp[P]#State] = showStateWithModule[RBApp[P]#Dep, RBApp[P]#S](implicitly, showDOMOption[P]) // TODO
+  implicit val showEReliableBcast = new ShowDOM[ERBcastState] {
+    override def toDOM(a: ERBcastState): Div = div("erb state")
+  }
 
   implicit def showCausal[P: Show]: ShowDOM[CausalApp[P]#State] = {
     val a: ShowDOM[CausalApp[P]#Dep#State] = showStateWithModule[CausalApp[P]#Dep#State#Dep, CausalApp[P]#Dep#State#State](implicitly, implicitly)

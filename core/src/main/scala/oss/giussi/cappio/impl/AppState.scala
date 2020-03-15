@@ -1,8 +1,10 @@
 package oss.giussi.cappio.impl
 
 import oss.giussi.cappio.Messages.{LocalRequest, LocalStep}
-import oss.giussi.cappio.impl.bcast.BestEffortBroadcast
 import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.{BebBcast, BebMod}
+import oss.giussi.cappio.impl.bcast.EagerReliableBroadcast.ERBMod
+import oss.giussi.cappio.impl.bcast.ReliableBroadcast.RBBcast
+import oss.giussi.cappio.impl.bcast.{BestEffortBroadcast, EagerReliableBroadcast}
 import oss.giussi.cappio.{AbstractModule, Messages, Mod, ModS, Module, ProcessId, ProcessLocalHelper1, StateWithModule}
 
 object AppState {
@@ -96,6 +98,21 @@ object PhotosApp {
     })
   }
 
+
+  trait AlbumProcessHelper[Dep <: Mod] extends ProcessLocalHelper1[AlbumAppMod[Dep],Dep] {
+    final override def onPublicRequest(req: AlbumOp, state: State): Output = LocalStep.withRequests(Set(LocalRequest(forwardReq(req))),state)
+
+    final override def onIndication(ind: DInd, state: State): Output = extractPayload(ind) match {
+      case CreateAlbum(name) => LocalStep.withIndications(Set(AlbumCreated(name)),state.updateState(_.addAlbum(name)))
+      case AddPhoto(album,photo) => LocalStep.withIndications(Set(PhotoCreated(album,photo)),state.updateState(_.addPhoto(album,photo)))
+      case RemovePhoto(album,photo) => LocalStep.withIndications(Set(PhotoRemoved(album,photo)),state.updateState(_.removePhoto(album,photo)))
+    }
+
+    def forwardReq(req: AlbumOp): Dep#Req
+
+    def extractPayload(ind: DInd): AlbumOp
+  }
+
   type AlbumBeb = AlbumAppMod[BebMod[AlbumOp]]
   def bestEffort(all: Set[ProcessId], timeout: Int)(self: ProcessId): Module[AlbumBeb] = {
     val beb = BestEffortBroadcast[AlbumOp](all,timeout)(self)
@@ -108,6 +125,16 @@ object PhotosApp {
         case AddPhoto(album,photo) => LocalStep.withIndications(Set(PhotoCreated(album,photo)),state.updateState(_.addPhoto(album,photo)))
         case RemovePhoto(album,photo) => LocalStep.withIndications(Set(PhotoRemoved(album,photo)),state.updateState(_.removePhoto(album,photo)))
       }
+    })
+  }
+
+  type AlbumReliable = AlbumAppMod[ERBMod[AlbumOp]]
+  def reliable(all: Set[ProcessId], timeout: Int)(self: ProcessId): Module[AlbumReliable] = {
+    val rb = EagerReliableBroadcast[AlbumOp](all,timeout)(self)
+    AbstractModule.mod[AlbumReliable,AlbumReliable#Dep](StateWithModule(rb,Albums(Map.empty)),new AlbumProcessHelper[ERBMod[AlbumOp]] {
+      override def forwardReq(req: AlbumOp): RBBcast[AlbumOp] = RBBcast(req)
+
+      override def extractPayload(ind: DInd): AlbumOp = ind.payload.msg
     })
   }
 
