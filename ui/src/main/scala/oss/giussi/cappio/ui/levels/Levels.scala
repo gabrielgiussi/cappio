@@ -27,7 +27,7 @@ object Levels {
     _ => BEBLevel.ko(2, 3),
     _ => RBLevel.ok(2, 3),
     //_ => RBLevel.ko(2, 3)
-    //_ => CausalLevel.good(4, 3),
+    _ => CausalLevel.ok(2, 3),
     //_ => CRDTLevel.good(4, 3)
   )
 

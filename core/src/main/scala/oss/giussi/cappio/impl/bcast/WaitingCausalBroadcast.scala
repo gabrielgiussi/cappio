@@ -3,6 +3,7 @@ package oss.giussi.cappio.impl.bcast
 import oss.giussi.cappio.Messages.{LocalRequest, LocalStep}
 import oss.giussi.cappio.crdt.{VectorTime, Versioned}
 import oss.giussi.cappio.impl.bcast.CausalOrderReliableBroadcast.CRBData
+import oss.giussi.cappio.impl.bcast.EagerReliableBroadcast.ERBMod
 import oss.giussi.cappio.{AbstractModule, ModS, Module, Payload, ProcessId, ProcessLocalHelper1, StateWithModule}
 import oss.giussi.cappio.impl.bcast.ReliableBroadcast.{RBBcast, RBDeliver, RBMod}
 
@@ -10,7 +11,7 @@ import scala.annotation.tailrec
 
 object WaitingCausalBroadcast {
 
-  type WCBDep[P] = RBMod[Versioned[P]]
+  type WCBDep[P] = ERBMod[Versioned[P]]
 
   type WCBMod[P] = ModS[WCBDep[P]] {
     type S = WCBState[P]
@@ -29,7 +30,7 @@ object WaitingCausalBroadcast {
   case class VersionedFrom[P](processId: ProcessId, versioned: Versioned[P])
 
   object WCBState {
-    def init[P](all: Set[ProcessId], timeout: Int)(self: ProcessId) = StateWithModule(ReliableBroadcast[Versioned[P]](all, timeout)(self),WCBState(VectorTime.initial(all.map(_.id.toString)),0,Set.empty[VersionedFrom[P]]))
+    def init[P](all: Set[ProcessId], timeout: Int)(self: ProcessId) = StateWithModule(EagerReliableBroadcast[Versioned[P]](all, timeout)(self),WCBState(VectorTime.initial(all.map(_.id.toString)),0,Set.empty[VersionedFrom[P]]))
   }
 
   case class WCBState[P](clock: VectorTime, lsn: Integer, pending: Set[VersionedFrom[P]]) {

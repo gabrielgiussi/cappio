@@ -20,11 +20,7 @@ object CRDTLevel {
 
   def scheduler(nProcesses: Int, timeout: Int): Scheduler[ModLevel] = {
     val all = (0 to nProcesses).map(ProcessId).toSet
-    val ad: AutoDeliver[CRDTMod#Payload] = packet => packet.payload match {
-      case Inl(_) => true
-      case _ => false
-    }
-    Scheduler.withAutoDeliver[CRDTMod](all,CRDTApp(all,timeout), ad)
+    Scheduler.init(all,CRDTApp(all,timeout))
   }
 
   def apply(cond: Conditions[ModLevel])(nProcesses: Int, timeout: Int): Level[ModLevel] = new AbstractLevel[ModLevel](scheduler(nProcesses,timeout),cond) {

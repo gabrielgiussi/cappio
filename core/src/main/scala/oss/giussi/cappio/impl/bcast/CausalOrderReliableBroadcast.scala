@@ -6,6 +6,7 @@ import oss.giussi.cappio.Messages.{LocalRequest, LocalStep}
 import oss.giussi.cappio._
 import oss.giussi.cappio.impl.AppState
 import oss.giussi.cappio.impl.AppState.AppMod2
+import oss.giussi.cappio.impl.bcast.EagerReliableBroadcast.ERBMod
 import oss.giussi.cappio.impl.bcast.ReliableBroadcast.{RBBcast, RBDeliver, RBMod}
 
 // FIXME implement gargabe collection!
@@ -30,7 +31,7 @@ object CausalOrderReliableBroadcast {
     def appendIfNotExists(sender: ProcessId, id: UUID, msg: P): Past[P] = copy(list :+ (sender, id, msg))
   }
 
-  type CORBDep[P] = RBMod[CRBData[P]]
+  type CORBDep[P] = ERBMod[CRBData[P]]
 
   type CORBMod[P] = ModS[CORBDep[P]] {
     type S = CRBState[P]
@@ -42,7 +43,7 @@ object CausalOrderReliableBroadcast {
 
   object CRBState {
 
-    def init[P](all: Set[ProcessId], timeout: Int)(self: ProcessId) = StateWithModule(ReliableBroadcast[CRBData[P]](all, timeout)(self), CRBState(Past.empty[P], Set.empty))
+    def init[P](all: Set[ProcessId], timeout: Int)(self: ProcessId) = StateWithModule(EagerReliableBroadcast[CRBData[P]](all, timeout)(self), CRBState(Past.empty[P], Set.empty))
   }
 
   case class CRBState[P](past: Past[P], delivered: Set[UUID]) {

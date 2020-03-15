@@ -1,10 +1,12 @@
 package oss.giussi.cappio.impl
 
 import oss.giussi.cappio.Messages.{LocalRequest, LocalStep}
+import oss.giussi.cappio.crdt.Versioned
 import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.{BebBcast, BebMod}
 import oss.giussi.cappio.impl.bcast.EagerReliableBroadcast.ERBMod
 import oss.giussi.cappio.impl.bcast.ReliableBroadcast.RBBcast
-import oss.giussi.cappio.impl.bcast.{BestEffortBroadcast, EagerReliableBroadcast}
+import oss.giussi.cappio.impl.bcast.WaitingCausalBroadcast.WCBMod
+import oss.giussi.cappio.impl.bcast.{BestEffortBroadcast, EagerReliableBroadcast, WaitingCausalBroadcast}
 import oss.giussi.cappio.{AbstractModule, Messages, Mod, ModS, Module, ProcessId, ProcessLocalHelper1, StateWithModule}
 
 object AppState {
@@ -137,5 +139,17 @@ object PhotosApp {
       override def extractPayload(ind: DInd): AlbumOp = ind.payload.msg
     })
   }
+
+  type AlbumCausal = AlbumAppMod[WCBMod[AlbumOp]]
+  def causal(all: Set[ProcessId], timeout: Int)(self: ProcessId): Module[AlbumCausal] = {
+    val wcb = WaitingCausalBroadcast[AlbumOp](all,timeout)(self)
+    AbstractModule.mod[AlbumCausal,AlbumCausal#Dep](StateWithModule(wcb,Albums(Map.empty)),new AlbumProcessHelper[WCBMod[AlbumOp]] {
+      override def forwardReq(req: AlbumOp): WaitingCausalBroadcast.WCBroadcast[AlbumOp] = ???
+
+      override def extractPayload(ind: DInd): AlbumOp = ???
+    })
+  }
+
+
 
 }

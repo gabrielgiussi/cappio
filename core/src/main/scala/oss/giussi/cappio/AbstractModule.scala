@@ -16,8 +16,6 @@ trait ModS[M <: Mod] extends Mod {
   final override type Payload = M#Payload
 }
 
-// THIS MUST DIE!
-// should be a case class instead of a trait? like StateWithModule[S,M](state: S, module: M)
 case class StateWithModule[M <: Mod, S](module: Module[M], state: S) {
   type State = S
   type Dep = M

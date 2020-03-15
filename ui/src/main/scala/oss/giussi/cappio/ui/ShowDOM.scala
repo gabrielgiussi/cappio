@@ -5,12 +5,12 @@ import oss.giussi.cappio.crdt.Versioned
 import oss.giussi.cappio.crdt.pure.impl.AWSetService
 import oss.giussi.cappio.crdt.pure.impl.AWSetService.AWSet
 import oss.giussi.cappio.impl.CRDTApp.CRDTMod
-import oss.giussi.cappio.impl.PhotosApp.{AlbumBeb, Albums}
+import oss.giussi.cappio.impl.PhotosApp.{AlbumBeb, AlbumCausal, Albums}
 import oss.giussi.cappio.impl.bcast.CausalOrderReliableBroadcast.{CORBMod, CRBState, CausalApp}
 import oss.giussi.cappio.impl.bcast.EagerReliableBroadcast.ERBcastState
 import oss.giussi.cappio.impl.bcast.ReliableBroadcast.RBcastState
 import oss.giussi.cappio.impl.bcast.UniformReliableBroadcast.URBState
-import oss.giussi.cappio.impl.bcast.WaitingCausalBroadcast.{VersionedFrom, WCBState}
+import oss.giussi.cappio.impl.bcast.WaitingCausalBroadcast.{VersionedFrom, WCBMod, WCBState}
 import oss.giussi.cappio.impl.net.PerfectLink.PLStateInternal
 import oss.giussi.cappio.impl.net.StubbornLink.StubbornLinkState
 import oss.giussi.cappio.impl.time.PerfectFailureDetector.PFDState
@@ -169,18 +169,20 @@ object ShowDOM {
   }
 
   implicit val showEReliableBcast = new ShowDOM[ERBcastState] {
-    override def toDOM(a: ERBcastState): Div = div("erb state")
+    override def toDOM(a: ERBcastState): Div = card("eager reliable bcast",div("TODO"))
   }
 
-  implicit def showCausal[P: Show]: ShowDOM[CausalApp[P]#State] = {
-    val a: ShowDOM[CausalApp[P]#Dep#State] = showStateWithModule[CausalApp[P]#Dep#State#Dep, CausalApp[P]#Dep#State#State](implicitly, implicitly)
-    showStateWithModule[CausalApp[P]#Dep, CausalApp[P]#S](a, showDOMOption[P])
+  implicit def showCausal[P: Show]: ShowDOM[WCBMod[P]#State] = {
+    val a: ShowDOM[WCBMod[P]#Dep#State] = showStateWithModule[WCBMod[P]#Dep#State#Dep, WCBMod[P]#Dep#State#State](implicitly, implicitly)
+    showStateWithModule[WCBMod[P]#Dep, WCBMod[P]#S](a, implicitly)
   }
 
+  /*
   implicit def showCRDT[P]: ShowDOM[CRDTMod#State] = {
     val a: ShowDOM[CRDTMod#Dep#State] = showStateWithModule[CRDTMod#Dep#State#Dep, CRDTMod#Dep#State#State](implicitly, implicitly)
     showStateWithModule[CRDTMod#Dep, CRDTMod#S](a, implicitly)
   }
+   */
 
   implicit val showAlbums = new ShowDOM[Albums] {
     override def toDOM(a: Albums): Div = card("albums",div(
@@ -191,8 +193,6 @@ object ShowDOM {
       }
     ))
   }
-
-  implicit val showAlbumsApp: ShowDOM[AlbumBeb#State] = showStateWithModule[AlbumBeb#Dep, AlbumBeb#S](implicitly, implicitly)
 
 }
 
