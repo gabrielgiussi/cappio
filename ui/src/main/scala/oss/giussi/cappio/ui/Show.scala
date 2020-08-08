@@ -3,6 +3,7 @@ package oss.giussi.cappio.ui
 import oss.giussi.cappio.Packet
 import oss.giussi.cappio.crdt.pure.impl.{AddOp, ClearOp, RemoveOp, SetOp}
 import oss.giussi.cappio.crdt.{VectorTime, Versioned}
+import oss.giussi.cappio.impl.AlbumCRDTApp.{AlbumCRDTMod, AlbumSetOp, CreateOp, Op}
 import oss.giussi.cappio.impl.CRDTApp.{Add, CRDTMod, Remove, SetRequest}
 import oss.giussi.cappio.impl.PhotosApp.AlbumOp
 import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.BebMod
@@ -136,6 +137,13 @@ object Show {
 
   implicit val showAlbumOp = new Show[AlbumOp] {
     override def show(a: AlbumOp): String = a.toString
+  }
+
+  implicit val showAsdasdasdsd = new Show[AlbumSetOp] {
+    override def show(a: AlbumSetOp): String = a match {
+      case CreateOp(name) => s"Crear $name"
+      case Op(name,o) => s"$name[$o]"
+    }
   }
 
 }

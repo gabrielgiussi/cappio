@@ -2,8 +2,9 @@ package oss.giussi.cappio.ui
 
 import oss.giussi.cappio.crdt.Versioned
 import oss.giussi.cappio.crdt.pure.impl.{AddOp, ClearOp, RemoveOp, SetOp}
+import oss.giussi.cappio.impl.AlbumCRDTApp.AlbumSetOp
 import oss.giussi.cappio.impl.CRDTApp.{Add, Remove, SetRequest}
-import oss.giussi.cappio.impl.PhotosApp.{AlbumOpResult, AlbumOp}
+import oss.giussi.cappio.impl.PhotosApp.{AlbumOp, AlbumOpResult}
 import oss.giussi.cappio.impl.bcast.BestEffortBroadcast
 import oss.giussi.cappio.impl.bcast.BestEffortBroadcast.BebMod
 import oss.giussi.cappio.impl.bcast.CausalOrderReliableBroadcast.{CRBBroadcast, CRBData, CRBDeliver}
@@ -150,11 +151,15 @@ object DescribeAction {
   }
 
   implicit val describeAlbumOp = new DescribeAction[AlbumOp] {
-    override def describe(action: AlbumOp): ActionDescription = ActionDescription(Some("album-op"),"",Set())
+    override def describe(action: AlbumOp): ActionDescription = ActionDescription(Some("album-op"),"",Set()) // TODO
   }
 
   implicit val describeAlbumResult = new DescribeAction[AlbumOpResult] {
-    override def describe(action: AlbumOpResult): ActionDescription = ActionDescription.withName("album-op-res","")
+    override def describe(action: AlbumOpResult): ActionDescription = ActionDescription.withName("album-op-res","") // TODO
+  }
+
+  implicit val asdas = new DescribeAction[AlbumSetOp] {
+    override def describe(action: AlbumSetOp): ActionDescription = ActionDescription.withName("album-set-op-res","") // TODO
   }
 }
 

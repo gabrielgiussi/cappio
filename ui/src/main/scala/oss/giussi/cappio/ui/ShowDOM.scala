@@ -4,6 +4,7 @@ import com.raquo.laminar.api.L._
 import oss.giussi.cappio.crdt.Versioned
 import oss.giussi.cappio.crdt.pure.impl.AWSetService
 import oss.giussi.cappio.crdt.pure.impl.AWSetService.AWSet
+import oss.giussi.cappio.impl.AlbumCRDTApp.{AlbumCRDTMod, AlbumsCRDT}
 import oss.giussi.cappio.impl.CRDTApp.CRDTMod
 import oss.giussi.cappio.impl.PhotosApp.{AlbumBeb, AlbumCausal, Albums}
 import oss.giussi.cappio.impl.bcast.CausalOrderReliableBroadcast.{CORBMod, CRBState, CausalApp}
@@ -172,18 +173,6 @@ object ShowDOM {
     override def toDOM(a: ERBcastState): Div = card("eager reliable bcast",div("TODO"))
   }
 
-  implicit def showCausal[P: Show]: ShowDOM[WCBMod[P]#State] = {
-    val a: ShowDOM[WCBMod[P]#Dep#State] = showStateWithModule[WCBMod[P]#Dep#State#Dep, WCBMod[P]#Dep#State#State](implicitly, implicitly)
-    showStateWithModule[WCBMod[P]#Dep, WCBMod[P]#S](a, implicitly)
-  }
-
-  /*
-  implicit def showCRDT[P]: ShowDOM[CRDTMod#State] = {
-    val a: ShowDOM[CRDTMod#Dep#State] = showStateWithModule[CRDTMod#Dep#State#Dep, CRDTMod#Dep#State#State](implicitly, implicitly)
-    showStateWithModule[CRDTMod#Dep, CRDTMod#S](a, implicitly)
-  }
-   */
-
   implicit val showAlbums = new ShowDOM[Albums] {
     override def toDOM(a: Albums): Div = card("albums",div(
       if (a.collection.isEmpty) "La galeria esta vacia" else {
@@ -193,6 +182,23 @@ object ShowDOM {
       }
     ))
   }
+
+  implicit val showAlbumsCRDT = new ShowDOM[AlbumsCRDT] {
+    override def toDOM(a: AlbumsCRDT): Div = div("TODO")
+  }
+
+  implicit def showCausal[P: Show]: ShowDOM[WCBMod[P]#State] = {
+    val a: ShowDOM[WCBMod[P]#Dep#State] = showStateWithModule[WCBMod[P]#Dep#State#Dep, WCBMod[P]#Dep#State#State](implicitly, implicitly)
+    showStateWithModule[WCBMod[P]#Dep, WCBMod[P]#S](a, implicitly)
+  }
+
+  /*
+  implicit def showCRDT[P]: ShowDOM[AlbumCRDTMod#State] = {
+    val a: ShowDOM[AlbumCRDTMod#Dep#State] = showStateWithModule[AlbumCRDTMod#Dep#State#Dep, AlbumCRDTMod#Dep#State#State](implicitly, implicitly)
+    showStateWithModule[AlbumCRDTMod#Dep, AlbumCRDTMod#S](a, implicitly)
+  }
+
+   */
 
 }
 

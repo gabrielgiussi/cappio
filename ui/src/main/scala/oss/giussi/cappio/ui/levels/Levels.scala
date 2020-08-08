@@ -28,7 +28,7 @@ object Levels {
     _ => RBLevel.ok(2, 3),
     //_ => RBLevel.ko(2, 3)
     _ => CausalLevel.ok(2, 3),
-    //_ => CRDTLevel.good(4, 3)
+    _ => CRDTLevel.ok(2, 3)
   )
 
   val INDEXED_LEVELS: Map[LevelId, IndexedLevel] = RAW_LEVELS.zipWithIndex.map { case (level, index) =>
